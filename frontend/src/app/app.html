@@ -1,0 +1,8 @@
+<app-navbar (openCart)="openCart()" />
+<main class="min-h-screen">
+  <router-outlet />
+</main>
+<app-footer />
+@if (shopEnabled) {
+  <lib-cart (checkoutRequested)="startCheckout($event)" />
+}

@@ -1,0 +1,27 @@
+{
+  "kind": "collectionType",
+  "collectionName": "daily_tarot_draws",
+  "info": {
+    "singularName": "daily-tarot-draw",
+    "pluralName": "daily-tarot-draws",
+    "displayName": "Daily Tarot Draw"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "draw_date": {
+      "type": "date",
+      "required": true,
+      "unique": true
+    },
+    "message": {
+      "type": "text"
+    },
+    "card": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::tarot-card.tarot-card"
+    }
+  }
+}

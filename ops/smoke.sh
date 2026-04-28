@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+set -eu
+
+API_BASE_URL="${API_BASE_URL:-http://localhost:1337/api}"
+FRONTEND_BASE_URL="${FRONTEND_BASE_URL:-http://localhost:4200}"
+
+check() {
+  name="$1"
+  url="$2"
+  expected="${3:-200}"
+
+  status="$(curl -gksS -o /tmp/star-sign-smoke.json -w '%{http_code}' "$url")"
+  if [ "$status" != "$expected" ]; then
+    echo "FAIL $name: expected $expected, got $status"
+    cat /tmp/star-sign-smoke.json
+    exit 1
+  fi
+  echo "OK   $name"
+}
+
+check "api health" "$API_BASE_URL/health/ready"
+check "zodiac signs" "$API_BASE_URL/zodiac-signs?sort=id:asc"
+check "articles" "$API_BASE_URL/articles?sort=publishedAt:desc&pagination[limit]=20&populate=category"
+check "numerology" "$API_BASE_URL/numerology-profiles?filters[number][\$eq]=3&pagination[limit]=1"
+check "daily tarot" "$API_BASE_URL/daily-tarot/today"
+shop_status="$(curl -gksS -o /tmp/star-sign-smoke.json -w '%{http_code}' "$API_BASE_URL/products?populate=*")"
+if [ "$shop_status" != "403" ] && [ "$shop_status" != "404" ]; then
+  echo "FAIL shop disabled: expected 403 or 404, got $shop_status"
+  cat /tmp/star-sign-smoke.json
+  exit 1
+fi
+echo "OK   shop disabled"
+check "frontend health" "$FRONTEND_BASE_URL/healthz"
+check "frontend home" "$FRONTEND_BASE_URL/"
+check "frontend sitemap" "$FRONTEND_BASE_URL/sitemap.xml"

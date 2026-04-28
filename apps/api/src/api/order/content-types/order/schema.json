@@ -1,0 +1,54 @@
+{
+  "kind": "collectionType",
+  "collectionName": "orders",
+  "info": {
+    "singularName": "order",
+    "pluralName": "orders",
+    "displayName": "Order"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "customer_email": {
+      "type": "email"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": ["pending", "paid", "cancelled", "failed"],
+      "default": "pending",
+      "required": true
+    },
+    "payment_provider": {
+      "type": "string",
+      "default": "stripe",
+      "required": true
+    },
+    "currency": {
+      "type": "enumeration",
+      "enum": ["pln", "eur", "usd"],
+      "default": "pln",
+      "required": true
+    },
+    "total_amount": {
+      "type": "decimal",
+      "required": true
+    },
+    "stripe_session_id": {
+      "type": "string",
+      "unique": true
+    },
+    "stripe_payment_intent_id": {
+      "type": "string"
+    },
+    "paid_at": {
+      "type": "datetime"
+    },
+    "items": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::order-item.order-item",
+      "mappedBy": "order"
+    }
+  }
+}

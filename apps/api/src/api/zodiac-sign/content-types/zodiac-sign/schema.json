@@ -1,0 +1,48 @@
+{
+  "kind": "collectionType",
+  "collectionName": "zodiac_signs",
+  "info": {
+    "singularName": "zodiac-sign",
+    "pluralName": "zodiac-signs",
+    "displayName": "Zodiac Sign"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "name",
+      "required": true
+    },
+    "symbol": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": ["images"]
+    },
+    "date_range": {
+      "type": "string"
+    },
+    "element": {
+      "type": "enumeration",
+      "enum": ["Ogień", "Ziemia", "Powietrze", "Woda"]
+    },
+    "planet": {
+      "type": "string"
+    },
+    "description": {
+      "type": "text"
+    },
+    "horoscopes": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::horoscope.horoscope",
+      "mappedBy": "zodiac_sign"
+    }
+  }
+}

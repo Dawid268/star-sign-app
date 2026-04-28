@@ -1,0 +1,32 @@
+{
+  "name": "api",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/api/src",
+  "targets": {
+    "build": {
+      "command": "npm run build",
+      "options": {
+        "cwd": "apps/api"
+      }
+    },
+    "serve": {
+      "command": "npm run dev",
+      "options": {
+        "cwd": "apps/api"
+      }
+    },
+    "strapi": {
+      "command": "npm run strapi",
+      "options": {
+        "cwd": "apps/api"
+      }
+    },
+    "seed-dev": {
+      "command": "npm run seed:dev",
+      "options": {
+        "cwd": "apps/api"
+      }
+    }
+  }
+}

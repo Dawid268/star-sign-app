@@ -1,0 +1,55 @@
+{
+  "kind": "collectionType",
+  "collectionName": "user_readings",
+  "info": {
+    "singularName": "user-reading",
+    "pluralName": "user-readings",
+    "displayName": "User Reading"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "reading_type": {
+      "type": "enumeration",
+      "enum": ["horoscope", "tarot"],
+      "required": true
+    },
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "summary": {
+      "type": "text",
+      "required": true
+    },
+    "content": {
+      "type": "text"
+    },
+    "period": {
+      "type": "enumeration",
+      "enum": ["dzienny", "tygodniowy", "miesieczny", "roczny"]
+    },
+    "sign_slug": {
+      "type": "string"
+    },
+    "reading_date": {
+      "type": "date"
+    },
+    "is_premium": {
+      "type": "boolean",
+      "default": false
+    },
+    "source": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "json"
+    }
+  }
+}

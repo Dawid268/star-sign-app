@@ -2,5 +2,21 @@
   "extends": "./tsconfig.base.json",
   "compileOnSave": false,
   "files": [],
-  "references": []
+  "references": [
+    {
+      "path": "apps/api/tsconfig.json"
+    },
+    {
+      "path": "frontend/tsconfig.json"
+    },
+    {
+      "path": "frontend-e2e/tsconfig.json"
+    },
+    {
+      "path": "libs/frontend/cart/tsconfig.json"
+    },
+    {
+      "path": "libs/shared/types/tsconfig.json"
+    }
+  ]
 }

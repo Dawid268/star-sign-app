@@ -1,0 +1,61 @@
+{
+  "kind": "collectionType",
+  "collectionName": "newsletter_subscriptions",
+  "info": {
+    "singularName": "newsletter-subscription",
+    "pluralName": "newsletter-subscriptions",
+    "displayName": "Newsletter Subscription"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "email": {
+      "type": "email",
+      "required": true,
+      "unique": true
+    },
+    "marketing_consent": {
+      "type": "boolean",
+      "required": true
+    },
+    "source": {
+      "type": "string"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": ["pending", "active", "unsubscribed", "bounced", "complained"],
+      "default": "pending",
+      "required": true
+    },
+    "subscribed_at": {
+      "type": "datetime"
+    },
+    "confirmed_at": {
+      "type": "datetime"
+    },
+    "unsubscribed_at": {
+      "type": "datetime"
+    },
+    "brevo_contact_id": {
+      "type": "string"
+    },
+    "confirmation_token": {
+      "type": "string",
+      "private": true
+    },
+    "unsubscribe_token": {
+      "type": "string",
+      "private": true
+    },
+    "last_event_at": {
+      "type": "datetime"
+    },
+    "last_event_type": {
+      "type": "string"
+    },
+    "bounce_reason": {
+      "type": "text"
+    }
+  }
+}

@@ -1,0 +1,117 @@
+<div class="min-h-screen bg-[#FFFBFB] pt-32 pb-20">
+  <div class="section-container max-w-4xl">
+    
+    <!-- Header -->
+    <div class="text-center mb-16">
+      <p class="text-mystic-rose tracking-[0.3em] uppercase text-sm mb-4 font-medium">Poznaj Przeznaczenie</p>
+      <h1 class="serif-display text-5xl md:text-6xl text-mystic-cocoa mb-6">Kalkulator Numerologiczny</h1>
+      <p class="text-mystic-cocoa/60 font-light max-w-xl mx-auto leading-relaxed">
+        Twoja data urodzenia zawiera kod Twojej duszy. Oblicz swoją Liczbę Drogi Życia i dowiedz się, jaka misja została Ci powierzona.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      
+      <!-- Input Side -->
+      <div class="bg-white p-8 md:p-12 rounded-[2.5rem] border border-mystic-rose/15 shadow-xl shadow-mystic-rose/5 relative overflow-hidden">
+        <div class="mystic-orb -top-10 -right-10 w-32 h-32 bg-mystic-rose/5"></div>
+        
+        <div class="relative z-10">
+          <label for="birth-date" class="block text-mystic-cocoa font-medium mb-4 text-sm tracking-wide uppercase">Twoja Data Urodzenia</label>
+          <input 
+            id="birth-date"
+            type="date" 
+            [(ngModel)]="birthDate"
+            class="w-full px-6 py-4 rounded-2xl border border-mystic-rose/20 focus:outline-none focus:border-mystic-rose bg-[#FDF4F5]/30 text-mystic-cocoa text-lg transition-all mb-8"
+          >
+
+          <button 
+            (click)="calculateLifePath()"
+            [disabled]="!birthDate() || isCalculating()"
+            class="w-full btn-primary !py-5 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed group">
+            
+            @if (isCalculating()) {
+               <div class="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+               <span>Odczytywanie Matrycy...</span>
+            } @else {
+               <ng-icon name="heroSparkles" class="text-xl group-hover:rotate-12 transition-transform" />
+               <span>Oblicz Liczbę Życia</span>
+            }
+          </button>
+        </div>
+      </div>
+
+      <!-- Instruction/Intro Side -->
+      <div class="space-y-8">
+        <div class="flex gap-6">
+          <div class="w-12 h-12 rounded-2xl bg-mystic-rose/10 flex items-center justify-center shrink-0">
+             <span class="text-mystic-rose font-serif italic text-xl">1</span>
+          </div>
+          <div>
+            <h3 class="font-medium text-mystic-cocoa mb-2">Wprowadź pełną datę</h3>
+            <p class="text-sm text-mystic-cocoa/60 font-light">Twoja data urodzenia musi zawierać dzień, miesiąc oraz pełny rok.</p>
+          </div>
+        </div>
+
+        <div class="flex gap-6">
+          <div class="w-12 h-12 rounded-2xl bg-mystic-gold/10 flex items-center justify-center shrink-0">
+             <span class="text-mystic-gold font-serif italic text-xl">2</span>
+          </div>
+          <div>
+            <h3 class="font-medium text-mystic-cocoa mb-2">Redukcja teozoficzna</h3>
+            <p class="text-sm text-mystic-cocoa/60 font-light">System zsumuje wszystkie cyfry, aż do uzyskania liczby ostatecznej.</p>
+          </div>
+        </div>
+
+        <div class="flex gap-6">
+          <div class="w-12 h-12 rounded-2xl bg-mystic-cocoa/5 flex items-center justify-center shrink-0">
+             <span class="text-mystic-cocoa font-serif italic text-xl">3</span>
+          </div>
+          <div>
+            <h3 class="font-medium text-mystic-cocoa mb-2">Odkryj profil</h3>
+            <p class="text-sm text-mystic-cocoa/60 font-light">Każda liczba niesie ze sobą unikalną energię, talenty i wyzwania.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result Section -->
+    @if (result(); as val) {
+      <div class="mt-20 animate-scale-in">
+        <div class="bg-mystic-cocoa rounded-[3rem] p-10 md:p-16 text-center text-white relative overflow-hidden">
+          <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(234,210,172,0.15)_0%,transparent_70%)]"></div>
+          
+          <div class="relative z-10">
+            <span class="text-mystic-gold tracking-[0.4em] uppercase text-xs mb-8 block font-bold">Wynik Analizy</span>
+            
+            <div class="inline-flex items-center justify-center w-32 h-32 md:w-40 md:h-40 rounded-full border-2 border-mystic-gold mb-10 relative">
+               <span class="text-6xl md:text-8xl serif-display text-mystic-gold">{{ val }}</span>
+               <div class="absolute -inset-4 border border-myst_gold/20 rounded-full animate-[spin_10s_linear_infinite]"></div>
+            </div>
+
+            <h2 class="serif-display text-3xl md:text-5xl mb-6 text-white">{{ activeProfile()?.title }}</h2>
+            <p class="text-lg md:text-xl text-white/70 font-light max-w-2xl mx-auto leading-relaxed mb-12">
+              {{ activeProfile()?.description }}
+            </p>
+
+            <div class="flex flex-wrap justify-center gap-6">
+              <button (click)="reset()" class="px-8 py-3 rounded-full border border-white/20 text-white hover:bg-white/10 transition-all text-sm font-medium">
+                Oblicz Ponownie
+              </button>
+              @if (shopEnabled) {
+                <a routerLink="/sklep" class="px-8 py-3 rounded-full bg-mystic-gold text-mystic-cocoa hover:bg-white transition-all text-sm font-bold shadow-lg shadow-mystic-gold/20">
+                  Odbierz Pełny Portret ✦
+                </a>
+              } @else {
+                <a routerLink="/panel" class="px-8 py-3 rounded-full bg-mystic-gold text-mystic-cocoa hover:bg-white transition-all text-sm font-bold shadow-lg shadow-mystic-gold/20">
+                  Zapisz Interpretację ✦
+                </a>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+  </div>
+</div>

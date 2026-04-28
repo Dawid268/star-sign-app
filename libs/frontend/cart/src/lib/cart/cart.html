@@ -1,0 +1,81 @@
+<!-- Backdrop -->
+@if (isOpen()) {
+  <button
+    type="button"
+    class="fixed inset-0 bg-mystic-cocoa/40 backdrop-blur-sm z-[100] animate-fade-in"
+    (click)="toggle()"
+    aria-label="Zamknij koszyk"></button>
+}
+
+<!-- Drawer -->
+<div class="fixed top-0 right-0 h-full w-full max-w-md bg-[#FFFBFB] shadow-2xl z-[101] transform transition-transform duration-500 ease-out flex flex-col"
+     [class.translate-x-0]="isOpen()"
+     [class.translate-x-full]="!isOpen()">
+  
+  <!-- Header -->
+  <div class="p-6 border-b border-mystic-rose/10 flex items-center justify-between bg-white">
+    <div class="flex items-center gap-3">
+      <h2 class="serif-display text-2xl text-mystic-cocoa">Twój Koszyk</h2>
+      <span class="bg-mystic-rose/10 text-mystic-rose px-3 py-1 rounded-full text-xs font-bold">{{ count() }}</span>
+    </div>
+    <button (click)="toggle()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-mystic-rose/5 transition-colors text-mystic-cocoa/40 hover:text-mystic-rose">
+      <ng-icon name="heroXMark" class="text-2xl" />
+    </button>
+  </div>
+
+  <!-- Content -->
+  <div class="flex-grow overflow-y-auto p-6 space-y-6">
+    @for (item of items(); track item.product.documentId) {
+      <div class="flex gap-4 group animate-slide-up">
+        <!-- Image Mock -->
+        <div class="w-20 h-20 bg-[#FDF4F5] rounded-2xl flex items-center justify-center border border-mystic-rose/5 shrink-0">
+          <span class="text-3xl">✨</span>
+        </div>
+        
+        <div class="flex-grow min-w-0">
+          <div class="flex justify-between items-start mb-1">
+            <h3 class="font-medium text-mystic-cocoa text-sm truncate pr-4">{{ item.product.name }}</h3>
+            <button (click)="remove(item.product.documentId)" class="text-mystic-cocoa/30 hover:text-red-400 transition-colors">
+              <ng-icon name="heroTrash" />
+            </button>
+          </div>
+          <p class="text-mystic-rose font-bold text-sm mb-3">{{ item.product.price }} zł</p>
+          
+          <div class="flex items-center justify-between">
+            <div class="flex items-center bg-white border border-mystic-rose/10 rounded-full px-2 py-1 scale-90 -ml-2">
+              <button (click)="decrement(item.product.documentId, item.quantity)" class="w-6 h-6 flex items-center justify-center text-mystic-cocoa hover:text-mystic-rose">-</button>
+              <span class="w-8 text-center text-xs font-medium">{{ item.quantity }}</span>
+              <button (click)="increment(item.product.documentId, item.quantity)" class="w-6 h-6 flex items-center justify-center text-mystic-cocoa hover:text-mystic-rose">+</button>
+            </div>
+            <p class="text-xs text-mystic-cocoa/40 font-medium">{{ item.product.price * item.quantity }} zł</p>
+          </div>
+        </div>
+      </div>
+    } @empty {
+      <div class="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-40 py-20">
+        <ng-icon name="heroShoppingBag" class="text-6xl text-mystic-gold" />
+        <p class="serif-display text-xl">Koszyk jest pusty</p>
+        <button (click)="toggle()" class="text-mystic-rose font-medium text-sm hover:underline">Zacznij zakupy</button>
+      </div>
+    }
+  </div>
+
+  <!-- Footer -->
+  @if (items().length > 0) {
+    <div class="p-6 bg-white border-t border-mystic-rose/10 space-y-4">
+      <div class="flex justify-between items-end">
+        <span class="text-mystic-cocoa/60 text-sm">Suma całkowita</span>
+        <span class="serif-display text-3xl text-mystic-cocoa">{{ total() }} zł</span>
+      </div>
+      
+      <button class="btn-primary w-full py-4 flex items-center justify-center gap-3 group" (click)="checkout()">
+        Przejdź do płatności
+        <span class="group-hover:translate-x-1 transition-transform">→</span>
+      </button>
+      
+      <p class="text-[10px] text-center text-mystic-cocoa/40 uppercase tracking-widest">
+        Bezpieczna płatność i darmowa dostawa od 200 zł
+      </p>
+    </div>
+  }
+</div>

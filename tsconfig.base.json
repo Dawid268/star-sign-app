@@ -1,21 +1,27 @@
 {
   "compilerOptions": {
-    "composite": true,
+    "declaration": true,
     "declarationMap": true,
-    "emitDeclarationOnly": true,
     "importHelpers": true,
     "isolatedModules": true,
-    "lib": ["es2022"],
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
+    "lib": ["es2022", "dom"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "noEmitOnError": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "customConditions": ["@org/source"]
+    "customConditions": ["@org/source"],
+    "baseUrl": ".",
+    "paths": {
+      "@star-sign-monorepo/shared-types": ["libs/shared/types/src/index.ts"],
+      "@star-sign-monorepo/core/*": ["frontend/src/app/core/*"],
+      "@star-sign-monorepo/environments/*": ["frontend/src/environments/*"],
+      "@org/cart": ["./libs/frontend/cart/src/index.ts"]
+    }
   }
 }

@@ -1,0 +1,45 @@
+{
+  "kind": "collectionType",
+  "collectionName": "aico_topic_queue_items",
+  "info": {
+    "singularName": "topic-queue-item",
+    "pluralName": "topic-queue-items",
+    "displayName": "AICO Topic Queue Item"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "content-manager": { "visible": true },
+    "content-type-builder": { "visible": true }
+  },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "brief": { "type": "text" },
+    "image_asset_key": { "type": "string" },
+    "status": {
+      "type": "enumeration",
+      "enum": ["pending", "processing", "done", "failed"],
+      "default": "pending"
+    },
+    "scheduled_for": { "type": "datetime" },
+    "processed_at": { "type": "datetime" },
+    "error_message": { "type": "text" },
+    "metadata": { "type": "json" },
+    "workflow": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::ai-content-orchestrator.workflow"
+    },
+    "article_category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category"
+    },
+    "generated_article": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::article.article"
+    }
+  }
+}

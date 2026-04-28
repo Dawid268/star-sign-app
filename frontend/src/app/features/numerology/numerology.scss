@@ -1,0 +1,84 @@
+.numerology-container {
+  min-height: 100vh;
+  background: radial-gradient(circle at 50% 50%, #2c1e1e 0%, #1a1212 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.mystic-orb {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(194, 145, 161, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  animation: float-orb 20s infinite alternate ease-in-out;
+}
+
+@keyframes float-orb {
+  from { transform: translate(-10%, -10%); }
+  to { transform: translate(10%, 10%); }
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(194, 145, 161, 0.2);
+  border-radius: 2rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.input-mystic {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(194, 145, 161, 0.3);
+  color: white;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #c291a1;
+    box-shadow: 0 0 20px rgba(194, 145, 161, 0.2);
+    outline: none;
+  }
+}
+
+.result-reveal {
+  animation: reveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.number-circle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -15px;
+    border: 1px solid rgba(194, 145, 161, 0.3);
+    border-radius: 50%;
+    animation: rotate-slow 15s linear infinite;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -30px;
+    border: 1px dashed rgba(194, 145, 161, 0.1);
+    border-radius: 50%;
+    animation: rotate-slow 25s linear infinite reverse;
+  }
+}
+
+@keyframes rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

@@ -1,0 +1,130 @@
+@let currentArticle = article();
+
+<div class="min-h-screen bg-[#FFFBFB] selection:bg-mystic-rose selection:text-white">
+  @if (currentArticle) {
+    <!-- Article Hero -->
+    <section class="relative pt-32 pb-20 overflow-hidden bg-[#FDF4F5]">
+      <div class="absolute inset-0 bg-gradient-to-b from-transparent to-[#FFFBFB] opacity-50 z-0"></div>
+      
+      <div class="mystic-orb top-20 right-[10%] w-64 h-64 bg-mystic-rose/10 animate-float"></div>
+      <div class="mystic-orb bottom-10 left-[5%] w-48 h-48 bg-mystic-gold/10 animate-float" style="animation-delay: 2s;"></div>
+
+      <div class="section-container relative z-10">
+        <a routerLink="/artykuly" class="inline-flex items-center gap-2 text-mystic-rose hover:text-mystic-cocoa transition-colors mb-10 font-medium text-sm tracking-wide group">
+          <ng-icon name="heroChevronLeft" class="group-hover:-translate-x-1 transition-transform" />
+          Powrót do artykułów
+        </a>
+
+        <div class="max-w-4xl">
+          @if (currentArticle.category) {
+            <span class="bg-white/90 backdrop-blur-sm px-4 py-1.5 rounded-full text-xs font-bold text-mystic-rose tracking-widest uppercase shadow-sm mb-6 inline-block">
+              {{ currentArticle.category.name }}
+            </span>
+          }
+
+          <h1 class="serif-display text-4xl sm:text-5xl md:text-6xl text-mystic-cocoa mb-8 leading-tight animate-fade-in">
+            {{ currentArticle.title }}
+          </h1>
+
+          <div class="flex flex-wrap items-center gap-8 text-mystic-cocoa/60 text-sm font-light border-b border-mystic-rose/10 pb-8">
+            <div class="flex items-center gap-2">
+              <ng-icon name="heroUser" class="text-mystic-rose" />
+              <span>Redakcja Star Sign</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <ng-icon name="heroClock" class="text-mystic-rose" />
+              <span>{{ currentArticle.read_time_minutes || 5 }} min czytania</span>
+            </div>
+            <div class="flex items-center gap-2">
+               <span class="text-mystic-rose opacity-50">✦</span>
+               <span>Opublikowano: {{ currentArticle.publishedAt | date:'longDate' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Article Content -->
+    <section class="section-container py-16">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-16">
+        
+        <!-- Main Content -->
+        <div class="lg:col-span-8">
+          <div class="prose prose-mystic max-w-none">
+            <!-- Wstęp / Excerpt -->
+            @if (currentArticle.excerpt) {
+              <p class="text-xl text-mystic-cocoa font-light italic leading-relaxed mb-12 border-l-4 border-mystic-gold pl-6">
+                {{ currentArticle.excerpt }}
+              </p>
+            }
+
+            <!-- Treść właściwa -->
+            <div class="text-mystic-cocoa/80 text-lg leading-relaxed space-y-8 font-light">
+               {{ currentArticle.content || 'Tutaj znajdzie się pełna treść artykułu pobrana z CMS...' }}
+            </div>
+          </div>
+
+          <!-- Social Share -->
+          <div class="mt-16 pt-8 border-t border-mystic-rose/10 flex items-center justify-between">
+            <span class="text-mystic-cocoa/40 text-sm uppercase tracking-widest font-medium">Podziel się wiedzą</span>
+            <div class="flex gap-4">
+              <button class="icon-circle w-10 h-10 bg-white border border-mystic-rose/10 text-mystic-cocoa hover:text-mystic-rose hover:border-mystic-rose transition-all">
+                <ng-icon name="heroShare" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="lg:col-span-4 space-y-12">
+          @if (shopEnabled) {
+            <!-- Banner Reklamowy -->
+            <div class="glass-panel p-8 rounded-2xl border border-mystic-rose/15 bg-mystic-cocoa text-white relative overflow-hidden group cursor-pointer">
+              <div class="relative z-10">
+                <span class="text-mystic-gold text-[10px] uppercase tracking-widest font-bold mb-4 block">Polecamy</span>
+                <h3 class="serif-display text-2xl mb-4">Osobisty Portret Numerologiczny</h3>
+                <p class="text-white/70 text-sm font-light mb-6">Odkryj przeznaczenie zapisane w Twojej dacie urodzenia.</p>
+                <a routerLink="/sklep" class="inline-block border-b border-mystic-gold text-mystic-gold pb-1 font-medium text-sm hover:text-white hover:border-white transition-colors">
+                  Sprawdź w sklepie →
+                </a>
+              </div>
+              <div class="absolute -right-4 -bottom-4 text-7xl opacity-5 group-hover:scale-110 transition-transform">☯</div>
+            </div>
+          } @else {
+            <div class="glass-panel p-8 rounded-2xl border border-mystic-rose/15 bg-mystic-cocoa text-white relative overflow-hidden group">
+              <div class="relative z-10">
+                <span class="text-mystic-gold text-[10px] uppercase tracking-widest font-bold mb-4 block">Polecamy</span>
+                <h3 class="serif-display text-2xl mb-4">Osobisty Portret Numerologiczny</h3>
+                <p class="text-white/70 text-sm font-light mb-6">Odkryj przeznaczenie zapisane w Twojej dacie urodzenia.</p>
+                <a routerLink="/numerologia" class="inline-block border-b border-mystic-gold text-mystic-gold pb-1 font-medium text-sm hover:text-white hover:border-white transition-colors">
+                  Oblicz numerologię →
+                </a>
+              </div>
+              <div class="absolute -right-4 -bottom-4 text-7xl opacity-5 group-hover:scale-110 transition-transform">☯</div>
+            </div>
+          }
+
+          <!-- Newsletter Mini -->
+          <div class="bg-[#fbf5f7] p-8 rounded-2xl border border-mystic-rose/20">
+            <h3 class="serif-display text-xl text-mystic-cocoa mb-4">Magiczny Newsletter</h3>
+            <p class="text-mystic-cocoa/70 text-sm font-light mb-6">Zapisz się i otrzymuj horoskopy prosto na e-mail.</p>
+            <form class="space-y-4">
+              <input type="email" placeholder="Twój e-mail" class="w-full px-4 py-3 rounded-xl border border-mystic-rose/20 focus:outline-none focus:border-mystic-rose bg-white text-sm">
+              <button class="w-full btn-primary !py-3 !text-sm">Dołączam ✦</button>
+            </form>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+  } @else {
+    <!-- Loading State -->
+    <div class="min-h-screen flex items-center justify-center bg-[#FDF4F5]">
+       <div class="flex flex-col items-center gap-6">
+         <div class="text-6xl text-mystic-gold animate-pulse">✦</div>
+         <p class="text-mystic-cocoa/60 text-sm tracking-widest uppercase font-medium">Odczytywanie gwiazd...</p>
+       </div>
+    </div>
+  }
+</div>

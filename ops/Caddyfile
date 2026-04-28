@@ -1,0 +1,33 @@
+{
+	email {$ACME_EMAIL:admin@example.com}
+}
+
+{$FRONTEND_DOMAIN:localhost} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	handle /api/* {
+		reverse_proxy api:1337
+	}
+
+	handle {
+		reverse_proxy frontend:4000
+	}
+}
+
+{$API_DOMAIN:api.localhost} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	reverse_proxy api:1337
+}

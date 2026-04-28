@@ -1,0 +1,36 @@
+{
+  "kind": "collectionType",
+  "collectionName": "horoscopes",
+  "info": {
+    "singularName": "horoscope",
+    "pluralName": "horoscopes",
+    "displayName": "Horoscope"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "type": {
+      "type": "enumeration",
+      "enum": ["Ogólny", "Miłosny", "Zawodowy", "Finansowy", "Chiński", "Celtycki", "Egipski"]
+    },
+    "period": {
+      "type": "enumeration",
+      "enum": ["Dzienny", "Tygodniowy", "Miesięczny", "Roczny"]
+    },
+    "content": {
+      "type": "text",
+      "required": true
+    },
+    "date": {
+      "type": "date",
+      "required": true
+    },
+    "zodiac_sign": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::zodiac-sign.zodiac-sign",
+      "inversedBy": "horoscopes"
+    }
+  }
+}
