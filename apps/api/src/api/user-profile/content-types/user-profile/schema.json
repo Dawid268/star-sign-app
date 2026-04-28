@@ -1,0 +1,65 @@
+{
+  "kind": "collectionType",
+  "collectionName": "user_profiles",
+  "info": {
+    "singularName": "user-profile",
+    "pluralName": "user-profiles",
+    "displayName": "User Profile"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "zodiac_sign": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::zodiac-sign.zodiac-sign"
+    },
+    "birth_date": {
+      "type": "date"
+    },
+    "birth_time": {
+      "type": "time"
+    },
+    "birth_place": {
+      "type": "string"
+    },
+    "marketing_consent": {
+      "type": "boolean",
+      "default": false
+    },
+    "subscription_status": {
+      "type": "enumeration",
+      "enum": ["inactive", "trialing", "active", "past_due", "canceled", "unpaid"],
+      "default": "inactive"
+    },
+    "subscription_plan": {
+      "type": "enumeration",
+      "enum": ["monthly", "annual"]
+    },
+    "stripe_customer_id": {
+      "type": "string"
+    },
+    "stripe_subscription_id": {
+      "type": "string"
+    },
+    "trial_ends_at": {
+      "type": "datetime"
+    },
+    "current_period_end": {
+      "type": "datetime"
+    },
+    "cancel_at_period_end": {
+      "type": "boolean",
+      "default": false
+    },
+    "last_synced_at": {
+      "type": "datetime"
+    }
+  }
+}

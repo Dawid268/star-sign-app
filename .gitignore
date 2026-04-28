@@ -4,6 +4,10 @@
 dist
 tmp
 out-tsc
+**/dist
+**/.tmp
+**/.cache
+**/.strapi
 
 # dependencies
 node_modules
@@ -33,6 +37,11 @@ npm-debug.log
 yarn-error.log
 testem.log
 /typings
+.env
+.env.*
+!.env.example
+!**/.env.example
+.serena/
 
 # System Files
 .DS_Store
@@ -47,3 +56,12 @@ Thumbs.db
 .claude/settings.local.json
 .nx/polygraph
 .nx/self-healing
+.angular
+
+__screenshots__/
+
+test-output
+
+vitest.config.*.timestamp*
+apps/api/.strapi-updater.json
+apps/api/src/extensions/documentation/documentation/*/full_documentation.json

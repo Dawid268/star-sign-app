@@ -1,0 +1,52 @@
+{
+  "name": "backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Strapi application",
+  "scripts": {
+    "build": "strapi build",
+    "console": "strapi console",
+    "deploy": "strapi deploy",
+    "dev": "strapi develop",
+    "develop": "strapi develop",
+    "seed:dev": "node scripts/seed-dev.js",
+    "seed:stg": "node scripts/seed-stg.js",
+    "seed:prod": "node scripts/seed-prod.js",
+    "start": "strapi start",
+    "strapi": "strapi",
+    "upgrade": "npx @strapi/upgrade latest",
+    "upgrade:dry": "npx @strapi/upgrade latest --dry"
+  },
+  "dependencies": {
+    "@strapi-community/plugin-seo": "^2.1.1",
+    "@strapi/plugin-cloud": "5.43.0",
+    "@strapi/plugin-documentation": "^5.43.0",
+    "@strapi/plugin-sentry": "^5.43.0",
+    "@strapi/plugin-users-permissions": "5.43.0",
+    "@strapi/provider-email-nodemailer": "^5.43.0",
+    "@strapi/provider-upload-aws-s3": "5.43.0",
+    "@strapi/strapi": "5.43.0",
+    "better-sqlite3": "12.8.0",
+    "cron-parser": "^4.2.0",
+    "pg": "^8.13.1",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.0.0",
+    "sharp": "0.33.5",
+    "styled-components": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20.0.0 <=24.x.x",
+    "npm": ">=6.0.0"
+  },
+  "strapi": {
+    "uuid": "4c8e363c-63a0-4545-bd6e-3cb3c6550092",
+    "installId": "77d7193ec26a68e816b6ac8f333664ed7dd5900d10af1f5793be3b3bf1a45a67"
+  }
+}

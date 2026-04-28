@@ -1,0 +1,59 @@
+.mystic-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.animate-float {
+  animation: float 8s infinite ease-in-out;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.05); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 1s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.prose-mystic {
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    color: #4a3737;
+    margin-top: 3rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  p {
+    margin-bottom: 1.5rem;
+  }
+  
+  strong {
+    color: #c291a1;
+    font-weight: 600;
+  }
+}
+
+.glass-panel {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  
+  &:hover {
+    transform: translateY(-5px);
+  }
+}
+
+.icon-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}

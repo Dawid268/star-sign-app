@@ -1,0 +1,30 @@
+{
+  "kind": "collectionType",
+  "collectionName": "numerology_profiles",
+  "info": {
+    "singularName": "numerology-profile",
+    "pluralName": "numerology-profiles",
+    "displayName": "Numerology Profile"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "number": {
+      "type": "integer",
+      "required": true,
+      "unique": true
+    },
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "text",
+      "required": true
+    },
+    "extended_description": {
+      "type": "richtext"
+    }
+  }
+}

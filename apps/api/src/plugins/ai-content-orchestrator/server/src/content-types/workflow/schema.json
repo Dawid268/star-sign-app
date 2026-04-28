@@ -1,0 +1,67 @@
+{
+  "kind": "collectionType",
+  "collectionName": "aico_workflows",
+  "info": {
+    "singularName": "workflow",
+    "pluralName": "workflows",
+    "displayName": "AICO Workflow"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "content-manager": { "visible": true },
+    "content-type-builder": { "visible": true }
+  },
+  "attributes": {
+    "name": { "type": "string", "required": true, "unique": true },
+    "enabled": { "type": "boolean", "default": true },
+    "status": {
+      "type": "enumeration",
+      "enum": ["idle", "running", "failed", "blocked_budget"],
+      "default": "idle"
+    },
+    "workflow_type": {
+      "type": "enumeration",
+      "enum": ["horoscope", "daily_card", "article"],
+      "required": true
+    },
+    "generate_cron": { "type": "string", "required": true },
+    "publish_cron": { "type": "string", "required": true },
+    "timezone": { "type": "string", "default": "Europe/Warsaw" },
+    "locale": { "type": "string", "default": "pl" },
+    "llm_model": { "type": "string", "required": true },
+    "llm_api_token_encrypted": { "type": "text" },
+    "prompt_template": { "type": "text", "required": true },
+    "temperature": { "type": "float", "default": 0.7 },
+    "max_completion_tokens": { "type": "integer", "default": 1800 },
+    "retry_max": { "type": "integer", "default": 3 },
+    "retry_backoff_seconds": { "type": "integer", "default": 120 },
+    "daily_request_limit": { "type": "integer", "default": 120 },
+    "daily_token_limit": { "type": "integer", "default": 250000 },
+    "allow_manual_edit": { "type": "boolean", "default": true },
+    "auto_publish": { "type": "boolean", "default": true },
+    "force_regenerate": { "type": "boolean", "default": false },
+    "topic_mode": {
+      "type": "enumeration",
+      "enum": ["manual", "mixed"],
+      "default": "mixed"
+    },
+    "horoscope_period": {
+      "type": "enumeration",
+      "enum": ["Dzienny", "Tygodniowy", "Miesięczny"]
+    },
+    "horoscope_type_values": { "type": "json" },
+    "all_signs": { "type": "boolean", "default": true },
+    "article_category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category"
+    },
+    "last_generated_at": { "type": "datetime" },
+    "last_published_at": { "type": "datetime" },
+    "last_generation_slot": { "type": "string" },
+    "last_publish_slot": { "type": "string" },
+    "last_error": { "type": "text" }
+  }
+}

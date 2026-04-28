@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../dist/out-tsc/frontend",
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+  "references": [
+    {
+      "path": "../libs/frontend/cart/tsconfig.lib.json"
+    },
+    {
+      "path": "../libs/shared/types/tsconfig.lib.json"
+    }
+  ]
+}
