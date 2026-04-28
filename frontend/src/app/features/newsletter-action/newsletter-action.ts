@@ -12,10 +12,15 @@ type Status = 'loading' | 'success' | 'error';
   template: `
     <main class="bg-[#FFFBFB] min-h-screen pt-16 pb-24">
       <section class="section-container max-w-2xl text-center">
-        <p class="text-mystic-gold text-5xl mb-8">✦</p>
+        <p class="text-mystic-gold text-5xl mb-8">{{ icon() }}</p>
         <h1 class="serif-display text-4xl md:text-5xl text-mystic-cocoa mb-6">{{ title() }}</h1>
         <p class="text-mystic-cocoa/70 leading-relaxed mb-10">{{ message() }}</p>
-        <a routerLink="/" class="btn-primary inline-flex">Wróć na stronę główną</a>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <a routerLink="/" class="btn-primary inline-flex">Wróć na stronę główną</a>
+          @if (status() === 'error') {
+            <a routerLink="/" fragment="newsletter" class="btn-outline inline-flex">Zapisz się ponownie</a>
+          }
+        </div>
       </section>
     </main>
   `,
@@ -68,5 +73,15 @@ export class NewsletterActionPage {
     return this.action === 'unsubscribe'
       ? 'Twój adres został oznaczony jako wypisany z newslettera Star Sign.'
       : 'Dziękujemy. Od teraz możesz otrzymywać wiadomości Star Sign zgodnie z wyrażoną zgodą.';
+  }
+
+  public icon(): string {
+    if (this.status() === 'loading') {
+      return '✧';
+    }
+    if (this.status() === 'error') {
+      return '!';
+    }
+    return this.action === 'unsubscribe' ? '✓' : '✦';
   }
 }

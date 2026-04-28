@@ -3,10 +3,15 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 type LegalPageKey = 'terms' | 'privacy' | 'cookies' | 'disclaimer';
 
-const LEGAL_PAGES: Record<LegalPageKey, { title: string; updatedAt: string; sections: Array<{ heading: string; body: string }> }> = {
+const LEGAL_PAGES: Record<
+  LegalPageKey,
+  { title: string; updatedAt: string; notice?: string; sections: Array<{ heading: string; body: string }> }
+> = {
   terms: {
     title: 'Regulamin',
     updatedAt: '28 kwietnia 2026',
+    notice:
+      'Przed publikacją produkcyjną uzupełnij dane administratora, adres kontaktowy i docelowego operatora płatności.',
     sections: [
       {
         heading: 'Zakres usługi',
@@ -21,7 +26,7 @@ const LEGAL_PAGES: Record<LegalPageKey, { title: string; updatedAt: string; sect
       {
         heading: 'Subskrypcja premium',
         body:
-          'Funkcje premium odblokowują rozszerzone odczyty i historię zapisanych treści. Płatności i fakturowanie obsługuje zewnętrzny operator płatności, a dostęp może zostać ograniczony po anulowaniu lub nieudanej płatności.',
+          'Funkcje premium odblokowują rozszerzone odczyty i historię zapisanych treści. Płatności i fakturowanie obsługuje zewnętrzny operator płatności wskazany w konfiguracji produkcyjnej, a dostęp może zostać ograniczony po anulowaniu lub nieudanej płatności.',
       },
       {
         heading: 'Odpowiedzialność',
@@ -33,11 +38,13 @@ const LEGAL_PAGES: Record<LegalPageKey, { title: string; updatedAt: string; sect
   privacy: {
     title: 'Polityka prywatności',
     updatedAt: '28 kwietnia 2026',
+    notice:
+      'Dane administratora są placeholderem launchowym i muszą zostać zastąpione realnymi danymi przed publicznym ruchem.',
     sections: [
       {
         heading: 'Administrator danych',
         body:
-          'Administratorem danych jest właściciel serwisu Star Sign. Dane kontaktowe administratora należy uzupełnić przed publikacją produkcyjną domeny.',
+          'Administratorem danych jest właściciel serwisu Star Sign. Nazwa podmiotu, adres rejestrowy oraz adres kontaktowy do spraw danych osobowych wymagają uzupełnienia przed publikacją produkcyjną domeny.',
       },
       {
         heading: 'Zakres przetwarzania',
@@ -52,13 +59,14 @@ const LEGAL_PAGES: Record<LegalPageKey, { title: string; updatedAt: string; sect
       {
         heading: 'Prawa użytkownika',
         body:
-          'Użytkownik może żądać dostępu do danych, sprostowania, usunięcia, ograniczenia przetwarzania oraz wycofania zgody marketingowej. Szczegółowy adres kontaktowy trzeba uzupełnić przed startem produkcyjnym.',
+          'Użytkownik może żądać dostępu do danych, sprostowania, usunięcia, ograniczenia przetwarzania oraz wycofania zgody marketingowej. Docelowy adres kontaktowy dla tych żądań trzeba uzupełnić przed startem produkcyjnym.',
       },
     ],
   },
   cookies: {
     title: 'Polityka cookies',
     updatedAt: '28 kwietnia 2026',
+    notice: 'Jeśli dodasz analitykę lub remarketing, podłącz banner zgód i zaktualizuj tę stronę przed publikacją.',
     sections: [
       {
         heading: 'Czym są cookies',
@@ -80,6 +88,8 @@ const LEGAL_PAGES: Record<LegalPageKey, { title: string; updatedAt: string; sect
   disclaimer: {
     title: 'Disclaimer treści',
     updatedAt: '28 kwietnia 2026',
+    notice:
+      'Ten disclaimer opisuje charakter treści astrologicznych i AI; nie zastępuje docelowej weryfikacji prawnej przed launchem.',
     sections: [
       {
         heading: 'Charakter treści',
@@ -109,6 +119,12 @@ const LEGAL_PAGES: Record<LegalPageKey, { title: string; updatedAt: string; sect
         <a routerLink="/" class="text-sm text-mystic-rose font-semibold tracking-widest uppercase">Star Sign</a>
         <h1 class="serif-display text-4xl md:text-6xl text-mystic-cocoa mt-8 mb-4">{{ page.title }}</h1>
         <p class="text-mystic-cocoa/60 mb-12">Ostatnia aktualizacja: {{ page.updatedAt }}</p>
+
+        @if (page.notice) {
+          <div class="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-5 text-amber-900 mb-10">
+            <p class="text-sm font-medium">{{ page.notice }}</p>
+          </div>
+        }
 
         <div class="space-y-8">
           @for (section of page.sections; track section.heading) {

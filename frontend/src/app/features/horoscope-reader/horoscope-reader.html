@@ -26,7 +26,15 @@
   <section class="flex-grow section-container py-16 md:py-24">
     <div class="max-w-4xl mx-auto">
       
-      @if (currentData?.horoscope) {
+      @if (loading()) {
+        <div class="glass-panel p-10 md:p-16 rounded-[2rem] border border-mystic-rose/10 shadow-xl bg-white/40">
+          <div class="space-y-6">
+            <div class="h-4 bg-mystic-rose/10 rounded-full animate-pulse w-1/3"></div>
+            <div class="h-8 bg-mystic-cocoa/10 rounded-xl animate-pulse w-2/3"></div>
+            <div class="h-28 bg-mystic-cocoa/5 rounded-2xl animate-pulse"></div>
+          </div>
+        </div>
+      } @else if (currentData?.horoscope) {
         <div class="glass-panel p-10 md:p-16 rounded-[2rem] border border-mystic-rose/10 shadow-xl relative overflow-hidden bg-white/40">
           <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-mystic-rose via-mystic-gold to-mystic-rose opacity-30"></div>
           
@@ -56,24 +64,15 @@
           </div>
         </div>
       } @else {
-        <!-- Mock Content if API returns nothing -->
         <div class="glass-panel p-10 md:p-16 rounded-[2rem] border border-mystic-rose/10 shadow-xl bg-white/40 text-center">
           <div class="text-6xl text-mystic-gold/20 mb-8 select-none">✦</div>
-          <h2 class="serif-display text-3xl text-mystic-cocoa mb-6">Wgląd w Przyszłość</h2>
+          <h2 class="serif-display text-3xl text-mystic-cocoa mb-6">Horoskop jest jeszcze niedostępny</h2>
           <p class="text-mystic-cocoa/70 text-lg font-light leading-relaxed mb-12">
-            Twoja ścieżka jest obecnie oświetlona przez silne wpływy Jowisza. To doskonały czas na nowe przedsięwzięcia i otworzenie się na relacje z innymi. Pamiętaj, aby dbać o swój wewnętrzny spokój.
+            {{ error() || 'Nie ma opublikowanego horoskopu dla tego znaku i okresu. Po seedzie danych strona uzupełni się automatycznie.' }}
           </p>
-          <div class="w-full h-[1px] bg-mystic-rose/10 mb-12"></div>
-          
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
-            <div class="bg-[#fbf5f7] p-6 rounded-2xl border border-mystic-rose/5">
-              <h4 class="font-medium text-mystic-rose mb-2 text-sm uppercase tracking-widest">Miłość</h4>
-              <p class="text-mystic-cocoa/70 text-sm font-light">Nadchodzące dni przyniosą harmonię i zrozumienie w relacjach.</p>
-            </div>
-            <div class="bg-[#fbf5f7] p-6 rounded-2xl border border-mystic-rose/5">
-              <h4 class="font-medium text-mystic-gold mb-2 text-sm uppercase tracking-widest">Kariera</h4>
-              <p class="text-mystic-cocoa/70 text-sm font-light">Bądź uważny na nowe propozycje. Możesz odkryć ukrytą szansę.</p>
-            </div>
+          <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            <a routerLink="/horoskopy" class="btn-primary">Wybierz inny znak</a>
+            <a routerLink="/tarot/karta-dnia" class="btn-outline">Wylosuj kartę dnia</a>
           </div>
         </div>
       }

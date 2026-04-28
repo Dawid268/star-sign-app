@@ -33,8 +33,18 @@
           <div class="w-8 h-[1px] bg-mystic-gold/30 mt-6 group-hover:w-16 transition-all duration-500"></div>
         </a>
       } @empty {
-        @for (i of [1,2,3,4,5,6,7,8]; track i) {
-          <div class="h-[220px] bg-white rounded-3xl animate-pulse border border-mystic-rose/10"></div>
+        @if (loading()) {
+          @for (i of [1,2,3,4,5,6,7,8]; track i) {
+            <div class="h-[220px] bg-white rounded-3xl animate-pulse border border-mystic-rose/10"></div>
+          }
+        } @else {
+          <div class="col-span-full rounded-3xl border border-mystic-rose/15 bg-white/70 p-10 text-center">
+            <p class="text-mystic-gold text-4xl mb-4">✧</p>
+            <h3 class="serif-display text-2xl text-mystic-cocoa mb-3">Horoskopy są prawie gotowe</h3>
+            <p class="text-mystic-cocoa/65">
+              {{ error() || 'Brakuje opublikowanych znaków zodiaku. Uruchom seed danych i odśwież stronę.' }}
+            </p>
+          </div>
         }
       }
     </div>

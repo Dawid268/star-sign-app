@@ -1,6 +1,8 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { of } from 'rxjs';
+import { catchError, finalize } from 'rxjs/operators';
 
 import { ArticleService } from '../../core/services/article.service';
 import { Article } from '@star-sign-monorepo/shared-types';
@@ -12,17 +14,27 @@ import { DatePipe } from '@angular/common';
   imports: [RouterLink, DatePipe],
   templateUrl: './blog-list.html',
   styleUrl: './blog-list.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BlogList {
   private readonly articleService = inject(ArticleService);
 
   public readonly activeCategory = signal('Wszystko');
+  public readonly loading = signal(true);
+  public readonly error = signal<string | null>(null);
 
-  /** Pobieramy artykuły — toSignal anuluje subskrypcję automatycznie */
-  public readonly articles = toSignal(this.articleService.getRecentArticles(20), {
-    initialValue: [] as Article[]
-  });
+  public readonly articles = toSignal(
+    this.articleService.getRecentArticles(20).pipe(
+      catchError(() => {
+        this.error.set('Nie udało się pobrać artykułów.');
+        return of([] as Article[]);
+      }),
+      finalize(() => this.loading.set(false))
+    ),
+    {
+      initialValue: [] as Article[],
+    }
+  );
 
   public readonly categories = computed(() => {
     const dynamicCategories = this.articles()
@@ -34,12 +46,12 @@ export class BlogList {
   public readonly filteredArticles = computed(() => {
     const articles = this.articles();
     const cat = this.activeCategory();
-    
+
     if (cat === 'Wszystko') {
       return articles;
     }
-    
-    return articles.filter(a => a.category?.name === cat);
+
+    return articles.filter((article) => article.category?.name === cat);
   });
 
   public setCategory(category: string): void {

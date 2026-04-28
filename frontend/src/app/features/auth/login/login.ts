@@ -3,6 +3,14 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
+import { environment } from '../../../../environments/environment';
+
+type DemoAccount = {
+  label: string;
+  description: string;
+  identifier: string;
+  password: string;
+};
 
 @Component({
   selector: 'app-login',
@@ -18,6 +26,22 @@ export class Login {
 
   public readonly loading = signal(false);
   public readonly error = signal<string | null>(null);
+  public readonly demoAccounts: DemoAccount[] = environment.production
+    ? []
+    : [
+        {
+          label: 'Demo',
+          description: 'Bezpłatny profil startowy',
+          identifier: 'demo@starsign.local',
+          password: 'Test1234!',
+        },
+        {
+          label: 'Premium',
+          description: 'Profil z aktywną subskrypcją',
+          identifier: 'premium@starsign.local',
+          password: 'Test1234!',
+        },
+      ];
 
   public readonly form = this.formBuilder.nonNullable.group({
     identifier: ['', [Validators.required, Validators.email]],
@@ -44,6 +68,14 @@ export class Login {
         this.error.set(this.toMessage(error));
       },
     });
+  }
+
+  public useDemoAccount(account: DemoAccount): void {
+    this.form.setValue({
+      identifier: account.identifier,
+      password: account.password,
+    });
+    this.error.set(null);
   }
 
   private toMessage(error: unknown): string {

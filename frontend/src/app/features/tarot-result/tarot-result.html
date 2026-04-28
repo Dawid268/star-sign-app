@@ -65,8 +65,9 @@
       <div class="text-center py-24 max-w-2xl">
         <h2 class="serif-display text-3xl text-white mb-6">Karta Dnia jest chwilowo niedostępna</h2>
         <p class="text-white/70 font-light leading-relaxed">
-          Spróbuj ponownie za moment. Wszechświat potrzebuje chwili na odsłonięcie przesłania.
+          {{ error() || 'Nie ma jeszcze opublikowanej karty dnia. Spróbuj ponownie po seedzie danych.' }}
         </p>
+        <a routerLink="/tarot" class="btn-primary inline-flex mt-10">Wróć do Tarota</a>
       </div>
     }
 

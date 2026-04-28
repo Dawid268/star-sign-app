@@ -229,6 +229,14 @@
             }
           </article>
         </div>
+      } @else if (!error()) {
+        <div class="glass-panel rounded-3xl border border-mystic-rose/10 p-10 text-center">
+          <p class="text-mystic-gold text-4xl mb-4">✧</p>
+          <h2 class="serif-display text-3xl text-mystic-cocoa mb-3">Panel jest jeszcze pusty</h2>
+          <p class="text-mystic-cocoa/65 max-w-xl mx-auto">
+            Nie znaleźliśmy danych profilu ani dzisiejszego rytuału. Upewnij się, że seed danych został wykonany i zaloguj się ponownie.
+          </p>
+        </div>
       }
     }
   </div>

@@ -52,6 +52,21 @@ Smoke VPS po deployu:
 API_BASE_URL=https://api.example.com/api FRONTEND_BASE_URL=https://example.com ./ops/smoke.sh
 ```
 
+## Smoke checklist frontendu przed launchem
+
+- Strona główna ładuje hero, znaki zodiaku, artykuły i newsletter; przy braku danych pokazuje gotowe puste stany zamiast wiecznych skeletonów.
+- Logowanie działa dla kont testowych po seedzie:
+  - `demo@starsign.local` / `Test1234!`
+  - `premium@starsign.local` / `Test1234!`
+- Przy buildzie nieprodukcyjnym przyciski szybkiego wypełnienia kont demo/premium są widoczne na `/logowanie`; w produkcji nie mogą się renderować.
+- Panel użytkownika pokazuje profil, dzisiejszy rytuał, subskrypcję i zapisane odczyty albo czytelny stan pusty.
+- Newsletter: formularz na stronie głównej pokazuje stan wysyłania, sukces z prośbą o potwierdzenie oraz błąd z możliwością ponowienia.
+- Linki `/newsletter/potwierdz?token=...` i `/newsletter/wypisz?token=...` pokazują success/error oraz prowadzą z powrotem do formularza newslettera.
+- Legal pages `/regulamin`, `/polityka-prywatnosci`, `/cookies`, `/disclaimer` są dostępne i nadal zawierają widoczne TODO dla danych administratora.
+- Przy `FRONTEND_SHOP_ENABLED=false` oraz `SHOP_ENABLED=false` nawigacja, stopka, home, blog, konto i numerologia nie pokazują linków do sklepu.
+- Przy wyłączonym sklepie `/sklep`, `/sklep/produkt/:id`, `/checkout/success` i `/checkout/cancel` nie są dostępne jako normalne ścieżki zakupowe.
+- Przy wyłączonym sklepie `/sitemap.xml` nie zawiera `/sklep` ani `/sklep/produkt/*`.
+
 ## Deployment VPS, kiedy przyjdzie pora
 
 ```bash

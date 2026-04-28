@@ -104,7 +104,7 @@
 
     } @else {
       <!-- Empty state or Skeleton -->
-      @if (articles().length === 0) {
+      @if (loading()) {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
           @for (i of [1,2,3,4,5,6]; track i) {
             <div class="flex flex-col gap-6">
@@ -114,6 +114,15 @@
               <div class="h-4 bg-mystic-cocoa/5 rounded-lg animate-pulse w-4/5"></div>
             </div>
           }
+        </div>
+      } @else if (articles().length === 0) {
+        <div class="text-center py-32 max-w-2xl mx-auto">
+          <div class="text-5xl text-mystic-gold opacity-30 mb-6">✧</div>
+          <h3 class="serif-display text-2xl text-mystic-cocoa mb-4">Artykuły są jeszcze przygotowywane</h3>
+          <p class="text-mystic-cocoa/60 font-light mb-8">
+            {{ error() || 'Po seedzie danych blog pokaże najnowsze treści automatycznie.' }}
+          </p>
+          <a routerLink="/" class="btn-outline">Wróć na główną</a>
         </div>
       } @else {
         <div class="text-center py-32">
