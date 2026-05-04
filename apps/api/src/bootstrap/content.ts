@@ -1,5 +1,10 @@
 import type { Core } from '@strapi/strapi';
+import {
+  AICO_LEGACY_WORKFLOW_NAMES,
+  buildAicoWorkflowDefinitions,
+} from './aico-contract';
 import { toBoolean } from '../utils/features';
+import { evaluatePremiumContentQuality } from '../utils/premium-quality';
 
 const WARSAW_TIMEZONE = 'Europe/Warsaw';
 
@@ -66,7 +71,8 @@ const SIGNS = [
     date_range: '23.09 - 22.10',
     element: 'Powietrze',
     planet: 'Wenus',
-    description: 'Harmonijny znak powietrza, nastawiony na relacje i równowagę.',
+    description:
+      'Harmonijny znak powietrza, nastawiony na relacje i równowagę.',
   },
   {
     name: 'Skorpion',
@@ -120,7 +126,8 @@ const ARTICLES = [
   {
     title: 'Jak czytać sygnały dnia według własnego znaku',
     slug: 'jak-czytac-sygnaly-dnia-wedlug-znaku',
-    excerpt: 'Krótki rytuał poranny, który pomaga lepiej korzystać z energii dnia.',
+    excerpt:
+      'Krótki rytuał poranny, który pomaga lepiej korzystać z energii dnia.',
     content:
       'Zacznij dzień od chwili ciszy i pytania: jaki jeden krok da mi dziś największy spokój? Sprawdź horoskop, ale traktuj go jako kompas do refleksji. Najważniejsze wskazówki zapisuj wieczorem, aby po tygodniu zobaczyć wzorce.',
     read_time_minutes: 5,
@@ -140,7 +147,8 @@ const ARTICLES = [
   {
     title: 'Dlaczego personalizacja działa najlepiej z profilem urodzeniowym',
     slug: 'dlaczego-personalizacja-dziala-z-profilem-urodzeniowym',
-    excerpt: 'Personalizacja treści to różnica między inspiracją a konkretną wskazówką.',
+    excerpt:
+      'Personalizacja treści to różnica między inspiracją a konkretną wskazówką.',
     content:
       'Podstawowy horoskop daje kierunek, a profil urodzeniowy dodaje kontekst. Dzięki danym profilu łatwiej dobrać moment działania, obszar priorytetu i styl komunikatu. To zwiększa trafność i pomaga wracać do codziennych rytuałów.',
     read_time_minutes: 6,
@@ -150,7 +158,8 @@ const ARTICLES = [
   {
     title: 'Horoskop dzienny bez chaosu: jak wybrać jedną wskazówkę',
     slug: 'horoskop-dzienny-bez-chaosu',
-    excerpt: 'Prosty sposób na korzystanie z codziennego horoskopu bez nadinterpretacji.',
+    excerpt:
+      'Prosty sposób na korzystanie z codziennego horoskopu bez nadinterpretacji.',
     content:
       'Najlepszy horoskop dzienny działa jak krótkie pytanie kontrolne. Wybierz jedną wskazówkę, zapisz ją w kalendarzu i sprawdź wieczorem, czy pomogła Ci działać spokojniej. Nie traktuj jej jak wyroku, tylko jak ramę do uważnej decyzji.',
     read_time_minutes: 5,
@@ -180,7 +189,8 @@ const ARTICLES = [
   {
     title: 'Miłosny horoskop bez presji: jak czytać sygnały w relacji',
     slug: 'milosny-horoskop-bez-presji',
-    excerpt: 'Wskazówki dla osób, które chcą korzystać z horoskopu relacyjnie i odpowiedzialnie.',
+    excerpt:
+      'Wskazówki dla osób, które chcą korzystać z horoskopu relacyjnie i odpowiedzialnie.',
     content:
       'Horoskop miłosny najlepiej czytać jako zaproszenie do rozmowy. Jeśli tekst mówi o napięciu, nie szukaj winy, tylko nazwij potrzebę. Jeśli mówi o bliskości, wybierz konkretny gest: wiadomość, czas offline albo spokojne pytanie.',
     read_time_minutes: 6,
@@ -190,7 +200,8 @@ const ARTICLES = [
   {
     title: 'Karta dnia w pracy: rytuał przed ważnym spotkaniem',
     slug: 'karta-dnia-w-pracy-rytual-przed-spotkaniem',
-    excerpt: 'Jak użyć jednej karty do przygotowania komunikacji i priorytetów.',
+    excerpt:
+      'Jak użyć jednej karty do przygotowania komunikacji i priorytetów.',
     content:
       'Przed spotkaniem wylosuj kartę i zapisz jedno hasło: czego pilnować w tonie, co uprościć i z czym nie przesadzić. Nawet jeśli traktujesz tarot symbolicznie, taka pauza pomaga wejść w rozmowę z większą uważnością.',
     read_time_minutes: 4,
@@ -198,9 +209,11 @@ const ARTICLES = [
     categoryName: 'Tarot',
   },
   {
-    title: 'Znaki zodiaku i regeneracja: jak odpoczywać zgodnie z temperamentem',
+    title:
+      'Znaki zodiaku i regeneracja: jak odpoczywać zgodnie z temperamentem',
     slug: 'znaki-zodiaku-i-regeneracja',
-    excerpt: 'Ogień, ziemia, powietrze i woda potrzebują innego rodzaju odpoczynku.',
+    excerpt:
+      'Ogień, ziemia, powietrze i woda potrzebują innego rodzaju odpoczynku.',
     content:
       'Znaki ognia często odpoczywają przez ruch, ziemi przez rytm i zmysły, powietrza przez zmianę bodźców, a wody przez ciszę i emocjonalne domknięcie. Sprawdź swój element i dobierz odpoczynek do realnego napięcia, nie do mody.',
     read_time_minutes: 7,
@@ -210,7 +223,8 @@ const ARTICLES = [
   {
     title: 'Jak przygotować profil urodzeniowy, żeby personalizacja miała sens',
     slug: 'jak-przygotowac-profil-urodzeniowy',
-    excerpt: 'Jakie dane warto podać i dlaczego godzina urodzenia zmienia kontekst odczytu.',
+    excerpt:
+      'Jakie dane warto podać i dlaczego godzina urodzenia zmienia kontekst odczytu.',
     content:
       'Data urodzenia daje podstawową mapę, miejsce dopowiada kontekst, a godzina pozwala lepiej pracować z rytmem dnia. Jeśli nie znasz dokładnej godziny, zaznacz przybliżenie i traktuj personalizację jako łagodniejszą sugestię.',
     read_time_minutes: 6,
@@ -220,7 +234,8 @@ const ARTICLES = [
   {
     title: 'Tygodniowy przegląd energii: niedzielny rytuał planowania',
     slug: 'tygodniowy-przeglad-energii',
-    excerpt: 'Prosty rytuał, który łączy astrologię, kalendarz i realne priorytety.',
+    excerpt:
+      'Prosty rytuał, który łączy astrologię, kalendarz i realne priorytety.',
     content:
       'W niedzielę wybierz trzy obszary: relacje, praca, ciało. Do każdego dopisz jedną decyzję i jeden limit. Horoskop tygodniowy potraktuj jako kontekst, a kalendarz jako miejsce, w którym ta refleksja staje się działaniem.',
     read_time_minutes: 5,
@@ -228,9 +243,11 @@ const ARTICLES = [
     categoryName: 'Rozwój',
   },
   {
-    title: 'Finansowy horoskop: jak czytać go bez podejmowania impulsywnych decyzji',
+    title:
+      'Finansowy horoskop: jak czytać go bez podejmowania impulsywnych decyzji',
     slug: 'finansowy-horoskop-bez-impulsu',
-    excerpt: 'Astrologiczne inspiracje nie zastępują planu, ale mogą pomóc sprawdzić nastawienie.',
+    excerpt:
+      'Astrologiczne inspiracje nie zastępują planu, ale mogą pomóc sprawdzić nastawienie.',
     content:
       'Jeśli horoskop finansowy mówi o szansie, najpierw sprawdź budżet, ryzyko i termin decyzji. Jeśli mówi o ostrożności, nie zamrażaj działań, tylko poszukaj danych. Dobra interpretacja wzmacnia refleksję, nie zastępuje odpowiedzialności.',
     read_time_minutes: 6,
@@ -239,6 +256,26 @@ const ARTICLES = [
   },
 ];
 
+const PREMIUM_ARTICLE_SLUGS = new Set([
+  'jak-czytac-sygnaly-dnia-wedlug-znaku',
+  'karta-dnia-jak-prowadzic-archiwum-odczytow',
+  'dlaczego-personalizacja-dziala-z-profilem-urodzeniowym',
+  'tygodniowy-przeglad-energii',
+]);
+
+const buildArticlePremiumContent = (title: string): string =>
+  `Pełna interpretacja Premium do artykułu "${title}".
+
+Relacje: potraktuj temat artykułu jak lustro dla jednej konkretnej relacji. Zapisz, w której rozmowie najczęściej uciekasz w domysły, a potem nazwij fakt, potrzebę i granicę. Premium nie prosi o dramatyczny gest, tylko o spokojną obecność: jedno zdanie wypowiedziane prosto, bez tłumaczenia się i bez nacisku na natychmiastową odpowiedź. Jeśli czujesz napięcie, wróć do pytania, czy chcesz dziś budować bliskość, czy tylko wygrać spór. Dodaj też mały test rzeczywistości: sprawdź, czy Twoja interpretacja zachowania drugiej osoby wynika z faktów, czy z wcześniejszego lęku. To odróżnia intuicję od automatycznej obrony.
+
+Praca: wybierz jeden obszar działania, w którym temat artykułu może stać się praktycznym ruchem. Nie planuj całego miesiąca naraz. Wybierz zadanie, które ma widoczny koniec, określ minimalny dobry rezultat i dopisz, co zrobisz, jeśli energia spadnie. To rozszerzenie Premium ma prowadzić do konkretu: jednego maila, jednej decyzji, jednej rozmowy albo jednego zamkniętego etapu, który porządkuje dalszą drogę. Jeśli temat dotyka ambicji, nazwij również koszt: czas, koncentrację albo emocjonalne napięcie. Dzięki temu wybierasz świadomie, zamiast tylko reagować na presję wyniku.
+
+Energia dnia: obserwuj, czy Twoje ciało przyspiesza, gdy pojawia się temat kontroli, oceny albo oczekiwań. Jeżeli tak, zwolnij rytm o pół kroku: wypij wodę, rozluźnij szczękę, przenieś uwagę na stopy. Energia dnia sprzyja temu, co jest proste i powtarzalne. Najmocniejszy efekt przyniesie nie wielka deklaracja, ale konsekwentne wracanie do jednego spokojnego wyboru. W drugiej części dnia sprawdź, czy nie oddajesz swojej uwagi drobnym rozproszeniom. Jedno świadome "nie teraz" może dziś ochronić więcej energii niż dodatkowa godzina wysiłku.
+
+Rytuał: przygotuj kartkę i zapisz trzy zdania. Pierwsze: co dziś widzę wyraźniej. Drugie: czego nie chcę już wzmacniać swoim lękiem. Trzecie: jaki gest pokaże mi, że jestem po swojej stronie. Po zapisaniu połóż dłoń na sercu albo na brzuchu i przez dziewięć oddechów powtarzaj w myślach krótką intencję. Na koniec zrób jedną rzecz w przestrzeni: uporządkuj biurko, przewietrz pokój albo odłóż telefon. Jeżeli możesz, wróć do tej kartki wieczorem i dopisz jedno zdanie o tym, co faktycznie zadziałało. Premium ma budować pamięć własnych wzorców, nie tylko chwilową inspirację.
+
+Pytanie refleksyjne: gdyby moja decyzja miała wynikać z zaufania do siebie, a nie z potrzeby udowodnienia czegoś innym, co zrobiłabym dzisiaj inaczej? Jaką jedną decyzję mogę odłożyć, dopóki nie wrócę do spokojniejszego oddechu i pełniejszego obrazu sytuacji?`;
+
 const TAROT_CARDS = [
   {
     name: 'Głupiec',
@@ -246,7 +283,8 @@ const TAROT_CARDS = [
     slug: 'glupiec',
     symbol: 'GLUPIEC',
     meaning_upright: 'Nowy początek, spontaniczność i zaufanie do procesu.',
-    meaning_reversed: 'Nieprzemyślane ryzyko, chaos i lekceważenie konsekwencji.',
+    meaning_reversed:
+      'Nieprzemyślane ryzyko, chaos i lekceważenie konsekwencji.',
     description: 'Karta otwarcia nowego etapu i odwagi do pierwszego kroku.',
   },
   {
@@ -255,7 +293,8 @@ const TAROT_CARDS = [
     slug: 'mag',
     symbol: 'MAG',
     meaning_upright: 'Sprawczość, koncentracja i manifestacja celu.',
-    meaning_reversed: 'Rozproszenie, manipulacja albo niewykorzystany potencjał.',
+    meaning_reversed:
+      'Rozproszenie, manipulacja albo niewykorzystany potencjał.',
     description: 'Masz zasoby, aby przejść od zamiaru do działania.',
   },
   {
@@ -264,7 +303,8 @@ const TAROT_CARDS = [
     slug: 'kaplanka',
     symbol: 'KAPLANKA',
     meaning_upright: 'Intuicja, cisza i głębszy wgląd.',
-    meaning_reversed: 'Zagłuszona intuicja, sekrety albo brak kontaktu ze sobą.',
+    meaning_reversed:
+      'Zagłuszona intuicja, sekrety albo brak kontaktu ze sobą.',
     description: 'Warto słuchać subtelnych sygnałów i nie działać impulsywnie.',
   },
   {
@@ -273,7 +313,8 @@ const TAROT_CARDS = [
     slug: 'cesarzowa',
     symbol: 'CESARZOWA',
     meaning_upright: 'Tworzenie, obfitość i troska o rozwój.',
-    meaning_reversed: 'Zastój, nadopiekuńczość albo zaniedbanie własnych potrzeb.',
+    meaning_reversed:
+      'Zastój, nadopiekuńczość albo zaniedbanie własnych potrzeb.',
     description: 'To dobry moment na pielęgnowanie projektów i relacji.',
   },
   {
@@ -291,8 +332,10 @@ const TAROT_CARDS = [
     slug: 'kaplan',
     symbol: 'KAPLAN',
     meaning_upright: 'Nauka, tradycja, mentorstwo i wartości.',
-    meaning_reversed: 'Dogmatyzm, presja otoczenia albo potrzeba własnej drogi.',
-    description: 'Szukaj sprawdzonej wiedzy, ale filtruj ją przez własne wartości.',
+    meaning_reversed:
+      'Dogmatyzm, presja otoczenia albo potrzeba własnej drogi.',
+    description:
+      'Szukaj sprawdzonej wiedzy, ale filtruj ją przez własne wartości.',
   },
   {
     name: 'Kochankowie',
@@ -354,7 +397,8 @@ const TAROT_CARDS = [
     slug: 'wisielec',
     symbol: 'WISIELEC',
     meaning_upright: 'Nowa perspektywa, pauza i świadome odpuszczenie.',
-    meaning_reversed: 'Tkwienie w zawieszeniu albo opór przed zmianą spojrzenia.',
+    meaning_reversed:
+      'Tkwienie w zawieszeniu albo opór przed zmianą spojrzenia.',
     description: 'Zmiana kąta patrzenia może odblokować dalszy ruch.',
   },
   {
@@ -372,7 +416,8 @@ const TAROT_CARDS = [
     slug: 'umiarkowanie',
     symbol: 'UMIARKOWANIE',
     meaning_upright: 'Harmonia, cierpliwość i łączenie przeciwieństw.',
-    meaning_reversed: 'Przesada, brak rytmu albo trudność w znalezieniu środka.',
+    meaning_reversed:
+      'Przesada, brak rytmu albo trudność w znalezieniu środka.',
     description: 'Najlepszy efekt przyjdzie przez wyważenie, nie skrajności.',
   },
   {
@@ -381,7 +426,8 @@ const TAROT_CARDS = [
     slug: 'diabel',
     symbol: 'DIABEL',
     meaning_upright: 'Przywiązania, pokusy i świadomość ograniczeń.',
-    meaning_reversed: 'Uwalnianie się, przełamanie schematu albo odzyskanie wpływu.',
+    meaning_reversed:
+      'Uwalnianie się, przełamanie schematu albo odzyskanie wpływu.',
     description: 'Zobacz, co odbiera Ci wolność wyboru.',
   },
   {
@@ -390,7 +436,8 @@ const TAROT_CARDS = [
     slug: 'wieza',
     symbol: 'WIEZA',
     meaning_upright: 'Nagłe ujawnienie prawdy i rozpad nietrwałej struktury.',
-    meaning_reversed: 'Odkładany przełom albo próba ratowania tego, co nie działa.',
+    meaning_reversed:
+      'Odkładany przełom albo próba ratowania tego, co nie działa.',
     description: 'To moment szczerości, który może oczyścić sytuację.',
   },
   {
@@ -399,7 +446,8 @@ const TAROT_CARDS = [
     slug: 'gwiazda',
     symbol: 'GWIAZDA',
     meaning_upright: 'Nadzieja, regeneracja i powrót zaufania.',
-    meaning_reversed: 'Zwątpienie, zmęczenie albo trudność w przyjęciu wsparcia.',
+    meaning_reversed:
+      'Zwątpienie, zmęczenie albo trudność w przyjęciu wsparcia.',
     description: 'Daj sobie czas na odbudowę i łagodny kierunek.',
   },
   {
@@ -409,7 +457,8 @@ const TAROT_CARDS = [
     symbol: 'KSIEZYC',
     meaning_upright: 'Podświadomość, sny i niejasność wymagająca intuicji.',
     meaning_reversed: 'Rozjaśnienie lęku, wyjście z iluzji albo ukryta prawda.',
-    description: 'Nie wszystko jest jeszcze widoczne, więc sprawdzaj fakty spokojnie.',
+    description:
+      'Nie wszystko jest jeszcze widoczne, więc sprawdzaj fakty spokojnie.',
   },
   {
     name: 'Słońce',
@@ -417,7 +466,8 @@ const TAROT_CARDS = [
     slug: 'slonce',
     symbol: 'SLONCE',
     meaning_upright: 'Radość, klarowność i życiowa energia.',
-    meaning_reversed: 'Przygaszona pewność siebie albo opóźnione poczucie lekkości.',
+    meaning_reversed:
+      'Przygaszona pewność siebie albo opóźnione poczucie lekkości.',
     description: 'Karta wnosi prostotę, ciepło i widoczny postęp.',
   },
   {
@@ -435,7 +485,8 @@ const TAROT_CARDS = [
     slug: 'swiat',
     symbol: 'SWIAT',
     meaning_upright: 'Spełnienie, integracja i domknięcie cyklu.',
-    meaning_reversed: 'Niedokończenie, brak ostatniego kroku albo rozproszenie.',
+    meaning_reversed:
+      'Niedokończenie, brak ostatniego kroku albo rozproszenie.',
     description: 'Zbierasz efekty procesu i możesz przejść dalej pełniej.',
   },
 ];
@@ -452,19 +503,22 @@ const NUMEROLOGY = [
     number: 2,
     title: 'Mediator',
     description: 'Wrażliwość i relacje.',
-    extended_description: 'Dwójka wspiera zespoły i relacje. Wyzwanie: stawianie granic.',
+    extended_description:
+      'Dwójka wspiera zespoły i relacje. Wyzwanie: stawianie granic.',
   },
   {
     number: 3,
     title: 'Twórca',
     description: 'Ekspresja i komunikacja.',
-    extended_description: 'Trójka rozwija się przez twórczość i słowo. Wyzwanie: konsekwencja.',
+    extended_description:
+      'Trójka rozwija się przez twórczość i słowo. Wyzwanie: konsekwencja.',
   },
   {
     number: 4,
     title: 'Budowniczy',
     description: 'Struktura i porządek.',
-    extended_description: 'Czwórka daje stabilność i system. Wyzwanie: elastyczność.',
+    extended_description:
+      'Czwórka daje stabilność i system. Wyzwanie: elastyczność.',
   },
   {
     number: 5,
@@ -484,7 +538,8 @@ const NUMEROLOGY = [
     number: 7,
     title: 'Analityk',
     description: 'Wiedza i introspekcja.',
-    extended_description: 'Siódemka szuka sensu i głębi. Wyzwanie: nie izolować się od ludzi.',
+    extended_description:
+      'Siódemka szuka sensu i głębi. Wyzwanie: nie izolować się od ludzi.',
   },
   {
     number: 8,
@@ -523,35 +578,6 @@ const NUMEROLOGY = [
   },
 ];
 
-const DAILY_HOROSCOPE_TYPES = ['Ogólny', 'Miłosny', 'Zawodowy', 'Finansowy'];
-
-const DAILY_HOROSCOPE_TEMPLATES: Record<string, string> = {
-  Ogólny:
-    'Dziś najwięcej korzyści przyniesie Ci skupienie na jednym celu i spokojna realizacja planu.',
-  Miłosny:
-    'W relacjach postaw na prostą rozmowę, uważność i gest, który pokaże drugiej stronie realne zaangażowanie.',
-  Zawodowy:
-    'W pracy wygrają konkrety: uporządkuj priorytety, dopnij najważniejszy temat i nie rozpraszaj energii.',
-  Finansowy:
-    'Finanse wymagają dziś rozsądnego tempa. Sprawdź szczegóły, odłóż impulsywną decyzję i wybierz stabilność.',
-};
-
-const GENERAL_PERIOD_TEMPLATES: Record<string, string> = {
-  Tygodniowy:
-    'Ten tydzień sprzyja porządkowaniu priorytetów i domykaniu spraw, które przeciągały się od dłuższego czasu.',
-  Miesięczny:
-    'Najbliższy miesiąc wspiera budowanie stabilnych nawyków i rozwój relacji opartych na zaufaniu.',
-  Roczny:
-    'Ten rok prowadzi Cię w stronę dojrzalszych decyzji, lepszego planowania i odwagi w wyborze własnej drogi.',
-};
-
-const DAILY_WORKFLOW_TYPES = [
-  { type: 'Ogólny', generateMinute: 0 },
-  { type: 'Miłosny', generateMinute: 5 },
-  { type: 'Zawodowy', generateMinute: 10 },
-  { type: 'Finansowy', generateMinute: 15 },
-];
-
 const getWarsawDate = (date = new Date()): string =>
   new Intl.DateTimeFormat('en-CA', {
     timeZone: WARSAW_TIMEZONE,
@@ -564,7 +590,7 @@ const upsertOne = async (
   strapi: Core.Strapi,
   uid: string,
   where: SeedRecord,
-  data: SeedRecord
+  data: SeedRecord,
 ): Promise<SeededEntity> => {
   const query = strapi.db.query(uid);
   const existing = await query.findOne({ where });
@@ -588,11 +614,37 @@ const resolveOpenRouterToken = (): string => {
     process.env.OPENROUTER_API_KEY,
   ];
 
-  return candidates.find((value) => typeof value === 'string' && value.trim().length > 0)?.trim() || '';
+  return (
+    candidates
+      .find((value) => typeof value === 'string' && value.trim().length > 0)
+      ?.trim() || ''
+  );
 };
 
 const resolveOpenRouterModel = (): string =>
-  process.env.AICO_OPENROUTER_MODEL || process.env.OPENROUTER_MODEL || 'openai/gpt-4.1-mini';
+  process.env.AICO_OPENROUTER_MODEL ||
+  process.env.OPENROUTER_MODEL ||
+  'openai/gpt-4.1-mini';
+
+const resolveImageGenToken = (): string => {
+  const env = process.env.NODE_ENV === 'production' ? 'PROD' : 'DEV';
+  const candidates = [
+    process.env[`AICO_IMAGE_GEN_TOKEN_${env}`],
+    process.env[`REPLICATE_API_TOKEN_${env}`],
+    process.env.AICO_IMAGE_GEN_TOKEN,
+    process.env.REPLICATE_API_TOKEN,
+    process.env.OPENAI_API_KEY,
+  ];
+
+  return (
+    candidates
+      .find((value) => typeof value === 'string' && value.trim().length > 0)
+      ?.trim() || ''
+  );
+};
+
+const resolveImageGenModel = (): string =>
+  process.env.AICO_IMAGE_GEN_MODEL || 'openai/gpt-image-2';
 
 const encryptToken = (strapi: Core.Strapi, token: string): string | null => {
   if (!token) {
@@ -602,11 +654,18 @@ const encryptToken = (strapi: Core.Strapi, token: string): string | null => {
   return strapi.service('admin::encryption').encrypt(token);
 };
 
-const seedZodiacSigns = async (strapi: Core.Strapi): Promise<Map<string, SeededEntity>> => {
+const seedZodiacSigns = async (
+  strapi: Core.Strapi,
+): Promise<Map<string, SeededEntity>> => {
   const byName = new Map<string, SeededEntity>();
 
   for (const sign of SIGNS) {
-    const seeded = await upsertOne(strapi, 'api::zodiac-sign.zodiac-sign', { name: sign.name }, sign);
+    const seeded = await upsertOne(
+      strapi,
+      'api::zodiac-sign.zodiac-sign',
+      { name: sign.name },
+      sign,
+    );
     if (seeded.name) {
       byName.set(seeded.name, seeded);
     }
@@ -615,11 +674,18 @@ const seedZodiacSigns = async (strapi: Core.Strapi): Promise<Map<string, SeededE
   return byName;
 };
 
-const seedCategories = async (strapi: Core.Strapi): Promise<Map<string, SeededEntity>> => {
+const seedCategories = async (
+  strapi: Core.Strapi,
+): Promise<Map<string, SeededEntity>> => {
   const byName = new Map<string, SeededEntity>();
 
   for (const category of CATEGORIES) {
-    const seeded = await upsertOne(strapi, 'api::category.category', { name: category.name }, category);
+    const seeded = await upsertOne(
+      strapi,
+      'api::category.category',
+      { name: category.name },
+      category,
+    );
     if (seeded.name) {
       byName.set(seeded.name, seeded);
     }
@@ -630,7 +696,7 @@ const seedCategories = async (strapi: Core.Strapi): Promise<Map<string, SeededEn
 
 const seedArticles = async (
   strapi: Core.Strapi,
-  categoriesByName: Map<string, SeededEntity>
+  categoriesByName: Map<string, SeededEntity>,
 ): Promise<void> => {
   const publishedAt = new Date().toISOString();
 
@@ -645,17 +711,23 @@ const seedArticles = async (
         title: article.title,
         slug: article.slug,
         content: article.content,
+        premiumContent: PREMIUM_ARTICLE_SLUGS.has(article.slug)
+          ? buildArticlePremiumContent(article.title)
+          : null,
+        isPremium: PREMIUM_ARTICLE_SLUGS.has(article.slug),
         excerpt: article.excerpt,
         read_time_minutes: article.read_time_minutes,
         author: article.author,
         category: category?.id || null,
         publishedAt,
-      }
+      },
     );
   }
 };
 
-const seedTarotCards = async (strapi: Core.Strapi): Promise<Map<string, SeededEntity>> => {
+const seedTarotCards = async (
+  strapi: Core.Strapi,
+): Promise<Map<string, SeededEntity>> => {
   const bySlug = new Map<string, SeededEntity>();
   const publishedAt = new Date().toISOString();
 
@@ -667,7 +739,7 @@ const seedTarotCards = async (strapi: Core.Strapi): Promise<Map<string, SeededEn
       {
         ...card,
         publishedAt,
-      }
+      },
     );
     if (seeded.slug) {
       bySlug.set(seeded.slug, seeded);
@@ -679,10 +751,11 @@ const seedTarotCards = async (strapi: Core.Strapi): Promise<Map<string, SeededEn
 
 const seedDailyTarotDraw = async (
   strapi: Core.Strapi,
-  cardsBySlug: Map<string, SeededEntity>
+  cardsBySlug: Map<string, SeededEntity>,
 ): Promise<void> => {
   const today = getWarsawDate();
-  const firstCard = cardsBySlug.get('glupiec') || [...cardsBySlug.values()][0] || null;
+  const firstCard =
+    cardsBySlug.get('glupiec') || [...cardsBySlug.values()][0] || null;
 
   if (!firstCard) {
     return;
@@ -695,8 +768,9 @@ const seedDailyTarotDraw = async (
     {
       draw_date: today,
       card: firstCard.id,
-      message: 'Dziś postaw na odwagę pierwszego kroku i zaufanie do swojej intuicji.',
-    }
+      message:
+        'Dziś postaw na odwagę pierwszego kroku i zaufanie do swojej intuicji.',
+    },
   );
 };
 
@@ -711,20 +785,61 @@ const seedNumerology = async (strapi: Core.Strapi): Promise<void> => {
       {
         ...item,
         publishedAt,
-      }
+      },
     );
   }
 };
 
+const DAILY_HOROSCOPE_TEMPLATES = {
+  Ogólny:
+    'Twój dzień zapowiada się wyjątkowo harmonijnie. Pamiętaj o chwili dla siebie.',
+  Miłosny:
+    'Energia Wenus sprzyja dziś szczerym rozmowom i romantycznym gestom.',
+  Zawodowy:
+    'To dobry moment na planowanie długoterminowych projektów i budowanie relacji w zespole.',
+  Finansowy:
+    'Ostrożność w wydatkach przyniesie Ci spokój w nadchodzących dniach.',
+  Chiński:
+    'Dzisiejsza energia Wschodu podpowiada spokojne działanie, uważną obserwację i korzystanie z mądrości cykli.',
+  Celtycki:
+    'Rytm natury wzmacnia intuicję. Zwróć uwagę na znaki w codziennych rozmowach i drobnych powrotach do równowagi.',
+  Egipski:
+    'Symboliczna opieka dawnych bóstw sprzyja porządkowaniu intencji i wybieraniu tego, co naprawdę wzmacnia Twoją drogę.',
+};
+
+const buildHoroscopePremiumContent = (signName: string, type: string): string =>
+  `${signName}: Pełna interpretacja Premium dla typu ${type}.
+
+Relacje: dzisiejszy rytm najmocniej pokazuje, gdzie prosisz o bliskość pośrednio, zamiast nazwać ją wprost. Wybierz jedną relację i sprawdź, czy Twoje milczenie chroni spokój, czy tylko przedłuża napięcie. Premium zachęca do miękkiej odwagi: krótkiej rozmowy, jasnego komunikatu i zgody na to, że druga osoba może potrzebować chwili. Nie chodzi o presję, lecz o uczciwy kontakt z sercem. Jeśli w tle wraca stary schemat, nazwij go bez oskarżania siebie: "tak reaguję, kiedy boję się odrzucenia". Taka świadomość od razu zmniejsza siłę automatu.
+
+Praca: energia typu ${type} wspiera porządkowanie priorytetów. Zamiast rozpoczynać trzy nowe sprawy, domknij jedną, która realnie zdejmie ciężar z myśli. Najlepszy ruch to ten, który ma mierzalny koniec: wysłany dokument, spisana decyzja, rozmowa z właściwą osobą albo konkretny termin. Jeżeli pojawi się chaos, wróć do pytania, co dziś buduje stabilność, a co jest tylko reakcją na cudze tempo. Dla znaku ${signName} szczególnie ważne jest odróżnienie ambicji od napięcia. Ambicja daje kierunek, napięcie każe udowadniać wartość zbyt szybko.
+
+Energia dnia: dla znaku ${signName} ważny jest dziś spokojny kontakt z ciałem. Zwróć uwagę na oddech, kark i dłonie, bo tam najszybciej zapisuje się pośpiech. Woda, regularny posiłek i pięć minut bez ekranu mogą dać więcej jasności niż kolejna analiza. Ten dzień nie wymaga perfekcji. Wymaga rytmu, który pozwoli Ci usłyszeć intuicję, zanim odpowiesz światu. Po południu sprawdź poziom pobudzenia w skali od jednego do dziesięciu. Jeśli wynik jest wysoki, najpierw obniż napięcie, a dopiero potem podejmuj decyzję.
+
+Rytuał: usiądź przy naturalnym świetle albo zapal małą świecę. Zapisz intencję zaczynającą się od słów: "Dziś wybieram...". Potem dopisz trzy konkretne gesty, które potwierdzą tę intencję w relacjach, pracy i odpoczynku. Przez dziewięć spokojnych oddechów trzymaj uwagę na sercu. Na koniec wykonaj pierwszy, najmniejszy gest od razu, aby energia nie została tylko pięknym zdaniem. Wieczorem wróć do intencji i dopisz, gdzie była najłatwiejsza, a gdzie wymagała odwagi. To zamieni horoskop w osobistą mapę, nie jednorazowy tekst.
+
+Pytanie refleksyjne: który wybór wzmacnia mój spokój i sprawczość, nawet jeśli wymaga ode mnie większej szczerości niż zwykle? Jaką jedną decyzję mogę odłożyć, dopóki nie wrócę do spokojniejszego oddechu i pełniejszego obrazu sytuacji?`;
+
+const GENERAL_PERIOD_TEMPLATES = {
+  Tygodniowy:
+    'Nadchodzący tydzień będzie czasem intensywnego wzrostu i nowych możliwości.',
+  Miesięczny:
+    'Ten miesiąc sprzyja refleksji nad dotychczasowymi osiągnięciami i wyznaczaniu nowych celów.',
+  Roczny:
+    'Cały rok upłynie pod znakiem transformacji i odkrywania własnego potencjału.',
+};
+
 const seedHoroscopes = async (
   strapi: Core.Strapi,
-  signsByName: Map<string, SeededEntity>
+  signsByName: Map<string, SeededEntity>,
 ): Promise<void> => {
   const today = getWarsawDate();
   const publishedAt = new Date().toISOString();
 
   for (const sign of signsByName.values()) {
-    for (const [type, baseContent] of Object.entries(DAILY_HOROSCOPE_TEMPLATES)) {
+    for (const [type, baseContent] of Object.entries(
+      DAILY_HOROSCOPE_TEMPLATES,
+    )) {
       await upsertOne(
         strapi,
         'api::horoscope.horoscope',
@@ -740,12 +855,15 @@ const seedHoroscopes = async (
           date: today,
           zodiac_sign: sign.id,
           content: `${sign.name}: ${baseContent}`,
+          premiumContent: buildHoroscopePremiumContent(String(sign.name), type),
           publishedAt,
-        }
+        },
       );
     }
 
-    for (const [period, baseContent] of Object.entries(GENERAL_PERIOD_TEMPLATES)) {
+    for (const [period, baseContent] of Object.entries(
+      GENERAL_PERIOD_TEMPLATES,
+    )) {
       await upsertOne(
         strapi,
         'api::horoscope.horoscope',
@@ -761,14 +879,86 @@ const seedHoroscopes = async (
           date: today,
           zodiac_sign: sign.id,
           content: `${sign.name}: ${baseContent}`,
+          premiumContent: buildHoroscopePremiumContent(
+            String(sign.name),
+            period,
+          ),
           publishedAt,
-        }
+        },
       );
     }
   }
 };
 
-export const ensureBootstrapContent = async (strapi: Core.Strapi): Promise<void> => {
+const backfillPremiumContent = async (strapi: Core.Strapi): Promise<void> => {
+  const horoscopeQuery = strapi.db.query('api::horoscope.horoscope');
+  const horoscopes = (await horoscopeQuery.findMany({
+    populate: { zodiac_sign: true },
+    limit: 1000,
+  })) as Array<{
+    id: number;
+    content?: string | null;
+    premiumContent?: string | null;
+    period?: string | null;
+    type?: string | null;
+    zodiac_sign?: { name?: string | null } | null;
+  }>;
+
+  for (const horoscope of horoscopes) {
+    const kind =
+      horoscope.period === 'Dzienny' ? 'horoscope-daily' : 'horoscope-periodic';
+    const quality = evaluatePremiumContentQuality({
+      content: horoscope.content,
+      premiumContent: horoscope.premiumContent,
+      kind,
+    });
+
+    if (!quality.valid) {
+      await horoscopeQuery.update({
+        where: { id: horoscope.id },
+        data: {
+          premiumContent: buildHoroscopePremiumContent(
+            horoscope.zodiac_sign?.name || 'Twój znak',
+            horoscope.type || horoscope.period || 'Ogólny',
+          ),
+        },
+      });
+    }
+  }
+
+  const articleQuery = strapi.db.query('api::article.article');
+  const articles = (await articleQuery.findMany({ limit: 1000 })) as Array<{
+    id: number;
+    title?: string | null;
+    content?: string | null;
+    premiumContent?: string | null;
+    isPremium?: boolean | null;
+  }>;
+
+  for (const article of articles) {
+    const quality = evaluatePremiumContentQuality({
+      content: article.content,
+      premiumContent: article.premiumContent,
+      kind: 'article',
+    });
+
+    if (!quality.valid || !article.isPremium) {
+      await articleQuery.update({
+        where: { id: article.id },
+        data: {
+          premiumContent: buildArticlePremiumContent(
+            article.title || 'Materiał Star Sign',
+          ),
+          isPremium: true,
+        },
+      });
+    }
+  }
+};
+
+export const ensureBootstrapContent = async (
+  strapi: Core.Strapi,
+): Promise<void> => {
   const signs = await seedZodiacSigns(strapi);
   const categories = await seedCategories(strapi);
   await seedArticles(strapi, categories);
@@ -776,66 +966,117 @@ export const ensureBootstrapContent = async (strapi: Core.Strapi): Promise<void>
   await seedDailyTarotDraw(strapi, cards);
   await seedNumerology(strapi);
   await seedHoroscopes(strapi, signs);
+  await backfillPremiumContent(strapi);
+  await ensureGlobalSettings(strapi);
 };
 
-export const ensureDailyHoroscopeWorkflows = async (strapi: Core.Strapi): Promise<void> => {
+export const ensureHoroscopeWorkflows = async (
+  strapi: Core.Strapi,
+): Promise<void> => {
+  await upsertAicoWorkflows(strapi, ['horoscope']);
+};
+
+export const ensureArticleWorkflows = async (
+  strapi: Core.Strapi,
+): Promise<void> => {
+  await upsertAicoWorkflows(strapi, ['article']);
+};
+
+export const ensureDailyCardWorkflows = async (
+  strapi: Core.Strapi,
+): Promise<void> => {
+  await upsertAicoWorkflows(strapi, ['daily_card']);
+};
+
+const upsertAicoWorkflows = async (
+  strapi: Core.Strapi,
+  workflowTypes: Array<'horoscope' | 'article' | 'daily_card'>,
+): Promise<void> => {
   const token = resolveOpenRouterToken();
   const encryptedToken = encryptToken(strapi, token);
-  const enableWorkflows = Boolean(encryptedToken) && toBoolean(process.env.AICO_ENABLE_WORKFLOWS, false);
+  const enableWorkflows =
+    Boolean(encryptedToken) &&
+    toBoolean(process.env.AICO_ENABLE_WORKFLOWS, false);
   const model = resolveOpenRouterModel();
   const query = strapi.db.query('plugin::ai-content-orchestrator.workflow');
 
-  for (const workflow of DAILY_WORKFLOW_TYPES) {
-    const name = `AICO Horoskop Dzienny - ${workflow.type} (23:${String(workflow.generateMinute).padStart(2, '0')} → 00:00)`;
-    const existing = await query.findOne({ where: { name } });
-    const tokenToPersist = encryptedToken || existing?.llm_api_token_encrypted || null;
+  const categories = (await strapi.entityService.findMany(
+    'api::category.category',
+    {
+      limit: 10,
+    },
+  )) as any[];
+  const defaultCatId = categories[0]?.id || null;
+
+  const definitions = buildAicoWorkflowDefinitions({
+    model,
+    encryptedToken,
+    enableWorkflows,
+    categoryId: defaultCatId,
+  }).filter((definition) => workflowTypes.includes(definition.workflow_type));
+
+  for (const definition of definitions) {
+    const existing = await query.findOne({
+      where: { name: definition.name },
+    });
+    const tokenToPersist =
+      encryptedToken || existing?.llm_api_token_encrypted || null;
 
     await upsertOne(
       strapi,
       'plugin::ai-content-orchestrator.workflow',
-      { name },
+      { name: definition.name },
       {
-        name,
-        enabled: tokenToPersist ? enableWorkflows : false,
-        status: 'idle',
-        workflow_type: 'horoscope',
-        generate_cron: `${workflow.generateMinute} 23 * * *`,
-        publish_cron: '0 0 * * *',
-        topic_mode: 'mixed',
-        timezone: WARSAW_TIMEZONE,
-        locale: 'pl',
-        llm_model: model,
+        ...definition,
         llm_api_token_encrypted: tokenToPersist,
-        temperature: process.env.NODE_ENV === 'production' ? 0.55 : 0.65,
-        max_completion_tokens: 2000,
-        retry_max: 3,
-        retry_backoff_seconds: 120,
-        daily_request_limit: process.env.NODE_ENV === 'production' ? 220 : 160,
-        daily_token_limit: process.env.NODE_ENV === 'production' ? 500000 : 300000,
-        allow_manual_edit: true,
-        auto_publish: true,
-        force_regenerate: false,
-        horoscope_period: 'Dzienny',
-        horoscope_type_values: [workflow.type],
-        all_signs: true,
-        article_category: null,
-        prompt_template:
-          'Napisz {{type}} horoskop {{period}} dla daty {{targetDate}} dla WSZYSTKICH znaków: {{signList}}. Każdy opis ma mieć 80-130 słów, język polski, ton wspierający i konkretny. Unikaj ogólników i straszenia. Zwróć WYŁĄCZNIE JSON.',
-      }
+        enabled: tokenToPersist ? definition.enabled : false,
+      },
     );
   }
 
-  const legacyWorkflow = await query.findOne({
-    where: { name: 'AICO Horoskop Dzienny (23:00 → 00:00)' },
-  });
+  for (const legacyName of AICO_LEGACY_WORKFLOW_NAMES) {
+    const legacyWorkflow = await query.findOne({
+      where: { name: legacyName },
+    });
 
-  if (legacyWorkflow?.id) {
-    await query.update({
-      where: { id: legacyWorkflow.id },
-      data: {
-        enabled: false,
-        status: 'idle',
+    if (legacyWorkflow?.id) {
+      await query.update({
+        where: { id: legacyWorkflow.id },
+        data: {
+          enabled: false,
+          status: 'idle',
+        },
+      });
+    }
+  }
+};
+
+export const ensureGlobalSettings = async (
+  strapi: Core.Strapi,
+): Promise<void> => {
+  const store = strapi.store({
+    type: 'plugin',
+    name: 'ai-content-orchestrator',
+    key: 'settings',
+  });
+  const current = (await store.get()) as Record<string, unknown> | null;
+
+  if (!current || !current.image_gen_model) {
+    const model = resolveImageGenModel();
+    const token = resolveImageGenToken();
+    const encryptedToken = token ? encryptToken(strapi, token) : null;
+
+    await store.set({
+      value: {
+        timezone: WARSAW_TIMEZONE,
+        locale: 'pl',
+        image_gen_model: model,
+        image_gen_api_token_encrypted: encryptedToken,
+        ...(current || {}),
       },
     });
+    strapi.log.info(
+      '[aico] Global settings seeded or updated with Media Gen config.',
+    );
   }
 };

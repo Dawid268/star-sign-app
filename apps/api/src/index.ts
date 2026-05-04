@@ -1,5 +1,10 @@
 import type { Core } from '@strapi/strapi';
-import { ensureBootstrapContent, ensureDailyHoroscopeWorkflows } from './bootstrap/content';
+import {
+  ensureBootstrapContent,
+  ensureHoroscopeWorkflows,
+  ensureArticleWorkflows,
+  ensureDailyCardWorkflows,
+} from './bootstrap/content';
 import { syncContentApiReadPermissions } from './utils/public-permissions';
 
 export default {
@@ -41,28 +46,41 @@ export default {
         },
       });
     } catch (error) {
-      strapi.log.warn('Nie udało się wymusić ustawień zaawansowanych users-permissions.', error);
+      strapi.log.warn(
+        'Nie udało się wymusić ustawień zaawansowanych users-permissions.',
+        error,
+      );
     }
 
     try {
       await ensureBootstrapContent(strapi);
       strapi.log.info('Content startowy Star Sign jest gotowy.');
     } catch (error) {
-      strapi.log.error('Nie udało się przygotować contentu startowego Star Sign.', error);
+      strapi.log.error(
+        'Nie udało się przygotować contentu startowego Star Sign.',
+        error,
+      );
     }
 
     try {
       await syncContentApiReadPermissions(strapi);
-      strapi.log.info('Publiczne uprawnienia Content API zostały zsynchronizowane.');
+      strapi.log.info(
+        'Publiczne uprawnienia Content API zostały zsynchronizowane.',
+      );
     } catch (error) {
-      strapi.log.error('Nie udało się zsynchronizować publicznych uprawnień Content API.', error);
+      strapi.log.error(
+        'Nie udało się zsynchronizować publicznych uprawnień Content API.',
+        error,
+      );
     }
 
     try {
-      await ensureDailyHoroscopeWorkflows(strapi);
-      strapi.log.info('Produkcyjne workflow dziennych horoskopów są zarejestrowane.');
+      await ensureHoroscopeWorkflows(strapi);
+      await ensureArticleWorkflows(strapi);
+      await ensureDailyCardWorkflows(strapi);
+      strapi.log.info('Produkcyjne workflowy AICO są zarejestrowane.');
     } catch (error) {
-      strapi.log.warn('Nie udało się zarejestrować workflow dziennych horoskopów.', error);
+      strapi.log.warn('Nie udało się zarejestrować workflowów AICO.', error);
     }
   },
 };

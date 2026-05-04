@@ -449,14 +449,17 @@ export interface ApiArticleArticle extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     excerpt: Schema.Attribute.Text;
     image: Schema.Attribute.Media<'images'>;
+    isPremium: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::article.article'
     > &
       Schema.Attribute.Private;
+    premiumContent: Schema.Attribute.RichText;
     publishedAt: Schema.Attribute.DateTime;
     read_time_minutes: Schema.Attribute.Integer;
+    seo: Schema.Attribute.Component<'shared.seo', false>;
     slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
@@ -555,7 +558,9 @@ export interface ApiHoroscopeHoroscope extends Struct.CollectionTypeSchema {
     period: Schema.Attribute.Enumeration<
       ['Dzienny', 'Tygodniowy', 'Miesi\u0119czny', 'Roczny']
     >;
+    premiumContent: Schema.Attribute.Text;
     publishedAt: Schema.Attribute.DateTime;
+    seo: Schema.Attribute.Component<'shared.seo', false>;
     type: Schema.Attribute.Enumeration<
       [
         'Og\u00F3lny',
@@ -651,6 +656,7 @@ export interface ApiNumerologyProfileNumerologyProfile
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
     publishedAt: Schema.Attribute.DateTime;
+    seo: Schema.Attribute.Component<'shared.seo', false>;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -797,6 +803,7 @@ export interface ApiTarotCardTarotCard extends Struct.CollectionTypeSchema {
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     description: Schema.Attribute.Text;
+    image: Schema.Attribute.Media<'images'>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -936,6 +943,7 @@ export interface ApiZodiacSignZodiacSign extends Struct.CollectionTypeSchema {
       'oneToMany',
       'api::horoscope.horoscope'
     >;
+    image: Schema.Attribute.Media<'images'>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -947,6 +955,7 @@ export interface ApiZodiacSignZodiacSign extends Struct.CollectionTypeSchema {
       Schema.Attribute.Unique;
     planet: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
+    seo: Schema.Attribute.Component<'shared.seo', false>;
     slug: Schema.Attribute.UID<'name'> & Schema.Attribute.Required;
     symbol: Schema.Attribute.Media<'images'>;
     updatedAt: Schema.Attribute.DateTime;
@@ -1006,7 +1015,13 @@ export interface PluginAiContentOrchestratorMediaAsset
     priority: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     publishedAt: Schema.Attribute.DateTime;
     purpose: Schema.Attribute.Enumeration<
-      ['horoscope_sign', 'daily_card', 'blog_article', 'fallback_general']
+      [
+        'horoscope_sign',
+        'daily_card',
+        'blog_article',
+        'zodiac_profile',
+        'fallback_general',
+      ]
     > &
       Schema.Attribute.DefaultTo<'blog_article'>;
     sign_slug: Schema.Attribute.String;
@@ -1183,6 +1198,72 @@ export interface PluginAiContentOrchestratorRunLog
   };
 }
 
+export interface PluginAiContentOrchestratorSocialPostTicket
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'aico_social_post_tickets';
+  info: {
+    displayName: 'AICO Social Post Ticket';
+    pluralName: 'social-post-tickets';
+    singularName: 'social-post-ticket';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  pluginOptions: {
+    'content-manager': {
+      visible: true;
+    };
+    'content-type-builder': {
+      visible: true;
+    };
+  };
+  attributes: {
+    attempt_count: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    blocked_reason: Schema.Attribute.String;
+    caption: Schema.Attribute.Text & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    idempotency_key: Schema.Attribute.String & Schema.Attribute.Unique;
+    last_error: Schema.Attribute.Text;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'plugin::ai-content-orchestrator.social-post-ticket'
+    > &
+      Schema.Attribute.Private;
+    media_url: Schema.Attribute.String;
+    next_attempt_at: Schema.Attribute.DateTime;
+    platform: Schema.Attribute.Enumeration<
+      ['facebook', 'instagram', 'twitter', 'tiktok']
+    > &
+      Schema.Attribute.Required;
+    provider_payload: Schema.Attribute.JSON;
+    provider_post_id: Schema.Attribute.String;
+    published_on: Schema.Attribute.DateTime;
+    publishedAt: Schema.Attribute.DateTime;
+    related_content_id: Schema.Attribute.Integer;
+    related_content_uid: Schema.Attribute.String;
+    scheduled_at: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    source_run: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::ai-content-orchestrator.run-log'
+    >;
+    status: Schema.Attribute.Enumeration<
+      ['pending', 'scheduled', 'published', 'failed', 'canceled']
+    > &
+      Schema.Attribute.DefaultTo<'pending'>;
+    target_url: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    workflow: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::ai-content-orchestrator.workflow'
+    >;
+  };
+}
+
 export interface PluginAiContentOrchestratorTopicQueueItem
   extends Struct.CollectionTypeSchema {
   collectionName: 'aico_topic_queue_items';
@@ -1328,13 +1409,21 @@ export interface PluginAiContentOrchestratorWorkflow
     daily_token_limit: Schema.Attribute.Integer &
       Schema.Attribute.DefaultTo<250000>;
     enabled: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    enabled_channels: Schema.Attribute.JSON;
+    fb_access_token_encrypted: Schema.Attribute.Text;
+    fb_page_id: Schema.Attribute.String;
     force_regenerate: Schema.Attribute.Boolean &
       Schema.Attribute.DefaultTo<false>;
     generate_cron: Schema.Attribute.String & Schema.Attribute.Required;
     horoscope_period: Schema.Attribute.Enumeration<
-      ['Dzienny', 'Tygodniowy', 'Miesi\u0119czny']
+      ['Dzienny', 'Tygodniowy', 'Miesi\u0119czny', 'Roczny']
     >;
     horoscope_type_values: Schema.Attribute.JSON;
+    ig_access_token_encrypted: Schema.Attribute.Text;
+    ig_user_id: Schema.Attribute.String;
+    image_gen_api_token_encrypted: Schema.Attribute.Text;
+    image_gen_model: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'openai/gpt-image-2'>;
     last_error: Schema.Attribute.Text;
     last_generated_at: Schema.Attribute.DateTime;
     last_generation_slot: Schema.Attribute.String;
@@ -1368,6 +1457,8 @@ export interface PluginAiContentOrchestratorWorkflow
       Schema.Attribute.DefaultTo<'Europe/Warsaw'>;
     topic_mode: Schema.Attribute.Enumeration<['manual', 'mixed']> &
       Schema.Attribute.DefaultTo<'mixed'>;
+    tt_access_token_encrypted: Schema.Attribute.Text;
+    tt_creator_id: Schema.Attribute.String;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1375,6 +1466,10 @@ export interface PluginAiContentOrchestratorWorkflow
       ['horoscope', 'daily_card', 'article']
     > &
       Schema.Attribute.Required;
+    x_access_token_encrypted: Schema.Attribute.Text;
+    x_access_token_secret_encrypted: Schema.Attribute.Text;
+    x_api_key: Schema.Attribute.String;
+    x_api_secret_encrypted: Schema.Attribute.Text;
   };
 }
 
@@ -1906,6 +2001,7 @@ declare module '@strapi/strapi' {
       'plugin::ai-content-orchestrator.media-usage-log': PluginAiContentOrchestratorMediaUsageLog;
       'plugin::ai-content-orchestrator.publication-ticket': PluginAiContentOrchestratorPublicationTicket;
       'plugin::ai-content-orchestrator.run-log': PluginAiContentOrchestratorRunLog;
+      'plugin::ai-content-orchestrator.social-post-ticket': PluginAiContentOrchestratorSocialPostTicket;
       'plugin::ai-content-orchestrator.topic-queue-item': PluginAiContentOrchestratorTopicQueueItem;
       'plugin::ai-content-orchestrator.usage-daily': PluginAiContentOrchestratorUsageDaily;
       'plugin::ai-content-orchestrator.workflow': PluginAiContentOrchestratorWorkflow;

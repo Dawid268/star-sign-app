@@ -25,6 +25,11 @@
       "multiple": false,
       "allowedTypes": ["images"]
     },
+    "image": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": ["images"]
+    },
     "date_range": {
       "type": "string"
     },
@@ -43,6 +48,11 @@
       "relation": "oneToMany",
       "target": "api::horoscope.horoscope",
       "mappedBy": "zodiac_sign"
+    },
+    "seo": {
+      "type": "component",
+      "repeatable": false,
+      "component": "shared.seo"
     }
   }
 }

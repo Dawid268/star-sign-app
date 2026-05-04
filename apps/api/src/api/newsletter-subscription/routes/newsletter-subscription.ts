@@ -1,3 +1,5 @@
 import { factories } from '@strapi/strapi';
 
-export default factories.createCoreRouter('api::newsletter-subscription.newsletter-subscription' as any);
+export default factories.createCoreRouter(
+  'api::newsletter-subscription.newsletter-subscription' as any,
+);

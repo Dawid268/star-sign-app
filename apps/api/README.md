@@ -35,6 +35,7 @@ yarn build
 ### `seed:dev`
 
 Zasila bazę danych zestawem danych developerskich (idempotentnie):
+
 - znaki zodiaku
 - horoskopy
 - karty tarota + karta dnia
@@ -56,12 +57,12 @@ npm exec nx run api:seed-dev
 ### Cloudflare R2 jako źródło assetów (Media Library)
 
 1. W `apps/api/.env` ustaw:
-`R2_UPLOAD_ENABLED=true`
-`R2_ACCESS_KEY_ID=...`
-`R2_SECRET_ACCESS_KEY=...`
+   `R2_UPLOAD_ENABLED=true`
+   `R2_ACCESS_KEY_ID=...`
+   `R2_SECRET_ACCESS_KEY=...`
 
 2. Bucket `star-sign` musi być dostępny do odczytu dla assetów, albo podaj publiczny/custom CDN URL przez:
-`R2_PUBLIC_BASE_URL=https://<publiczny-host-bucketu>`
+   `R2_PUBLIC_BASE_URL=https://<publiczny-host-bucketu>`
 
 3. Zrestartuj API:
 

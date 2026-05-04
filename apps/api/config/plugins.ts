@@ -1,6 +1,8 @@
 import type { Core } from '@strapi/strapi';
 
-const config = ({ env }: Core.Config.Shared.ConfigParams): Core.Config.Plugin => {
+const config = ({
+  env,
+}: Core.Config.Shared.ConfigParams): Core.Config.Plugin => {
   const r2UploadEnabled = env.bool('R2_UPLOAD_ENABLED', false);
   const uploadSecurityConfig = {
     security: {
@@ -34,13 +36,22 @@ const config = ({ env }: Core.Config.Shared.ConfigParams): Core.Config.Plugin =>
           },
         },
         settings: {
-          defaultFrom: env('BREVO_FROM_EMAIL', env('EMAIL_DEFAULT_FROM', 'Star Sign <noreply@starsign.local>')),
-          defaultReplyTo: env('BREVO_REPLY_TO', env('EMAIL_DEFAULT_REPLY_TO', 'kontakt@starsign.local')),
+          defaultFrom: env(
+            'BREVO_FROM_EMAIL',
+            env('EMAIL_DEFAULT_FROM', 'Star Sign <noreply@starsign.local>'),
+          ),
+          defaultReplyTo: env(
+            'BREVO_REPLY_TO',
+            env('EMAIL_DEFAULT_REPLY_TO', 'kontakt@starsign.local'),
+          ),
         },
       },
     },
     documentation: {
-      enabled: env.bool('STRAPI_DOCUMENTATION_ENABLED', env('NODE_ENV') !== 'production'),
+      enabled: env.bool(
+        'STRAPI_DOCUMENTATION_ENABLED',
+        env('NODE_ENV') !== 'production',
+      ),
       config: {
         info: {
           title: 'Star Sign API',
@@ -56,12 +67,10 @@ const config = ({ env }: Core.Config.Shared.ConfigParams): Core.Config.Plugin =>
         sendMetadata: true,
         init: {
           environment: env('NODE_ENV', 'development'),
+          release: env('SENTRY_RELEASE') || undefined,
           tracesSampleRate: env.float('SENTRY_TRACES_SAMPLE_RATE', 0),
         },
       },
-    },
-    seo: {
-      enabled: env.bool('STRAPI_SEO_PLUGIN_ENABLED', true),
     },
   };
 

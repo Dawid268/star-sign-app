@@ -12,7 +12,15 @@
   "attributes": {
     "type": {
       "type": "enumeration",
-      "enum": ["Ogólny", "Miłosny", "Zawodowy", "Finansowy", "Chiński", "Celtycki", "Egipski"]
+      "enum": [
+        "Ogólny",
+        "Miłosny",
+        "Zawodowy",
+        "Finansowy",
+        "Chiński",
+        "Celtycki",
+        "Egipski"
+      ]
     },
     "period": {
       "type": "enumeration",
@@ -21,6 +29,9 @@
     "content": {
       "type": "text",
       "required": true
+    },
+    "premiumContent": {
+      "type": "text"
     },
     "date": {
       "type": "date",
@@ -31,6 +42,11 @@
       "relation": "manyToOne",
       "target": "api::zodiac-sign.zodiac-sign",
       "inversedBy": "horoscopes"
+    },
+    "seo": {
+      "type": "component",
+      "repeatable": false,
+      "component": "shared.seo"
     }
   }
 }

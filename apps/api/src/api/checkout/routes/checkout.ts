@@ -8,5 +8,13 @@ export default {
         auth: false,
       },
     },
+    {
+      method: 'GET',
+      path: '/checkout/session/:sessionId/analytics-summary',
+      handler: 'checkout.analyticsSummary',
+      config: {
+        auth: false,
+      },
+    },
   ],
 };

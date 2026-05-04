@@ -1,11 +1,77 @@
-type SubscriptionStatus = 'inactive' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid';
+type SubscriptionStatus =
+  | 'inactive'
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'canceled'
+  | 'unpaid';
 type SubscriptionPlan = 'monthly' | 'annual';
 type ReadingType = 'horoscope' | 'tarot';
 
-const PREMIUM_ACCESS_STATUSES = new Set<SubscriptionStatus>(['trialing', 'active', 'past_due']);
+const PREMIUM_ACCESS_STATUSES = new Set<SubscriptionStatus>([
+  'trialing',
+  'active',
+  'past_due',
+]);
 const WARSAW_TIMEZONE = 'Europe/Warsaw';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+type ZodiacSignSlug =
+  | 'baran'
+  | 'byk'
+  | 'bliznieta'
+  | 'rak'
+  | 'lew'
+  | 'panna'
+  | 'waga'
+  | 'skorpion'
+  | 'strzelec'
+  | 'koziorozec'
+  | 'wodnik'
+  | 'ryby';
+
+export const resolveZodiacSignSlugFromBirthDate = (
+  birthDate: string | null,
+): ZodiacSignSlug | null => {
+  if (!birthDate) {
+    return null;
+  }
+
+  const [year, month, day] = birthDate.split('-').map(Number);
+  const parsedDate = new Date(year, month - 1, day);
+
+  if (
+    !year ||
+    !month ||
+    !day ||
+    parsedDate.getFullYear() !== year ||
+    parsedDate.getMonth() !== month - 1 ||
+    parsedDate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  if ((month === 3 && day >= 21) || (month === 4 && day <= 19))
+    return 'baran';
+  if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return 'byk';
+  if ((month === 5 && day >= 21) || (month === 6 && day <= 20))
+    return 'bliznieta';
+  if ((month === 6 && day >= 21) || (month === 7 && day <= 22)) return 'rak';
+  if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return 'lew';
+  if ((month === 8 && day >= 23) || (month === 9 && day <= 22))
+    return 'panna';
+  if ((month === 9 && day >= 23) || (month === 10 && day <= 22))
+    return 'waga';
+  if ((month === 10 && day >= 23) || (month === 11 && day <= 21))
+    return 'skorpion';
+  if ((month === 11 && day >= 22) || (month === 12 && day <= 21))
+    return 'strzelec';
+  if ((month === 12 && day >= 22) || (month === 1 && day <= 19))
+    return 'koziorozec';
+  if ((month === 1 && day >= 20) || (month === 2 && day <= 18))
+    return 'wodnik';
+  return 'ryby';
+};
 
 const getWarsawDate = (date: Date = new Date()): string =>
   new Intl.DateTimeFormat('en-CA', {
@@ -34,7 +100,13 @@ const toNullableString = (value: unknown): string | null => {
 const toBool = (value: unknown): boolean => value === true || value === 'true';
 
 const toSubscriptionStatus = (value: unknown): SubscriptionStatus => {
-  if (value === 'trialing' || value === 'active' || value === 'past_due' || value === 'canceled' || value === 'unpaid') {
+  if (
+    value === 'trialing' ||
+    value === 'active' ||
+    value === 'past_due' ||
+    value === 'canceled' ||
+    value === 'unpaid'
+  ) {
     return value;
   }
   return 'inactive';
@@ -58,6 +130,27 @@ const getPayload = (ctx: any): Record<string, unknown> => {
   return {};
 };
 
+const hasPayloadKey = (
+  payload: Record<string, unknown>,
+  key: string,
+): boolean => Object.prototype.hasOwnProperty.call(payload, key);
+
+const resolveProfileZodiacSignSlug = (
+  payload: Record<string, unknown>,
+  birthDate: string | null,
+  zodiacSignSlug: string | null,
+): string | null => {
+  if (birthDate) {
+    return resolveZodiacSignSlugFromBirthDate(birthDate);
+  }
+
+  if (hasPayloadKey(payload, 'birthDate')) {
+    return null;
+  }
+
+  return zodiacSignSlug;
+};
+
 const getUsersPermissionsJwtService = (): any => {
   try {
     return strapi.plugin('users-permissions').service('jwt');
@@ -71,11 +164,12 @@ const getAuthenticatedUser = async (ctx: any): Promise<any | null> => {
     return ctx.state.user;
   }
 
-  const authHeader = typeof ctx.request.header?.authorization === 'string'
-    ? ctx.request.header.authorization
-    : typeof ctx.get === 'function'
-      ? ctx.get('authorization')
-      : '';
+  const authHeader =
+    typeof ctx.request.header?.authorization === 'string'
+      ? ctx.request.header.authorization
+      : typeof ctx.get === 'function'
+        ? ctx.get('authorization')
+        : '';
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
@@ -107,10 +201,12 @@ const getAuthenticatedUser = async (ctx: any): Promise<any | null> => {
 };
 
 const ensureUserProfile = async (userId: number): Promise<any> => {
-  let profile = await strapi.db.query('api::user-profile.user-profile').findOne({
-    where: { user: userId },
-    populate: { zodiac_sign: true },
-  });
+  let profile = await strapi.db
+    .query('api::user-profile.user-profile')
+    .findOne({
+      where: { user: userId },
+      populate: { zodiac_sign: true },
+    });
 
   if (profile) {
     return profile;
@@ -161,19 +257,22 @@ const toProfilePayload = (user: any, profile: any) => ({
 });
 
 const composePremiumHoroscope = (baseText: string, profile: any): string => {
-  const hints: string[] = [];
+  const birthTime = profile?.birth_time
+    ? ` Około ${profile.birth_time} zaplanuj krótką pauzę na sprawdzenie intencji.`
+    : '';
+  const birthPlace = profile?.birth_place
+    ? ` Miejsce ${profile.birth_place} potraktuj jako symbol korzeni, do których możesz wrócić po spokój.`
+    : '';
 
-  if (profile?.birth_time) {
-    hints.push(`Najsilniejszy moment introspekcji wypada dziś około ${profile.birth_time}.`);
-  }
-  if (profile?.birth_place) {
-    hints.push(`Wróć myślami do intencji, którą nosisz od czasu związku z miejscem ${profile.birth_place}.`);
-  }
-  if (!hints.length) {
-    hints.push('Wersja premium wzmacnia codzienny przekaz o osobisty kontekst i konkretne kierunki działania.');
-  }
+  return `Relacje: dzisiejszy horoskop warto przełożyć na jedną konkretną rozmowę. Sprawdź, gdzie próbujesz być zrozumiana bez wypowiedzenia potrzeby wprost. Zamiast czekać na idealny moment, wybierz krótkie zdanie, które pokazuje prawdę i nie oskarża. Jeżeli relacja jest napięta, zacznij od faktu, potem nazwij uczucie, a dopiero na końcu prośbę. To pozwala budować bliskość bez presji.
 
-  return `${baseText}\n\n${hints.join(' ')}`;
+Praca: darmowa wskazówka dnia brzmi: ${baseText} W Premium zamieniamy ją w działanie. Wybierz jedno zadanie, które ma największy wpływ na Twój spokój albo poczucie sprawczości. Zapisz minimalny rezultat, jaki uznasz za wystarczający, i odetnij rozpraszacze na pierwszy blok pracy. Nie szukaj perfekcji. Szukaj zakończenia, które otworzy miejsce na kolejny świadomy krok.
+
+Energia dnia: Twoja energia potrzebuje rytmu, a nie kolejnego impulsu. Zadbaj o wodę, prosty posiłek, kilka głębokich oddechów i krótką przerwę bez telefonu.${birthTime}${birthPlace} Jeśli poczujesz pośpiech, sprawdź ciało: barki, szczękę i dłonie. Tam najszybciej pojawia się sygnał, że działasz z napięcia zamiast z intuicji.
+
+Rytuał: weź kartkę i zapisz trzy zdania. Pierwsze zaczyna się od "Dziś wybieram". Drugie od "Nie muszę już wzmacniać". Trzecie od "Mój najbliższy spokojny krok to". Po zapisaniu połóż dłoń na sercu i przez dziewięć oddechów wracaj do ostatniego zdania. Następnie wykonaj ten krok od razu, nawet jeśli zajmie tylko dwie minuty.
+
+Pytanie refleksyjne: gdybym zaufała temu, co już wiem, zamiast czekać na stuprocentową pewność, jaki wybór byłby dziś najuczciwszy wobec mnie?`;
 };
 
 const composePremiumTarot = (baseText: string, profile: any): string => {
@@ -181,16 +280,26 @@ const composePremiumTarot = (baseText: string, profile: any): string => {
     ? `Dla znaku ${profile.zodiac_sign.name} ta karta sugeruje skupienie na jednym priorytecie i świadome domykanie rozpoczętych wątków.`
     : 'Ta karta zachęca do prostoty działań i spokojnego domykania otwartych tematów.';
 
-  return `${baseText}\n\n${preface}`;
+  return `Relacje: ${preface} W relacjach karta dnia prosi, aby odróżnić intuicję od lęku. Jeżeli chcesz coś powiedzieć, zacznij od krótkiego komunikatu i nie dopisuj w myślach odpowiedzi drugiej osoby. Jeśli milczysz, sprawdź, czy robisz to z wyboru, czy z obawy przed reakcją. Największą wartością Premium jest tu praktyka spokojnego kontaktu, nie perfekcyjnej rozmowy.
+
+Praca: podstawowe znaczenie karty brzmi: ${baseText} W wersji Premium przełóż je na jedno działanie. Wybierz zadanie, które najlepiej domyka energię dnia, i zrób je przed sprawami pobocznymi. Jeżeli karta pokazuje napięcie, nie forsuj tempa. Zapisz, co jest naprawdę pilne, co może poczekać i komu trzeba jasno odpowiedzieć.
+
+Energia dnia: obserwuj, czy karta wzmacnia w Tobie ciekawość, opór czy potrzebę kontroli. Każda z tych reakcji jest wskazówką. Ciało może dziś potrzebować prostego rytmu: wody, oddechu, ruchu ramion i chwili ciszy. Zanim podejmiesz ważną decyzję, zrób trzy spokojne oddechy i nazwij emocję, która najmocniej prowadzi Twój wybór.
+
+Rytuał: zapisz nazwę karty na środku kartki. Po lewej stronie dopisz, czego chcesz dziś nie powtarzać. Po prawej stronie dopisz zachowanie, które byłoby dojrzalszą odpowiedzią. Następnie wybierz jeden symbol karty i potraktuj go jak kotwicę na dzień: słowo, kolor, gest albo krótką intencję. Wróć do niej wieczorem.
+
+Pytanie refleksyjne: jaka część mnie próbuje dziś działać z pośpiechu, a jaka część zna już prostszy, spokojniejszy krok?`;
 };
 
 const getDailyTarotDraw = async (): Promise<any | null> => {
   const today = getWarsawDate();
 
-  let draw = await strapi.db.query('api::daily-tarot-draw.daily-tarot-draw').findOne({
-    where: { draw_date: today },
-    populate: { card: true },
-  });
+  let draw = await strapi.db
+    .query('api::daily-tarot-draw.daily-tarot-draw')
+    .findOne({
+      where: { draw_date: today },
+      populate: { card: true },
+    });
 
   if (draw) {
     return draw;
@@ -208,25 +317,34 @@ const getDailyTarotDraw = async (): Promise<any | null> => {
   const selectedCard = cards[randomIndex];
 
   try {
-    draw = await strapi.db.query('api::daily-tarot-draw.daily-tarot-draw').create({
-      data: {
-        draw_date: today,
-        card: selectedCard.id,
-      },
-      populate: { card: true },
-    });
+    draw = await strapi.db
+      .query('api::daily-tarot-draw.daily-tarot-draw')
+      .create({
+        data: {
+          draw_date: today,
+          card: selectedCard.id,
+        },
+        populate: { card: true },
+      });
   } catch (error) {
-    strapi.log.warn('Wykryto równoległe tworzenie dzisiejszej karty tarota.', error);
-    draw = await strapi.db.query('api::daily-tarot-draw.daily-tarot-draw').findOne({
-      where: { draw_date: today },
-      populate: { card: true },
-    });
+    strapi.log.warn(
+      'Wykryto równoległe tworzenie dzisiejszej karty tarota.',
+      error,
+    );
+    draw = await strapi.db
+      .query('api::daily-tarot-draw.daily-tarot-draw')
+      .findOne({
+        where: { draw_date: today },
+        populate: { card: true },
+      });
   }
 
   return draw;
 };
 
-const getLatestHoroscopeForSign = async (signId: number | null): Promise<any | null> => {
+const getLatestHoroscopeForSign = async (
+  signId: number | null,
+): Promise<any | null> => {
   if (!signId) {
     return null;
   }
@@ -253,9 +371,10 @@ const buildDailyPayload = async (profile: any) => {
   const horoscope = await getLatestHoroscopeForSign(sign?.id || null);
   const draw = await getDailyTarotDraw();
 
-  const horoscopeContent = typeof horoscope?.content === 'string' && horoscope.content.trim().length
-    ? horoscope.content.trim()
-    : 'Dzisiejsza energia zachęca do spokoju i zauważenia małych sygnałów, które prowadzą Cię do dobrych decyzji.';
+  const horoscopeContent =
+    typeof horoscope?.content === 'string' && horoscope.content.trim().length
+      ? horoscope.content.trim()
+      : 'Dzisiejsza energia zachęca do spokoju i zauważenia małych sygnałów, które prowadzą Cię do dobrych decyzji.';
 
   const tarotBaseMessage =
     toNullableString(draw?.message) ||
@@ -263,7 +382,9 @@ const buildDailyPayload = async (profile: any) => {
     'Karta dnia podpowiada, aby działać cierpliwie i zostawić przestrzeń na intuicję.';
 
   const teaser = [
-    sign?.name ? `Dziś szczególnie wspiera Cię energia znaku ${sign.name}.` : 'Dziś postaw na rytuał małych kroków.',
+    sign?.name
+      ? `Dziś szczególnie wspiera Cię energia znaku ${sign.name}.`
+      : 'Dziś postaw na rytuał małych kroków.',
     'W darmowej wersji dostajesz skrócony wgląd i najważniejszą wskazówkę dnia.',
   ].join(' ');
 
@@ -279,14 +400,18 @@ const buildDailyPayload = async (profile: any) => {
       date: horoscope?.date || today,
       period: 'dzienny',
       teaser: shortenText(horoscopeContent, 320),
-      premiumContent: isPremium ? composePremiumHoroscope(horoscopeContent, profile) : null,
+      premiumContent: isPremium
+        ? composePremiumHoroscope(horoscopeContent, profile)
+        : null,
       isPremiumLocked: !isPremium,
     },
     tarot: {
       cardName: draw?.card?.name || null,
       cardSlug: draw?.card?.slug || null,
       teaserMessage: shortenText(tarotBaseMessage, 220),
-      premiumMessage: isPremium ? composePremiumTarot(tarotBaseMessage, profile) : null,
+      premiumMessage: isPremium
+        ? composePremiumTarot(tarotBaseMessage, profile)
+        : null,
       isPremiumLocked: !isPremium,
     },
     teaser,
@@ -330,7 +455,10 @@ const createStripeSubscriptionCheckoutSession = async (input: {
   params.set('metadata[plan]', input.plan);
   params.set('subscription_data[metadata][userId]', String(input.userId));
   params.set('subscription_data[metadata][plan]', input.plan);
-  params.set('success_url', `${input.frontendUrl}/panel?subscription=success&session_id={CHECKOUT_SESSION_ID}`);
+  params.set(
+    'success_url',
+    `${input.frontendUrl}/panel?subscription=success&plan=${input.plan}&session_id={CHECKOUT_SESSION_ID}`,
+  );
   params.set('cancel_url', `${input.frontendUrl}/panel?subscription=cancel`);
 
   if (input.customerId) {
@@ -348,13 +476,19 @@ const createStripeSubscriptionCheckoutSession = async (input: {
     body: params.toString(),
   });
 
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  const payload = (await response.json().catch(() => ({}))) as Record<
+    string,
+    unknown
+  >;
   const sessionId = typeof payload.id === 'string' ? payload.id : null;
   const sessionUrl = typeof payload.url === 'string' ? payload.url : null;
-  const customerId = typeof payload.customer === 'string' ? payload.customer : null;
+  const customerId =
+    typeof payload.customer === 'string' ? payload.customer : null;
 
   if (!response.ok || !sessionId || !sessionUrl) {
-    throw new Error(`Nie udało się utworzyć sesji subskrypcyjnej Stripe Checkout. Kod: ${response.status}`);
+    throw new Error(
+      `Nie udało się utworzyć sesji subskrypcyjnej Stripe Checkout. Kod: ${response.status}`,
+    );
   }
 
   return {
@@ -373,19 +507,27 @@ const createStripeCustomerPortalSession = async (input: {
   params.set('customer', input.customerId);
   params.set('return_url', input.returnUrl);
 
-  const response = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${input.secretKey}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
+  const response = await fetch(
+    'https://api.stripe.com/v1/billing_portal/sessions',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${input.secretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
     },
-    body: params.toString(),
-  });
+  );
 
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  const payload = (await response.json().catch(() => ({}))) as Record<
+    string,
+    unknown
+  >;
   const portalUrl = typeof payload.url === 'string' ? payload.url : null;
   if (!response.ok || !portalUrl) {
-    throw new Error(`Nie udało się utworzyć sesji portalu klienta Stripe. Kod: ${response.status}`);
+    throw new Error(
+      `Nie udało się utworzyć sesji portalu klienta Stripe. Kod: ${response.status}`,
+    );
   }
   return portalUrl;
 };
@@ -398,14 +540,16 @@ const saveReadingForType = async (input: {
 }) => {
   const today = input.daily?.date || getWarsawDate();
 
-  const existing = await strapi.db.query('api::user-reading.user-reading').findOne({
-    where: {
-      user: input.userId,
-      reading_type: input.readingType,
-      reading_date: today,
-    },
-    orderBy: [{ createdAt: 'desc' }],
-  });
+  const existing = await strapi.db
+    .query('api::user-reading.user-reading')
+    .findOne({
+      where: {
+        user: input.userId,
+        reading_type: input.readingType,
+        reading_date: today,
+      },
+      orderBy: [{ createdAt: 'desc' }],
+    });
 
   if (existing) {
     return {
@@ -415,20 +559,24 @@ const saveReadingForType = async (input: {
   }
 
   if (input.readingType === 'horoscope') {
-    const created = await strapi.db.query('api::user-reading.user-reading').create({
-      data: {
-        user: input.userId,
-        reading_type: 'horoscope',
-        title: `Horoskop dnia ${today}`,
-        summary: input.daily.horoscope.teaser,
-        content: input.isPremium ? input.daily.horoscope.premiumContent : input.daily.horoscope.teaser,
-        period: 'dzienny',
-        sign_slug: input.daily.sign?.slug || null,
-        reading_date: today,
-        is_premium: input.isPremium,
-        source: 'daily-ritual',
-      },
-    });
+    const created = await strapi.db
+      .query('api::user-reading.user-reading')
+      .create({
+        data: {
+          user: input.userId,
+          reading_type: 'horoscope',
+          title: `Horoskop dnia ${today}`,
+          summary: input.daily.horoscope.teaser,
+          content: input.isPremium
+            ? input.daily.horoscope.premiumContent
+            : input.daily.horoscope.teaser,
+          period: 'dzienny',
+          sign_slug: input.daily.sign?.slug || null,
+          reading_date: today,
+          is_premium: input.isPremium,
+          source: 'daily-ritual',
+        },
+      });
 
     return {
       saved: true,
@@ -436,22 +584,28 @@ const saveReadingForType = async (input: {
     };
   }
 
-  const created = await strapi.db.query('api::user-reading.user-reading').create({
-    data: {
-      user: input.userId,
-      reading_type: 'tarot',
-      title: input.daily.tarot.cardName ? `Karta dnia: ${input.daily.tarot.cardName}` : `Tarot dnia ${today}`,
-      summary: input.daily.tarot.teaserMessage,
-      content: input.isPremium ? input.daily.tarot.premiumMessage : input.daily.tarot.teaserMessage,
-      sign_slug: input.daily.sign?.slug || null,
-      reading_date: today,
-      is_premium: input.isPremium,
-      source: 'daily-ritual',
-      metadata: {
-        cardSlug: input.daily.tarot.cardSlug,
+  const created = await strapi.db
+    .query('api::user-reading.user-reading')
+    .create({
+      data: {
+        user: input.userId,
+        reading_type: 'tarot',
+        title: input.daily.tarot.cardName
+          ? `Karta dnia: ${input.daily.tarot.cardName}`
+          : `Tarot dnia ${today}`,
+        summary: input.daily.tarot.teaserMessage,
+        content: input.isPremium
+          ? input.daily.tarot.premiumMessage
+          : input.daily.tarot.teaserMessage,
+        sign_slug: input.daily.sign?.slug || null,
+        reading_date: today,
+        is_premium: input.isPremium,
+        source: 'daily-ritual',
+        metadata: {
+          cardSlug: input.daily.tarot.cardSlug,
+        },
       },
-    },
-  });
+    });
 
   return {
     saved: true,
@@ -489,27 +643,37 @@ export default {
     const profile = await ensureUserProfile(user.id);
 
     let zodiacSignId: number | null = null;
-    if (zodiacSignSlug) {
-      const sign = await strapi.db.query('api::zodiac-sign.zodiac-sign').findOne({
-        where: { slug: zodiacSignSlug },
-      });
+    const resolvedZodiacSignSlug = resolveProfileZodiacSignSlug(
+      payload,
+      birthDate,
+      zodiacSignSlug,
+    );
+
+    if (resolvedZodiacSignSlug) {
+      const sign = await strapi.db
+        .query('api::zodiac-sign.zodiac-sign')
+        .findOne({
+          where: { slug: resolvedZodiacSignSlug },
+        });
       if (!sign) {
         return ctx.badRequest('Nie znaleziono wskazanego znaku zodiaku.');
       }
       zodiacSignId = sign.id;
     }
 
-    const updated = await strapi.db.query('api::user-profile.user-profile').update({
-      where: { id: profile.id },
-      data: {
-        birth_date: birthDate,
-        birth_time: birthTime,
-        birth_place: birthPlace,
-        marketing_consent: marketingConsent,
-        zodiac_sign: zodiacSignId,
-      },
-      populate: { zodiac_sign: true },
-    });
+    const updated = await strapi.db
+      .query('api::user-profile.user-profile')
+      .update({
+        where: { id: profile.id },
+        data: {
+          birth_date: birthDate,
+          birth_time: birthTime,
+          birth_place: birthPlace,
+          marketing_consent: marketingConsent,
+          zodiac_sign: zodiacSignId,
+        },
+        populate: { zodiac_sign: true },
+      });
 
     ctx.body = {
       profile: toProfilePayload(user, updated),
@@ -540,13 +704,16 @@ export default {
     }
 
     const limitRaw = Number(ctx.query?.limit);
-    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 50) : 20;
+    const limit =
+      Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 50) : 20;
 
-    const items = await strapi.db.query('api::user-reading.user-reading').findMany({
-      where: { user: user.id },
-      orderBy: [{ reading_date: 'desc' }, { createdAt: 'desc' }],
-      limit,
-    });
+    const items = await strapi.db
+      .query('api::user-reading.user-reading')
+      .findMany({
+        where: { user: user.id },
+        orderBy: [{ reading_date: 'desc' }, { createdAt: 'desc' }],
+        limit,
+      });
 
     ctx.body = {
       data: items.map(formatReading),
@@ -626,7 +793,10 @@ export default {
         sessionId: session.id,
       };
     } catch (error) {
-      strapi.log.error('Nie udało się zainicjalizować sesji subskrypcji Stripe Checkout.', error);
+      strapi.log.error(
+        'Nie udało się zainicjalizować sesji subskrypcji Stripe Checkout.',
+        error,
+      );
       ctx.status = 502;
       ctx.body = { error: 'Nie udało się zainicjalizować subskrypcji.' };
     }
@@ -641,7 +811,9 @@ export default {
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeSecretKey) {
       ctx.status = 503;
-      ctx.body = { error: 'Panel subskrypcji nie jest jeszcze skonfigurowany.' };
+      ctx.body = {
+        error: 'Panel subskrypcji nie jest jeszcze skonfigurowany.',
+      };
       return;
     }
 
@@ -662,7 +834,10 @@ export default {
 
       ctx.body = { url };
     } catch (error) {
-      strapi.log.error('Nie udało się utworzyć sesji panelu klienta Stripe.', error);
+      strapi.log.error(
+        'Nie udało się utworzyć sesji panelu klienta Stripe.',
+        error,
+      );
       ctx.status = 502;
       ctx.body = { error: 'Nie udało się otworzyć panelu subskrypcji.' };
     }

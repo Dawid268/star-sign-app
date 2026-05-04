@@ -1,7 +1,27 @@
 import crypto from 'node:crypto';
 
+import {
+  rejectTurnstileFailure,
+  verifyTurnstileToken,
+} from '../../../utils/turnstile';
+
 type NewsletterPayload = Record<string, unknown>;
 type NewsletterSubscription = NewsletterPayload & { id: number; email: string };
+type NewsletterContext = {
+  request: {
+    body?: unknown;
+    ip?: string;
+  };
+  ip?: string;
+  params?: Record<string, unknown>;
+  query?: Record<string, unknown>;
+  get?: (header: string) => string;
+  badRequest: (message: string) => unknown;
+  forbidden: (message: string) => unknown;
+  notFound: (message: string) => unknown;
+  status?: number;
+  body?: unknown;
+};
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NEWSLETTER_UID = 'api::newsletter-subscription.newsletter-subscription';
@@ -14,47 +34,72 @@ const normalizeToken = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
 
 const normalizeSource = (value: unknown): string =>
-  typeof value === 'string' && value.trim().length > 0 ? value.trim().slice(0, 80) : 'website';
+  typeof value === 'string' && value.trim().length > 0
+    ? value.trim().slice(0, 80)
+    : 'website';
 
 const token = (): string => crypto.randomBytes(32).toString('hex');
 
-const isDoubleOptInEnabled = (): boolean => process.env.NEWSLETTER_DOUBLE_OPT_IN !== 'false';
+const isDoubleOptInEnabled = (): boolean =>
+  process.env.NEWSLETTER_DOUBLE_OPT_IN !== 'false';
 
-const getFrontendUrl = (): string => (process.env.FRONTEND_URL || 'http://localhost:4200').replace(/\/$/, '');
+const getFrontendUrl = (): string =>
+  (process.env.FRONTEND_URL || 'http://localhost:4200').replace(/\/$/, '');
 
 const buildConfirmUrl = (confirmationToken: string): string => {
-  const base = process.env.NEWSLETTER_CONFIRM_URL || `${getFrontendUrl()}/newsletter/potwierdz`;
+  const base =
+    process.env.NEWSLETTER_CONFIRM_URL ||
+    `${getFrontendUrl()}/newsletter/potwierdz`;
   const separator = base.includes('?') ? '&' : '?';
   return `${base}${separator}token=${encodeURIComponent(confirmationToken)}`;
 };
 
 const buildUnsubscribeUrl = (unsubscribeToken: string): string => {
-  const base = process.env.NEWSLETTER_UNSUBSCRIBE_URL || `${getFrontendUrl()}/newsletter/wypisz`;
+  const base =
+    process.env.NEWSLETTER_UNSUBSCRIBE_URL ||
+    `${getFrontendUrl()}/newsletter/wypisz`;
   const separator = base.includes('?') ? '&' : '?';
   return `${base}${separator}token=${encodeURIComponent(unsubscribeToken)}`;
 };
 
-const getPayload = (ctx): NewsletterPayload => {
-  const body = ctx.request.body || {};
-  if (body.data && typeof body.data === 'object') {
-    return body.data;
+const getPayload = (ctx: NewsletterContext): NewsletterPayload => {
+  const body = ctx.request.body;
+  if (!body || typeof body !== 'object') {
+    return {};
   }
-  return typeof body === 'object' ? body : {};
+
+  const record = body as Record<string, unknown>;
+  if (record['data'] && typeof record['data'] === 'object') {
+    return record['data'] as NewsletterPayload;
+  }
+
+  return record;
 };
 
 const findByEmail = (email: string): Promise<NewsletterSubscription | null> =>
   strapi.db.query(NEWSLETTER_UID).findOne({ where: { email } });
 
-const findByToken = (field: 'confirmation_token' | 'unsubscribe_token', value: string): Promise<NewsletterSubscription | null> =>
+const findByToken = (
+  field: 'confirmation_token' | 'unsubscribe_token',
+  value: string,
+): Promise<NewsletterSubscription | null> =>
   strapi.db.query(NEWSLETTER_UID).findOne({ where: { [field]: value } });
 
-const updateSubscription = (id: number, data: NewsletterPayload): Promise<NewsletterSubscription> =>
+const updateSubscription = (
+  id: number,
+  data: NewsletterPayload,
+): Promise<NewsletterSubscription> =>
   strapi.db.query(NEWSLETTER_UID).update({ where: { id }, data });
 
-const createSubscription = (data: NewsletterPayload): Promise<NewsletterSubscription> =>
+const createSubscription = (
+  data: NewsletterPayload,
+): Promise<NewsletterSubscription> =>
   strapi.db.query(NEWSLETTER_UID).create({ data });
 
-const syncBrevoActiveContact = async (email: string, source: string): Promise<string | null> => {
+const syncBrevoActiveContact = async (
+  email: string,
+  source: string,
+): Promise<string | null> => {
   const apiKey = process.env.BREVO_API_KEY;
   const listId = Number(process.env.BREVO_LIST_ID);
 
@@ -81,12 +126,18 @@ const syncBrevoActiveContact = async (email: string, source: string): Promise<st
   });
 
   if (!response.ok) {
-    strapi.log.warn(`Synchronizacja aktywnego kontaktu Brevo nie powiodła się. Kod: ${response.status}`);
+    strapi.log.warn(
+      `Synchronizacja aktywnego kontaktu Brevo nie powiodła się. Kod: ${response.status}`,
+    );
     return null;
   }
 
-  const payload = (await response.json().catch(() => null)) as NewsletterPayload | null;
-  return payload && typeof payload.id !== 'undefined' ? String(payload.id) : null;
+  const payload = (await response
+    .json()
+    .catch(() => null)) as NewsletterPayload | null;
+  return payload && typeof payload.id !== 'undefined'
+    ? String(payload.id)
+    : null;
 };
 
 const syncBrevoUnsubscribe = async (email: string): Promise<void> => {
@@ -97,30 +148,41 @@ const syncBrevoUnsubscribe = async (email: string): Promise<void> => {
     return;
   }
 
-  const response = await fetch(`${BREVO_CONTACTS_URL}/${encodeURIComponent(email)}`, {
-    method: 'PUT',
-    headers: {
-      'api-key': apiKey,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      unlinkListIds: [listId],
-      attributes: {
-        STATUS: 'unsubscribed',
+  const response = await fetch(
+    `${BREVO_CONTACTS_URL}/${encodeURIComponent(email)}`,
+    {
+      method: 'PUT',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
-    }),
-  });
+      body: JSON.stringify({
+        unlinkListIds: [listId],
+        attributes: {
+          STATUS: 'unsubscribed',
+        },
+      }),
+    },
+  );
 
   if (!response.ok && response.status !== 404) {
-    strapi.log.warn(`Wypisanie kontaktu Brevo nie powiodło się. Kod: ${response.status}`);
+    strapi.log.warn(
+      `Wypisanie kontaktu Brevo nie powiodło się. Kod: ${response.status}`,
+    );
   }
 };
 
-const sendConfirmationEmail = async (email: string, confirmationToken: string, unsubscribeToken: string): Promise<void> => {
+const sendConfirmationEmail = async (
+  email: string,
+  confirmationToken: string,
+  unsubscribeToken: string,
+): Promise<void> => {
   const emailService = strapi.plugin('email')?.service('email');
   if (!emailService?.send) {
-    strapi.log.warn('Plugin email nie jest dostępny; pomijam mail double opt-in.');
+    strapi.log.warn(
+      'Plugin email nie jest dostępny; pomijam mail double opt-in.',
+    );
     return;
   }
 
@@ -139,10 +201,18 @@ const sendConfirmationEmail = async (email: string, confirmationToken: string, u
   });
 };
 
-const markActive = async (subscription: NewsletterSubscription, source: string): Promise<NewsletterSubscription> => {
+const markActive = async (
+  subscription: NewsletterSubscription,
+  source: string,
+): Promise<NewsletterSubscription> => {
   const now = new Date().toISOString();
-  const brevoContactId = await syncBrevoActiveContact(subscription.email, source).catch((error: unknown) => {
-    strapi.log.warn('Synchronizacja z Brevo po potwierdzeniu nie powiodła się.');
+  const brevoContactId = await syncBrevoActiveContact(
+    subscription.email,
+    source,
+  ).catch((error: unknown) => {
+    strapi.log.warn(
+      'Synchronizacja z Brevo po potwierdzeniu nie powiodła się.',
+    );
     strapi.log.debug(error);
     return null;
   });
@@ -159,20 +229,25 @@ const markActive = async (subscription: NewsletterSubscription, source: string):
   });
 };
 
-const verifyWebhookSecret = (ctx): boolean => {
-  const expected = process.env.BREVO_WEBHOOK_SECRET || process.env.NEWSLETTER_WEBHOOK_SECRET;
+const verifyWebhookSecret = (ctx: NewsletterContext): boolean => {
+  const expected =
+    process.env.BREVO_WEBHOOK_SECRET || process.env.NEWSLETTER_WEBHOOK_SECRET;
   if (!expected && process.env.NODE_ENV !== 'production') {
     return true;
   }
 
-  const authorization = typeof ctx.get === 'function' ? ctx.get('authorization') : '';
-  const headerSecret = typeof ctx.get === 'function' ? ctx.get('x-newsletter-webhook-secret') : '';
+  const authorization =
+    typeof ctx.get === 'function' ? ctx.get('authorization') : '';
+  const headerSecret =
+    typeof ctx.get === 'function' ? ctx.get('x-newsletter-webhook-secret') : '';
   return headerSecret === expected || authorization === `Bearer ${expected}`;
 };
 
 const normalizeBrevoEvents = (payload: unknown): NewsletterPayload[] => {
   if (Array.isArray(payload)) {
-    return payload.filter((item): item is NewsletterPayload => item && typeof item === 'object');
+    return payload.filter(
+      (item): item is NewsletterPayload => item && typeof item === 'object',
+    );
   }
 
   if (payload && typeof payload === 'object') {
@@ -183,7 +258,7 @@ const normalizeBrevoEvents = (payload: unknown): NewsletterPayload[] => {
 };
 
 export default {
-  async subscribe(ctx) {
+  async subscribe(ctx: NewsletterContext) {
     const payload = getPayload(ctx);
     const email = normalizeEmail(payload.email);
     const marketingConsent = payload.marketingConsent === true;
@@ -197,10 +272,19 @@ export default {
       return ctx.badRequest('Wymagana jest zgoda marketingowa.');
     }
 
+    const turnstileResult = await verifyTurnstileToken(
+      payload.turnstileToken,
+      ctx.ip || ctx.request.ip,
+    );
+    if (turnstileResult.ok === false) {
+      return rejectTurnstileFailure(ctx, turnstileResult);
+    }
+
     const now = new Date().toISOString();
     const existing = await findByEmail(email);
     const confirmationToken = token();
-    const unsubscribeToken = normalizeToken(existing?.unsubscribe_token) || token();
+    const unsubscribeToken =
+      normalizeToken(existing?.unsubscribe_token) || token();
     const doubleOptIn = isDoubleOptInEnabled();
 
     const subscription = existing
@@ -226,8 +310,14 @@ export default {
         });
 
     if (doubleOptIn) {
-      await sendConfirmationEmail(email, confirmationToken, unsubscribeToken).catch((error: unknown) => {
-        strapi.log.warn('Nie udało się wysłać maila potwierdzającego newsletter.');
+      await sendConfirmationEmail(
+        email,
+        confirmationToken,
+        unsubscribeToken,
+      ).catch((error: unknown) => {
+        strapi.log.warn(
+          'Nie udało się wysłać maila potwierdzającego newsletter.',
+        );
         strapi.log.debug(error);
       });
     } else {
@@ -241,16 +331,23 @@ export default {
     };
   },
 
-  async confirm(ctx) {
-    const confirmationToken = normalizeToken(ctx.params?.token || ctx.query?.token);
+  async confirm(ctx: NewsletterContext) {
+    const confirmationToken = normalizeToken(
+      ctx.params?.token || ctx.query?.token,
+    );
 
     if (!confirmationToken) {
       return ctx.badRequest('Brakuje tokena potwierdzenia.');
     }
 
-    const subscription = await findByToken('confirmation_token', confirmationToken);
+    const subscription = await findByToken(
+      'confirmation_token',
+      confirmationToken,
+    );
     if (!subscription) {
-      return ctx.notFound('Token potwierdzenia jest nieprawidłowy albo został już użyty.');
+      return ctx.notFound(
+        'Token potwierdzenia jest nieprawidłowy albo został już użyty.',
+      );
     }
 
     await markActive(subscription, normalizeSource(subscription.source));
@@ -258,9 +355,11 @@ export default {
     ctx.body = { confirmed: true };
   },
 
-  async unsubscribe(ctx) {
+  async unsubscribe(ctx: NewsletterContext) {
     const payload = getPayload(ctx);
-    const unsubscribeToken = normalizeToken(ctx.params?.token || ctx.query?.token || payload.token);
+    const unsubscribeToken = normalizeToken(
+      ctx.params?.token || ctx.query?.token || payload.token,
+    );
     const email = normalizeEmail(payload.email);
 
     const subscription = unsubscribeToken
@@ -286,7 +385,7 @@ export default {
     ctx.body = { unsubscribed: true };
   },
 
-  async brevoWebhook(ctx) {
+  async brevoWebhook(ctx: NewsletterContext) {
     if (!verifyWebhookSecret(ctx)) {
       return ctx.forbidden('Webhook secret jest nieprawidłowy.');
     }
@@ -300,7 +399,12 @@ export default {
         continue;
       }
 
-      const eventType = typeof event.event === 'string' ? event.event : typeof event.type === 'string' ? event.type : 'unknown';
+      const eventType =
+        typeof event.event === 'string'
+          ? event.event
+          : typeof event.type === 'string'
+            ? event.type
+            : 'unknown';
       const subscription = await findByEmail(email);
       if (!subscription) {
         continue;
@@ -327,7 +431,10 @@ export default {
       await updateSubscription(subscription.id, {
         status,
         confirmation_token: null,
-        unsubscribed_at: status === 'unsubscribed' ? now : subscription.unsubscribed_at || null,
+        unsubscribed_at:
+          status === 'unsubscribed'
+            ? now
+            : subscription.unsubscribed_at || null,
         last_event_at: now,
         last_event_type: eventType,
         bounce_reason: typeof event.reason === 'string' ? event.reason : null,

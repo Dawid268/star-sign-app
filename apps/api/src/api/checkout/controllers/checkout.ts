@@ -1,4 +1,5 @@
 import { isShopEnabled } from '../../../utils/features';
+import { serializeCheckoutAnalyticsSummary } from '../utils/analytics-summary';
 
 type CheckoutItemInput = {
   productDocumentId: string;
@@ -40,9 +41,13 @@ const parseItems = (value: unknown): CheckoutItemInput[] => {
     .map((item) => {
       if (!item || typeof item !== 'object') return null;
       const record = item as Record<string, unknown>;
-      const productDocumentId = typeof record.productDocumentId === 'string' ? record.productDocumentId.trim() : '';
+      const productDocumentId =
+        typeof record.productDocumentId === 'string'
+          ? record.productDocumentId.trim()
+          : '';
       const quantity = Number(record.quantity);
-      if (!productDocumentId || !Number.isInteger(quantity) || quantity <= 0) return null;
+      if (!productDocumentId || !Number.isInteger(quantity) || quantity <= 0)
+        return null;
       return { productDocumentId, quantity };
     })
     .filter((item): item is CheckoutItemInput => item !== null);
@@ -58,7 +63,10 @@ async function createStripeCheckoutSession(input: {
 }): Promise<{ id: string; url: string }> {
   const params = new URLSearchParams();
   params.set('mode', 'payment');
-  params.set('success_url', `${input.frontendUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`);
+  params.set(
+    'success_url',
+    `${input.frontendUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+  );
   params.set('cancel_url', `${input.frontendUrl}/checkout/cancel`);
   params.set('client_reference_id', input.orderDocumentId);
   params.set('metadata[orderDocumentId]', input.orderDocumentId);
@@ -70,10 +78,19 @@ async function createStripeCheckoutSession(input: {
   input.lineItems.forEach((line, index) => {
     params.set(`line_items[${index}][quantity]`, String(line.quantity));
     params.set(`line_items[${index}][price_data][currency]`, input.currency);
-    params.set(`line_items[${index}][price_data][unit_amount]`, String(toMinorUnits(line.unitPrice, input.currency)));
-    params.set(`line_items[${index}][price_data][product_data][name]`, line.name);
+    params.set(
+      `line_items[${index}][price_data][unit_amount]`,
+      String(toMinorUnits(line.unitPrice, input.currency)),
+    );
+    params.set(
+      `line_items[${index}][price_data][product_data][name]`,
+      line.name,
+    );
     if (line.description) {
-      params.set(`line_items[${index}][price_data][product_data][description]`, line.description);
+      params.set(
+        `line_items[${index}][price_data][product_data][description]`,
+        line.description,
+      );
     }
   });
 
@@ -86,12 +103,17 @@ async function createStripeCheckoutSession(input: {
     body: params.toString(),
   });
 
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  const payload = (await response.json().catch(() => ({}))) as Record<
+    string,
+    unknown
+  >;
   const sessionId = typeof payload.id === 'string' ? payload.id : null;
   const sessionUrl = typeof payload.url === 'string' ? payload.url : null;
 
   if (!response.ok || !sessionId || !sessionUrl) {
-    throw new Error(`Nie udało się utworzyć sesji Stripe Checkout. Kod: ${response.status}`);
+    throw new Error(
+      `Nie udało się utworzyć sesji Stripe Checkout. Kod: ${response.status}`,
+    );
   }
 
   return {
@@ -107,7 +129,8 @@ export default {
     }
 
     const body = ctx.request.body || {};
-    const payload = body.data && typeof body.data === 'object' ? body.data : body;
+    const payload =
+      body.data && typeof body.data === 'object' ? body.data : body;
 
     const items = parseItems(payload.items);
     const customerEmail = normalizeEmail(payload.customerEmail);
@@ -130,7 +153,9 @@ export default {
       });
 
       if (!product) {
-        return ctx.badRequest(`Nie znaleziono produktu ${item.productDocumentId}.`);
+        return ctx.badRequest(
+          `Nie znaleziono produktu ${item.productDocumentId}.`,
+        );
       }
 
       if (product.stock_status === 'out_of_stock') {
@@ -146,7 +171,9 @@ export default {
       if (!orderCurrency) {
         orderCurrency = currency;
       } else if (orderCurrency !== currency) {
-        return ctx.badRequest('Wszystkie produkty w koszyku muszą mieć tę samą walutę.');
+        return ctx.badRequest(
+          'Wszystkie produkty w koszyku muszą mieć tę samą walutę.',
+        );
       }
 
       const lineTotal = unitPrice * item.quantity;
@@ -185,8 +212,8 @@ export default {
             unit_price: line.unitPrice.toFixed(2),
             line_total: line.lineTotal.toFixed(2),
           },
-        })
-      )
+        }),
+      ),
     );
 
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -233,5 +260,35 @@ export default {
       ctx.body = { error: 'Nie udało się utworzyć sesji płatności.' };
       return;
     }
+  },
+
+  async analyticsSummary(ctx: any) {
+    if (!isShopEnabled()) {
+      return ctx.notFound('Sklep jest tymczasowo wyłączony.');
+    }
+
+    const sessionId =
+      typeof ctx.params?.sessionId === 'string'
+        ? ctx.params.sessionId.trim()
+        : '';
+    if (!sessionId) {
+      return ctx.badRequest('Brak identyfikatora sesji płatności.');
+    }
+
+    const order = await strapi.db.query('api::order.order').findOne({
+      where: { stripe_session_id: sessionId },
+    });
+
+    if (!order) {
+      return ctx.notFound('Nie znaleziono sesji płatności.');
+    }
+
+    const items = await strapi.db.query('api::order-item.order-item').findMany({
+      where: { order: order.id },
+      orderBy: { id: 'asc' },
+    });
+
+    ctx.set('Cache-Control', 'no-store');
+    ctx.body = serializeCheckoutAnalyticsSummary(order, items);
   },
 };
