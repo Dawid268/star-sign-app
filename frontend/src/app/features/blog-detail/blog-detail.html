@@ -125,13 +125,14 @@
 
             <app-premium-preview-block
               variant="article"
-              [isPremium]="isPremiumUser()"
+              [isPremium]="canDisplayPremiumContent(currentArticle)"
               [premiumContent]="currentArticle.premiumContent"
               [hasPremiumContent]="hasPremiumExtension(currentArticle)"
               title="Rozszerzenie Premium do artykułu"
               intro="Publiczna część jest dostępna dla wszystkich. Premium dodaje ćwiczenie, rytuał i pytanie do pracy z tematem."
               ctaLabel="Dołącz do Kręgu"
               testId="article-premium-preview"
+              (ctaClick)="trackPremiumCta(currentArticle)"
             />
           </div>
         </div>

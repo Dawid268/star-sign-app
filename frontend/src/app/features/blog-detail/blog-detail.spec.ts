@@ -23,6 +23,7 @@ describe('BlogDetail', () => {
 
   const mockArticle = {
     id: 1,
+    documentId: 'article-test',
     title: 'Test Article',
     slug: 'test-article',
     excerpt: 'Test Excerpt',
@@ -53,6 +54,7 @@ describe('BlogDetail', () => {
     };
     analyticsService = {
       trackEvent: vi.fn(),
+      trackPremiumCtaClick: vi.fn(),
     };
 
     await TestBed.configureTestingModule({

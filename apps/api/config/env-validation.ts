@@ -29,11 +29,13 @@ const productionEnvSchema = z.object({
   HTTP_CACHE_REDIS_URL: z.string().optional(),
   R2_UPLOAD_ENABLED: z.string().optional(),
   SHOP_ENABLED: z.string().optional(),
+  STRIPE_REQUIRED: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PREMIUM_MONTHLY_PRICE_ID: z.string().optional(),
   STRIPE_PREMIUM_ANNUAL_PRICE_ID: z.string().optional(),
   GA4_MEASUREMENT_ID: z.string().optional(),
+  GTM_CONTAINER_ID: z.string().optional(),
   SENTRY_REQUIRED: z.string().optional(),
   TURNSTILE_ENABLED: z.string().optional(),
   TURNSTILE_SITE_KEY: z.string().optional(),
@@ -374,7 +376,9 @@ export const validateProductionEnv = (rawEnv: NodeJS.ProcessEnv): void => {
   validateRateLimit(issues, rawEnv);
   validateHttpCache(issues, rawEnv);
   validateR2(issues, rawEnv);
-  validateStripe(issues, rawEnv);
+  if (isEnabled(rawEnv.STRIPE_REQUIRED, false)) {
+    validateStripe(issues, rawEnv);
+  }
   validateGa4(issues, rawEnv);
   validateSentry(issues, rawEnv);
   validateTurnstile(issues, rawEnv);

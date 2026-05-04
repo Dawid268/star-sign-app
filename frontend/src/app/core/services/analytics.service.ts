@@ -1,5 +1,6 @@
 import { Injectable, inject, PLATFORM_ID, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { Router, NavigationEnd } from '@angular/router';
 import { CookieService } from 'ngx-cookie-service';
 import { filter } from 'rxjs/operators';
@@ -13,16 +14,30 @@ import { RuntimeConfigService } from './runtime-config.service';
 
 type GtagFunction = (...args: [command: string, ...params: unknown[]]) => void;
 type AnalyticsParams = Record<string, unknown>;
+type DataLayerEntry = unknown[] | Record<string, unknown>;
+type FirstPartyEventName =
+  | 'daily_horoscope_view'
+  | 'premium_content_impression'
+  | 'premium_content_view'
+  | 'premium_cta_click'
+  | 'premium_pricing_view'
+  | 'begin_checkout'
+  | 'checkout_redirect'
+  | 'purchase'
+  | 'premium_subscription_conversion';
 type CookieConsentPayload = {
   analytics?: unknown;
 };
 
 declare global {
   interface Window {
-    dataLayer?: unknown[][];
+    dataLayer?: DataLayerEntry[];
     gtag?: GtagFunction;
   }
 }
+
+const VISITOR_COOKIE_NAME = 'star-sign-visitor-id';
+const SESSION_STORAGE_KEY = 'star-sign-analytics-session';
 
 @Injectable({
   providedIn: 'root',
@@ -30,17 +45,20 @@ declare global {
 export class AnalyticsService {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly cookieService = inject(CookieService);
+  private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly runtimeConfig = inject(RuntimeConfigService);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
   private gaId = '';
+  private gtmId = '';
   private hasConsent = signal(false);
 
   public init(): void {
     if (!this.isBrowser) return;
 
     this.setGaId(this.runtimeConfig.ga4MeasurementId());
+    this.setGtmId(this.runtimeConfig.gtmContainerId());
     this.checkConsent();
     this.setupRouteTracking();
   }
@@ -73,7 +91,14 @@ export class AnalyticsService {
   }
 
   private loadGoogleAnalytics(): void {
-    if (!this.gaId || !this.isBrowser) return;
+    if (!this.isBrowser) return;
+
+    if (this.gtmId) {
+      this.loadGoogleTagManager();
+      return;
+    }
+
+    if (!this.gaId) return;
     if (window.gtag) return;
 
     const script = document.createElement('script');
@@ -93,17 +118,31 @@ export class AnalyticsService {
     });
   }
 
+  private loadGoogleTagManager(): void {
+    if (!this.gtmId || !this.isBrowser) return;
+    if (document.getElementById('star-sign-gtm-script')) return;
+
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      event: 'gtm.js',
+      'gtm.start': new Date().getTime(),
+    });
+
+    const script = document.createElement('script');
+    script.id = 'star-sign-gtm-script';
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtm.js?id=${this.gtmId}`;
+    document.head.appendChild(script);
+  }
+
   public trackPageView(url: string): void {
     if (!this.isBrowser || !this.hasConsent()) return;
 
-    const gtag = window.gtag;
-    if (gtag) {
-      gtag('event', 'page_view', {
-        page_path: url,
-        page_location: window.location.href,
-        page_title: document.title,
-      });
-    }
+    this.pushGoogleEvent('page_view', {
+      page_path: url,
+      page_location: window.location.href,
+      page_title: document.title,
+    });
   }
 
   public trackEvent(eventName: string, params: AnalyticsParams = {}): void {
@@ -111,12 +150,67 @@ export class AnalyticsService {
       return;
     }
 
+    this.pushGoogleEvent(eventName, params);
+  }
+
+  public trackProductEvent(
+    eventName: FirstPartyEventName,
+    params: AnalyticsParams = {},
+  ): void {
+    this.trackFirstPartyEvent(eventName, params);
+    this.trackEvent(eventName, params);
+  }
+
+  public trackDailyHoroscopeView(params: AnalyticsParams = {}): void {
+    this.trackProductEvent('daily_horoscope_view', params);
+  }
+
+  public trackPremiumContentImpression(params: AnalyticsParams = {}): void {
+    this.trackProductEvent('premium_content_impression', params);
+  }
+
+  public trackPremiumContentView(params: AnalyticsParams = {}): void {
+    this.trackProductEvent('premium_content_view', params);
+  }
+
+  public trackPremiumCtaClick(params: AnalyticsParams = {}): void {
+    this.trackProductEvent('premium_cta_click', params);
+  }
+
+  public trackPremiumPricingView(params: AnalyticsParams = {}): void {
+    this.trackProductEvent('premium_pricing_view', params);
+  }
+
+  public trackCheckoutRedirect(params: AnalyticsParams = {}): void {
+    this.trackProductEvent('checkout_redirect', params);
+  }
+
+  public trackPremiumSubscriptionConversion(
+    params: AnalyticsParams = {},
+  ): void {
+    this.trackProductEvent('premium_subscription_conversion', params);
+  }
+
+  private pushGoogleEvent(
+    eventName: string,
+    params: AnalyticsParams = {},
+  ): void {
+    const payload = {
+      ...params,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (this.gtmId) {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: eventName,
+        ...payload,
+      });
+    }
+
     const gtag = window.gtag;
     if (gtag) {
-      gtag('event', eventName, {
-        ...params,
-        timestamp: new Date().toISOString(),
-      });
+      gtag('event', eventName, payload);
     }
   }
 
@@ -159,7 +253,7 @@ export class AnalyticsService {
       0,
     );
 
-    this.trackEvent('begin_checkout', {
+    this.trackProductEvent('begin_checkout', {
       currency: context['currency'] || firstCurrency || 'PLN',
       value: context['value'] ?? computedValue,
       items: ga4Items,
@@ -172,7 +266,7 @@ export class AnalyticsService {
       return;
     }
 
-    this.trackEvent('purchase', {
+    this.trackProductEvent('purchase', {
       transaction_id: summary.orderDocumentId,
       currency: summary.currency,
       value: summary.total,
@@ -190,6 +284,13 @@ export class AnalyticsService {
 
   public setGaId(id: string): void {
     this.gaId = this.normalizeGaId(id);
+    if (this.hasConsent()) {
+      this.loadGoogleAnalytics();
+    }
+  }
+
+  public setGtmId(id: string): void {
+    this.gtmId = this.normalizeGtmId(id);
     if (this.hasConsent()) {
       this.loadGoogleAnalytics();
     }
@@ -216,6 +317,104 @@ export class AnalyticsService {
     }
 
     return /^G-[A-Z0-9]+$/i.test(trimmed) ? trimmed : '';
+  }
+
+  private normalizeGtmId(id: string): string {
+    const trimmed = id.trim();
+    if (
+      !trimmed ||
+      /^(replace_me.*|changeme|change_me|your_.+|GTM-X+)$/i.test(trimmed)
+    ) {
+      return '';
+    }
+
+    return /^GTM-[A-Z0-9]+$/i.test(trimmed) ? trimmed : '';
+  }
+
+  private trackFirstPartyEvent(
+    eventName: FirstPartyEventName,
+    params: AnalyticsParams,
+  ): void {
+    if (!this.isBrowser) {
+      return;
+    }
+
+    const payload = {
+      ...params,
+      ...this.getUtmParams(),
+      event_type: eventName,
+      occurred_at: new Date().toISOString(),
+      visitor_id: this.getVisitorId(),
+      session_id: this.getSessionId(),
+      route:
+        typeof params['route'] === 'string' && params['route'].trim()
+          ? params['route']
+          : this.router.url,
+      referrer:
+        typeof params['referrer'] === 'string'
+          ? params['referrer']
+          : document.referrer,
+      metadata: this.buildMetadata(params),
+    };
+
+    this.http.post('/api/analytics/events', payload).subscribe({
+      error: () => undefined,
+    });
+  }
+
+  private getVisitorId(): string {
+    const existing = this.cookieService.get(VISITOR_COOKIE_NAME);
+    if (existing) {
+      return existing;
+    }
+
+    const visitorId = this.createId();
+    this.cookieService.set(VISITOR_COOKIE_NAME, visitorId, {
+      expires: 365,
+      path: '/',
+      sameSite: 'Lax',
+    });
+    return visitorId;
+  }
+
+  private getSessionId(): string {
+    try {
+      const existing = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (existing) {
+        return existing;
+      }
+
+      const sessionId = this.createId();
+      window.sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+      return sessionId;
+    } catch {
+      return this.createId();
+    }
+  }
+
+  private createId(): string {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  private getUtmParams(): AnalyticsParams {
+    const searchParams = new URLSearchParams(window.location.search);
+    return {
+      utm_source: searchParams.get('utm_source') || undefined,
+      utm_medium: searchParams.get('utm_medium') || undefined,
+      utm_campaign: searchParams.get('utm_campaign') || undefined,
+    };
+  }
+
+  private buildMetadata(params: AnalyticsParams): AnalyticsParams {
+    return {
+      checkout_type: params['checkout_type'],
+      transaction_id: params['transaction_id'],
+      items: params['items'],
+    };
   }
 
   private toGa4Item(

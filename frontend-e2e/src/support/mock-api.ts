@@ -77,6 +77,8 @@ const horoscopes = [
     period: 'Dzienny',
     type: 'Ogólny',
     content: 'Darmowy horoskop dla Barana: dzień sprzyja spokojnym decyzjom.',
+    premiumContent:
+      'Relacje: wybierz jedną szczerą rozmowę. Praca: domknij najważniejszy priorytet. Energia dnia: wróć do spokojnego rytmu. Rytuał: zapisz jeden intencyjny krok.',
     hasPremiumContent: true,
     date: '2026-05-02',
     zodiac_sign: signs[0],
@@ -88,6 +90,8 @@ const horoscopes = [
     type: 'Chiński',
     content:
       'Darmowy horoskop chiński dla Barana prowadzi do cierpliwego działania.',
+    premiumContent:
+      'Relacje: zatrzymaj automatyczną reakcję. Praca: działaj etapami. Energia dnia: wybierz cierpliwość. Rytuał: wróć do oddechu przed decyzją.',
     hasPremiumContent: true,
     date: '2026-05-02',
     zodiac_sign: signs[0],
@@ -114,6 +118,8 @@ const accountSubscription = {
   status: 'inactive',
   plan: null,
   isPremium: false,
+  hasPremiumAccess: true,
+  accessMode: 'open',
   trialEndsAt: null,
   currentPeriodEnd: null,
   cancelAtPeriodEnd: false,
@@ -129,15 +135,17 @@ const accountDaily = {
     date: '2026-05-02',
     period: 'Dzienny',
     teaser: 'Dzisiaj wybierz spokojne tempo i jeden konkretny priorytet.',
-    premiumContent: null,
-    isPremiumLocked: true,
+    premiumContent:
+      'Pełny rytuał dnia: wybierz jeden priorytet, zapisz intencję i domknij drobną sprawę przed południem.',
+    isPremiumLocked: false,
   },
   tarot: {
     cardName: 'Gwiazda',
     cardSlug: 'gwiazda',
     teaserMessage: 'Karta dnia zachęca do cierpliwego działania.',
-    premiumMessage: null,
-    isPremiumLocked: true,
+    premiumMessage:
+      'Pełna analiza karty: relacje potrzebują spokojnej granicy, a praca jednego wyraźnego kroku.',
+    isPremiumLocked: false,
   },
   teaser: 'Twój rytuał dnia jest gotowy do spokojnego przejrzenia.',
   disclaimer: 'Treści mają charakter rozrywkowy i refleksyjny.',
@@ -159,6 +167,10 @@ const fulfillJson = (route: Route, status: number, json: unknown) =>
     contentType: 'application/json',
     body: JSON.stringify(json),
   });
+
+type MockApiOptions = {
+  analyticsEvents?: unknown[];
+};
 
 const handleArticles = (route: Route): Promise<void> => {
   const url = new URL(route.request().url());
@@ -206,7 +218,10 @@ const handleHoroscopes = (route: Route): Promise<void> => {
   return fulfillJson(route, 200, collection(payload));
 };
 
-export const mockApi = async (page: Page): Promise<void> => {
+export const mockApi = async (
+  page: Page,
+  options: MockApiOptions = {},
+): Promise<void> => {
   await page.route(
     '**/api/checkout/session/cs_test_mock/analytics-summary',
     (route) =>
@@ -235,6 +250,12 @@ export const mockApi = async (page: Page): Promise<void> => {
   await page.route('**/api/articles**', handleArticles);
 
   await page.route('**/api/horoscopes**', handleHoroscopes);
+
+  await page.route('**/api/analytics/events', (route) => {
+    const payload = route.request().postDataJSON();
+    options.analyticsEvents?.push(payload);
+    return fulfillJson(route, 202, { accepted: true, uniqueDaily: true });
+  });
 
   await page.route('**/api/account/me', (route) =>
     fulfillJson(route, 200, {

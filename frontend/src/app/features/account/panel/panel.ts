@@ -68,7 +68,10 @@ export class AccountPanel implements OnInit {
   public readonly readings = signal<AccountReading[]>([]);
 
   public readonly isPremium = computed(() =>
-    Boolean(this.dashboard()?.subscription.isPremium),
+    Boolean(
+      this.dashboard()?.subscription.hasPremiumAccess ??
+        this.dashboard()?.subscription.isPremium,
+    ),
   );
   public readonly subscription = computed<AccountSubscription | null>(
     () => this.dashboard()?.subscription || null,
@@ -477,15 +480,16 @@ export class AccountPanel implements OnInit {
       quantity: 1,
     } satisfies Ga4Item;
 
-    this.analyticsService.trackEvent('purchase', {
+    this.analyticsService.trackProductEvent('purchase', {
       transaction_id: sessionId,
       currency: 'PLN',
       value: planDetails.price,
+      price: planDetails.price,
       checkout_type: 'premium',
       plan,
       items: [item],
     });
-    this.analyticsService.trackEvent('premium_subscription_conversion', {
+    this.analyticsService.trackPremiumSubscriptionConversion({
       transaction_id: sessionId,
       currency: 'PLN',
       value: planDetails.price,

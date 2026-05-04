@@ -16,6 +16,7 @@ export type TurnstileRuntimeConfig = {
 
 export type AnalyticsRuntimeConfig = {
   ga4MeasurementId: string;
+  gtmContainerId: string;
 };
 
 export type SentryRuntimeConfig = {
@@ -46,6 +47,19 @@ const normalizeGa4MeasurementId = (value: unknown): string => {
   return /^G-[A-Z0-9]+$/i.test(measurementId) ? measurementId : '';
 };
 
+const normalizeGtmContainerId = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const containerId = value.trim();
+  if (!containerId || placeholderPattern.test(containerId)) {
+    return '';
+  }
+
+  return /^GTM-[A-Z0-9]+$/i.test(containerId) ? containerId : '';
+};
+
 const normalizeString = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
 
@@ -64,6 +78,9 @@ const defaultRuntimeConfig = (): RuntimeConfig => ({
   analytics: {
     ga4MeasurementId: normalizeGa4MeasurementId(
       environment.analytics.ga4MeasurementId,
+    ),
+    gtmContainerId: normalizeGtmContainerId(
+      environment.analytics.gtmContainerId,
     ),
   },
   sentry: {
@@ -89,6 +106,9 @@ export class RuntimeConfigService {
   public readonly sentry = computed(() => this.config().sentry);
   public readonly ga4MeasurementId = computed(
     () => this.analytics().ga4MeasurementId,
+  );
+  public readonly gtmContainerId = computed(
+    () => this.analytics().gtmContainerId,
   );
   public readonly turnstileEnabled = computed(() => {
     const turnstile = this.turnstile();
@@ -155,6 +175,9 @@ export class RuntimeConfigService {
       analytics: {
         ga4MeasurementId: normalizeGa4MeasurementId(
           rawAnalytics['ga4MeasurementId'],
+        ),
+        gtmContainerId: normalizeGtmContainerId(
+          rawAnalytics['gtmContainerId'],
         ),
       },
       sentry: {

@@ -71,7 +71,7 @@ export class App implements OnInit {
       })
       .subscribe({
         next: (response) => {
-          this.analyticsService.trackEvent('checkout_redirect', {
+          this.analyticsService.trackCheckoutRedirect({
             type: 'shop',
           });
           window.location.assign(response.checkoutUrl);

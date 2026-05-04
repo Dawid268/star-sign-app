@@ -7,6 +7,7 @@ export type SubscriptionStatus =
   | 'unpaid';
 
 export type SubscriptionPlan = 'monthly' | 'annual' | null;
+export type PremiumAccessMode = 'open' | 'paid';
 
 export interface UserZodiacSign {
   id: number;
@@ -30,6 +31,8 @@ export interface AccountSubscription {
   status: SubscriptionStatus;
   plan: SubscriptionPlan;
   isPremium: boolean;
+  hasPremiumAccess: boolean;
+  accessMode: PremiumAccessMode;
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;

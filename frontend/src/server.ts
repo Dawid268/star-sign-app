@@ -22,6 +22,7 @@ const turnstileSiteKey = process.env['TURNSTILE_SITE_KEY'] || '';
 const turnstileEnabled =
   process.env['TURNSTILE_ENABLED'] === 'true' && turnstileSiteKey.length > 0;
 const ga4MeasurementId = process.env['GA4_MEASUREMENT_ID'] || '';
+const gtmContainerId = process.env['GTM_CONTAINER_ID'] || '';
 const frontendSentryDsn = process.env['FRONTEND_SENTRY_DSN'] || '';
 const sentryEnvironment =
   process.env['SENTRY_ENVIRONMENT'] || process.env['NODE_ENV'] || 'production';
@@ -121,6 +122,8 @@ let mockSubscription = {
   status: 'inactive',
   plan: null as 'monthly' | 'annual' | null,
   isPremium: false,
+  hasPremiumAccess: true,
+  accessMode: 'open' as 'open' | 'paid',
   trialEndsAt: null as string | null,
   currentPeriodEnd: null as string | null,
   cancelAtPeriodEnd: false,
@@ -253,19 +256,19 @@ if (useE2eMockApi) {
         date: today,
         period: 'dzienny',
         teaser: 'Krótki, darmowy wgląd astrologiczny na dzisiaj.',
-        premiumContent: mockSubscription.isPremium
+        premiumContent: mockSubscription.hasPremiumAccess
           ? 'Pełna interpretacja premium z dodatkowymi wskazówkami i kontekstem osobistym.'
           : null,
-        isPremiumLocked: !mockSubscription.isPremium,
+        isPremiumLocked: !mockSubscription.hasPremiumAccess,
       },
       tarot: {
         cardName: 'The Star',
         cardSlug: 'the-star',
         teaserMessage: 'Karta dnia zachęca do spokoju i wiary w proces.',
-        premiumMessage: mockSubscription.isPremium
+        premiumMessage: mockSubscription.hasPremiumAccess
           ? 'Wersja premium: pogłębiona interpretacja karty dla relacji, pracy i energii tygodnia.'
           : null,
-        isPremiumLocked: !mockSubscription.isPremium,
+        isPremiumLocked: !mockSubscription.hasPremiumAccess,
       },
       teaser: 'Darmowy rytuał dnia działa od razu po zalogowaniu.',
       disclaimer:
@@ -527,13 +530,21 @@ if (useE2eMockApi) {
         period: readingType === 'horoscope' ? 'dzienny' : null,
         signSlug: dailyPayload.sign?.slug || null,
         readingDate: today,
-        isPremium: mockSubscription.isPremium,
+        isPremium: mockSubscription.hasPremiumAccess,
         source: 'daily-ritual',
         createdAt: new Date().toISOString(),
       };
 
       mockReadings = [reading, ...mockReadings];
       res.json({ saved: true, reading });
+      return;
+    }
+
+    if (
+      req.method === 'POST' &&
+      normalizedPath === '/analytics/events'
+    ) {
+      res.status(202).json({ accepted: true, uniqueDaily: true });
       return;
     }
 
@@ -547,6 +558,8 @@ if (useE2eMockApi) {
         status: 'trialing',
         plan,
         isPremium: true,
+        hasPremiumAccess: true,
+        accessMode: 'paid',
         trialEndsAt: new Date(
           Date.now() + 7 * 24 * 60 * 60 * 1000,
         ).toISOString(),
@@ -645,6 +658,7 @@ app.get('/runtime-config.json', (_req, res) => {
     },
     analytics: {
       ga4MeasurementId,
+      gtmContainerId,
     },
     sentry: {
       dsn: frontendSentryDsn,

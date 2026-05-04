@@ -21,6 +21,7 @@ describe('RuntimeConfigService', () => {
             },
             analytics: {
               ga4MeasurementId: 'G-TEST123',
+              gtmContainerId: 'GTM-ABC123',
             },
             sentry: {
               dsn: 'https://public@example.com/1',
@@ -37,8 +38,12 @@ describe('RuntimeConfigService', () => {
 
     expect(config.turnstile).toEqual({ enabled: true, siteKey: 'site-key' });
     expect(service.turnstileEnabled()).toBe(true);
-    expect(config.analytics).toEqual({ ga4MeasurementId: 'G-TEST123' });
+    expect(config.analytics).toEqual({
+      ga4MeasurementId: 'G-TEST123',
+      gtmContainerId: 'GTM-ABC123',
+    });
     expect(service.ga4MeasurementId()).toBe('G-TEST123');
+    expect(service.gtmContainerId()).toBe('GTM-ABC123');
     expect(config.sentry).toEqual({
       dsn: 'https://public@example.com/1',
       environment: 'production',
@@ -93,7 +98,7 @@ describe('RuntimeConfigService', () => {
     expect(config.turnstile.enabled).toBe(false);
   });
 
-  it('should ignore placeholder analytics measurement IDs', async () => {
+  it('should ignore placeholder analytics IDs', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -102,6 +107,7 @@ describe('RuntimeConfigService', () => {
           Promise.resolve({
             analytics: {
               ga4MeasurementId: 'G-XXXXXXXXXX',
+              gtmContainerId: 'replace_me',
             },
           }),
       }),
@@ -111,6 +117,8 @@ describe('RuntimeConfigService', () => {
     const config = await service.load();
 
     expect(config.analytics.ga4MeasurementId).toBe('');
+    expect(config.analytics.gtmContainerId).toBe('');
     expect(service.ga4MeasurementId()).toBe('');
+    expect(service.gtmContainerId()).toBe('');
   });
 });

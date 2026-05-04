@@ -46,7 +46,10 @@ export class NatalChartComponent {
 
   public readonly hasData = computed(() => !!this.chart());
   public readonly isPremium = computed(() =>
-    Boolean(this.me()?.subscription?.isPremium),
+    Boolean(
+      this.me()?.subscription?.hasPremiumAccess ??
+        this.me()?.subscription?.isPremium,
+    ),
   );
 
   constructor() {

@@ -25,6 +25,8 @@ describe('AccountPanel', () => {
   const mockDashboard = {
     subscription: {
       isPremium: true,
+      hasPremiumAccess: true,
+      accessMode: 'paid',
       status: 'active',
       currentPeriodEnd: '2026-12-31',
       plan: 'annual',
@@ -82,6 +84,8 @@ describe('AccountPanel', () => {
     };
     analyticsService = {
       trackEvent: vi.fn(),
+      trackProductEvent: vi.fn(),
+      trackPremiumSubscriptionConversion: vi.fn(),
     };
     routeSnapshot = {
       queryParamMap: convertToParamMap({}),
@@ -136,7 +140,8 @@ describe('AccountPanel', () => {
   });
 
   it('should track Premium purchase after successful Stripe return', () => {
-    analyticsService.trackEvent.mockClear();
+    analyticsService.trackProductEvent.mockClear();
+    analyticsService.trackPremiumSubscriptionConversion.mockClear();
     routeSnapshot.queryParamMap = convertToParamMap({
       subscription: 'success',
       plan: 'annual',
@@ -145,12 +150,13 @@ describe('AccountPanel', () => {
 
     component.loadPanelData();
 
-    expect(analyticsService.trackEvent).toHaveBeenCalledWith(
+    expect(analyticsService.trackProductEvent).toHaveBeenCalledWith(
       'purchase',
       expect.objectContaining({
         transaction_id: 'cs_live_123',
         currency: 'PLN',
         value: 199,
+        price: 199,
         checkout_type: 'premium',
         plan: 'annual',
         items: [
@@ -163,8 +169,9 @@ describe('AccountPanel', () => {
         ],
       }),
     );
-    expect(analyticsService.trackEvent).toHaveBeenCalledWith(
-      'premium_subscription_conversion',
+    expect(
+      analyticsService.trackPremiumSubscriptionConversion,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
         transaction_id: 'cs_live_123',
         currency: 'PLN',

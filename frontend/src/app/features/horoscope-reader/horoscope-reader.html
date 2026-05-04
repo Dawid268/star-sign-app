@@ -103,13 +103,14 @@
 
           <app-premium-preview-block
             variant="horoscope"
-            [isPremium]="isPremium()"
+            [isPremium]="canDisplayPremiumContent(currentData?.horoscope)"
             [premiumContent]="currentData?.horoscope?.premiumContent"
             [hasPremiumContent]="hasPremiumExtension(currentData?.horoscope)"
             title="Pełna interpretacja Premium"
             intro="Darmowy horoskop daje kierunek. Premium rozwija go o relacje, pracę, energię dnia, rytuał i pytanie refleksyjne."
             ctaLabel="Odblokuj pełną interpretację"
             testId="horoscope-premium-preview"
+            (ctaClick)="trackPremiumCta(currentData)"
           />
         </div>
 

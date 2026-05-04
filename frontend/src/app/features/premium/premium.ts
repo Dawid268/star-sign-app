@@ -2,6 +2,7 @@ import {
   Component,
   ChangeDetectionStrategy,
   inject,
+  OnInit,
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
@@ -33,7 +34,7 @@ import { premiumPlanDetails } from '../../core/premium-plans';
   styleUrl: './premium.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Premium {
+export class Premium implements OnInit {
   private readonly accountService = inject(AccountService);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
@@ -50,12 +51,29 @@ export class Premium {
         loggedIn
           ? this.accountService
               .getMe()
-              .pipe(map((me) => !!me?.subscription?.isPremium))
+              .pipe(
+                map(
+                  (me) =>
+                    !!(
+                      me?.subscription?.hasPremiumAccess ??
+                      me?.subscription?.isPremium
+                    ),
+                ),
+              )
           : of(false),
       ),
     ),
     { initialValue: false },
   );
+
+  public ngOnInit(): void {
+    this.analyticsService.trackPremiumPricingView({
+      content_type: 'premium_page',
+      premium_mode: 'open',
+      access_state: 'open',
+      route: '/premium',
+    });
+  }
 
   public toggleBilling(): void {
     this.isAnnual.update((v) => !v);
@@ -65,6 +83,20 @@ export class Premium {
   }
 
   public joinMagicCircle(): void {
+    const plan = this.isAnnual() ? 'annual' : 'monthly';
+    const planDetails = premiumPlanDetails[plan];
+
+    this.analyticsService.trackPremiumCtaClick({
+      content_type: 'premium_page',
+      plan,
+      currency: 'PLN',
+      value: planDetails.price,
+      price: planDetails.price,
+      premium_mode: 'open',
+      access_state: this.isPremium() ? 'open' : 'locked',
+      route: '/premium',
+    });
+
     if (!this.isLoggedIn()) {
       this.analyticsService.trackEvent('premium_join_attempt_unauth');
       this.router.navigate(['/logowanie'], {
@@ -79,8 +111,6 @@ export class Premium {
     }
 
     this.isLoading.set(true);
-    const plan = this.isAnnual() ? 'annual' : 'monthly';
-    const planDetails = premiumPlanDetails[plan];
 
     const checkoutItem: Ga4Item = {
       item_id: `premium_${plan}`,
@@ -96,14 +126,18 @@ export class Premium {
       plan,
       currency: 'PLN',
       value: planDetails.price,
+      price: planDetails.price,
     });
 
     this.accountService.startSubscriptionCheckout(plan).subscribe({
       next: (response) => {
         if (response.checkoutUrl) {
-          this.analyticsService.trackEvent('checkout_redirect', {
+          this.analyticsService.trackCheckoutRedirect({
             type: 'premium',
             plan,
+            currency: 'PLN',
+            value: planDetails.price,
+            price: planDetails.price,
           });
           window.location.href = response.checkoutUrl;
         }

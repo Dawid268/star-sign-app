@@ -3,25 +3,39 @@ import { AnalyticsService } from './analytics.service';
 import { CookieService } from 'ngx-cookie-service';
 import { PLATFORM_ID } from '@angular/core';
 import { RuntimeConfigService } from './runtime-config.service';
+import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { EMPTY, of } from 'rxjs';
 
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
   let cookieServiceMock: any;
-  let runtimeConfigMock: { ga4MeasurementId: ReturnType<typeof vi.fn> };
+  let httpClientMock: { post: ReturnType<typeof vi.fn> };
+  let runtimeConfigMock: {
+    ga4MeasurementId: ReturnType<typeof vi.fn>;
+    gtmContainerId: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     cookieServiceMock = {
       get: vi.fn(),
+      set: vi.fn(),
+    };
+    httpClientMock = {
+      post: vi.fn(() => of({ accepted: true })),
     };
     runtimeConfigMock = {
       ga4MeasurementId: vi.fn().mockReturnValue(''),
+      gtmContainerId: vi.fn().mockReturnValue(''),
     };
 
     TestBed.configureTestingModule({
       providers: [
         AnalyticsService,
         { provide: CookieService, useValue: cookieServiceMock },
+        { provide: HttpClient, useValue: httpClientMock },
         { provide: RuntimeConfigService, useValue: runtimeConfigMock },
+        { provide: Router, useValue: { events: EMPTY, url: '/test' } },
         { provide: PLATFORM_ID, useValue: 'browser' },
       ],
     });
@@ -37,6 +51,7 @@ describe('AnalyticsService', () => {
       'script[src*="googletagmanager"]',
     );
     scripts.forEach((s) => s.remove());
+    window.sessionStorage.clear();
   });
 
   it('should be created', () => {
@@ -71,13 +86,38 @@ describe('AnalyticsService', () => {
     expect(script.src).toContain('googletagmanager.com/gtag/js?id=G-TEST');
   });
 
+  it('should load GTM before GA when a GTM container is configured', () => {
+    cookieServiceMock.get.mockImplementation((name: string) =>
+      name === 'cookie-consent-v2' ? JSON.stringify({ analytics: true }) : '',
+    );
+    runtimeConfigMock.ga4MeasurementId.mockReturnValue('G-TEST');
+    runtimeConfigMock.gtmContainerId.mockReturnValue('GTM-ABC123');
+
+    const spy = vi.spyOn(document.head, 'appendChild');
+
+    service.init();
+    service.trackEvent('premium_content_view', { content_id: 'h-1' });
+
+    expect(spy).toHaveBeenCalled();
+    const script = spy.mock.calls[0][0] as HTMLScriptElement;
+    expect(script.src).toContain('googletagmanager.com/gtm.js?id=GTM-ABC123');
+    expect((window as any).dataLayer).toContainEqual(
+      expect.objectContaining({
+        event: 'premium_content_view',
+        content_id: 'h-1',
+      }),
+    );
+  });
+
   it('should not init if not in browser', () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
         AnalyticsService,
         { provide: CookieService, useValue: cookieServiceMock },
+        { provide: HttpClient, useValue: httpClientMock },
         { provide: RuntimeConfigService, useValue: runtimeConfigMock },
+        { provide: Router, useValue: { events: EMPTY, url: '/test' } },
         { provide: PLATFORM_ID, useValue: 'server' },
       ],
     });
@@ -157,5 +197,30 @@ describe('AnalyticsService', () => {
         }),
       ]),
     );
+  });
+
+  it('should send first-party premium analytics without GA consent', () => {
+    cookieServiceMock.get.mockReturnValue('');
+
+    service.trackDailyHoroscopeView({
+      content_type: 'horoscope',
+      content_id: 'horoscope-baran-dzienny',
+      content_slug: 'dzienny-baran',
+      sign_slug: 'baran',
+      horoscope_period: 'dzienny',
+      premium_mode: 'open',
+      access_state: 'open',
+    });
+
+    expect(httpClientMock.post).toHaveBeenCalledWith(
+      '/api/analytics/events',
+      expect.objectContaining({
+        event_type: 'daily_horoscope_view',
+        visitor_id: expect.any(String),
+        session_id: expect.any(String),
+        content_id: 'horoscope-baran-dzienny',
+      }),
+    );
+    expect((window as any).dataLayer).toBeUndefined();
   });
 });

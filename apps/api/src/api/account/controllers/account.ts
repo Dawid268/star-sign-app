@@ -1,3 +1,5 @@
+import { getAppSettings, getPremiumMode } from '../../../utils/app-settings';
+
 type SubscriptionStatus =
   | 'inactive'
   | 'trialing'
@@ -224,14 +226,18 @@ const ensureUserProfile = async (userId: number): Promise<any> => {
   return profile;
 };
 
-const getSubscriptionPayload = (profile: any) => {
+const getSubscriptionPayload = async (profile: any) => {
   const status = toSubscriptionStatus(profile?.subscription_status);
   const plan = toSubscriptionPlan(profile?.subscription_plan);
+  const accessMode = await getPremiumMode();
+  const isPremium = PREMIUM_ACCESS_STATUSES.has(status);
 
   return {
     status,
     plan,
-    isPremium: PREMIUM_ACCESS_STATUSES.has(status),
+    isPremium,
+    hasPremiumAccess: accessMode === 'open' || isPremium,
+    accessMode,
     trialEndsAt: profile?.trial_ends_at || null,
     currentPeriodEnd: profile?.current_period_end || null,
     cancelAtPeriodEnd: Boolean(profile?.cancel_at_period_end),
@@ -363,8 +369,8 @@ const getLatestHoroscopeForSign = async (
 };
 
 const buildDailyPayload = async (profile: any) => {
-  const subscription = getSubscriptionPayload(profile);
-  const isPremium = subscription.isPremium;
+  const subscription = await getSubscriptionPayload(profile);
+  const hasPremiumAccess = subscription.hasPremiumAccess;
   const today = getWarsawDate();
 
   const sign = profile?.zodiac_sign || null;
@@ -400,19 +406,19 @@ const buildDailyPayload = async (profile: any) => {
       date: horoscope?.date || today,
       period: 'dzienny',
       teaser: shortenText(horoscopeContent, 320),
-      premiumContent: isPremium
+      premiumContent: hasPremiumAccess
         ? composePremiumHoroscope(horoscopeContent, profile)
         : null,
-      isPremiumLocked: !isPremium,
+      isPremiumLocked: !hasPremiumAccess,
     },
     tarot: {
       cardName: draw?.card?.name || null,
       cardSlug: draw?.card?.slug || null,
       teaserMessage: shortenText(tarotBaseMessage, 220),
-      premiumMessage: isPremium
+      premiumMessage: hasPremiumAccess
         ? composePremiumTarot(tarotBaseMessage, profile)
         : null,
-      isPremiumLocked: !isPremium,
+      isPremiumLocked: !hasPremiumAccess,
     },
     teaser,
     disclaimer:
@@ -443,14 +449,21 @@ const createStripeSubscriptionCheckoutSession = async (input: {
   customerEmail: string;
   customerId?: string | null;
   frontendUrl: string;
+  trialDays: number;
+  allowPromotionCodes: boolean;
 }): Promise<{ id: string; url: string; customerId: string | null }> => {
   const params = new URLSearchParams();
   params.set('mode', 'subscription');
   params.set('line_items[0][price]', input.priceId);
   params.set('line_items[0][quantity]', '1');
-  params.set('subscription_data[trial_period_days]', '7');
+  if (input.trialDays > 0) {
+    params.set('subscription_data[trial_period_days]', String(input.trialDays));
+  }
   params.set('client_reference_id', String(input.userId));
-  params.set('allow_promotion_codes', 'true');
+  params.set(
+    'allow_promotion_codes',
+    input.allowPromotionCodes ? 'true' : 'false',
+  );
   params.set('metadata[userId]', String(input.userId));
   params.set('metadata[plan]', input.plan);
   params.set('subscription_data[metadata][userId]', String(input.userId));
@@ -623,7 +636,7 @@ export default {
     const profile = await ensureUserProfile(user.id);
     ctx.body = {
       profile: toProfilePayload(user, profile),
-      subscription: getSubscriptionPayload(profile),
+      subscription: await getSubscriptionPayload(profile),
     };
   },
 
@@ -677,7 +690,7 @@ export default {
 
     ctx.body = {
       profile: toProfilePayload(user, updated),
-      subscription: getSubscriptionPayload(updated),
+      subscription: await getSubscriptionPayload(updated),
     };
   },
 
@@ -692,7 +705,7 @@ export default {
 
     ctx.body = {
       profile: toProfilePayload(user, profile),
-      subscription: getSubscriptionPayload(profile),
+      subscription: await getSubscriptionPayload(profile),
       daily,
     };
   },
@@ -730,14 +743,14 @@ export default {
     const readingType = payload.readingType === 'tarot' ? 'tarot' : 'horoscope';
 
     const profile = await ensureUserProfile(user.id);
-    const subscription = getSubscriptionPayload(profile);
+    const subscription = await getSubscriptionPayload(profile);
     const daily = await buildDailyPayload(profile);
 
     const result = await saveReadingForType({
       userId: user.id,
       readingType,
       daily,
-      isPremium: subscription.isPremium,
+      isPremium: subscription.hasPremiumAccess,
     });
 
     ctx.body = result;
@@ -752,12 +765,22 @@ export default {
     const payload = getPayload(ctx);
     const plan = payload.plan === 'annual' ? 'annual' : 'monthly';
 
+    const settings = await getAppSettings();
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-    const monthlyPriceId = process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID;
-    const annualPriceId = process.env.STRIPE_PREMIUM_ANNUAL_PRICE_ID;
+    const monthlyPriceId =
+      settings.stripeMonthlyPriceId ||
+      process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID;
+    const annualPriceId =
+      settings.stripeAnnualPriceId ||
+      process.env.STRIPE_PREMIUM_ANNUAL_PRICE_ID;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
 
-    if (!stripeSecretKey || !monthlyPriceId || !annualPriceId) {
+    if (
+      !settings.stripeCheckoutEnabled ||
+      !stripeSecretKey ||
+      !monthlyPriceId ||
+      !annualPriceId
+    ) {
       ctx.status = 503;
       ctx.body = { error: 'Subskrypcje nie są jeszcze skonfigurowane.' };
       return;
@@ -775,6 +798,8 @@ export default {
         customerEmail: user.email || '',
         customerId: toNullableString(profile?.stripe_customer_id),
         frontendUrl,
+        trialDays: settings.trialDays,
+        allowPromotionCodes: settings.allowPromotionCodes,
       });
 
       const patch: Record<string, unknown> = {};

@@ -33,6 +33,9 @@ describe('Premium', () => {
     analyticsServiceMock = {
       trackBeginCheckout: vi.fn(),
       trackEvent: vi.fn(),
+      trackCheckoutRedirect: vi.fn(),
+      trackPremiumCtaClick: vi.fn(),
+      trackPremiumPricingView: vi.fn(),
     };
 
     await TestBed.configureTestingModule({
@@ -95,7 +98,21 @@ describe('Premium', () => {
         plan: 'annual',
         currency: 'PLN',
         value: 199,
+        price: 199,
       },
+    );
+    expect(analyticsServiceMock.trackPremiumCtaClick).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plan: 'annual',
+        value: 199,
+        price: 199,
+      }),
+    );
+    expect(analyticsServiceMock.trackCheckoutRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'premium',
+        plan: 'annual',
+      }),
     );
   });
 

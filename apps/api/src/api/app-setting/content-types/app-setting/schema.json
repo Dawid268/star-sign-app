@@ -1,0 +1,57 @@
+{
+  "kind": "singleType",
+  "collectionName": "app_settings",
+  "info": {
+    "singularName": "app-setting",
+    "pluralName": "app-settings",
+    "displayName": "App Settings",
+    "description": "Production feature and billing settings managed from Strapi."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "premium_mode": {
+      "type": "enumeration",
+      "enum": ["open", "paid"],
+      "default": "open",
+      "required": true
+    },
+    "currency": {
+      "type": "enumeration",
+      "enum": ["PLN", "EUR", "USD"],
+      "default": "PLN",
+      "required": true
+    },
+    "monthly_price": {
+      "type": "decimal",
+      "default": 24.99
+    },
+    "annual_price": {
+      "type": "decimal",
+      "default": 199
+    },
+    "stripe_monthly_price_id": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "stripe_annual_price_id": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "stripe_checkout_enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "trial_days": {
+      "type": "integer",
+      "default": 7,
+      "min": 0,
+      "max": 90
+    },
+    "allow_promotion_codes": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

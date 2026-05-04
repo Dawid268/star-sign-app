@@ -69,7 +69,15 @@ export class HoroscopeReader {
         loggedIn
           ? this.accountService
               .getMe()
-              .pipe(map((me) => !!me?.subscription?.isPremium))
+              .pipe(
+                map(
+                  (me) =>
+                    !!(
+                      me?.subscription?.hasPremiumAccess ??
+                      me?.subscription?.isPremium
+                    ),
+                ),
+              )
           : of(false),
       ),
     ),
@@ -79,6 +87,7 @@ export class HoroscopeReader {
   public readonly loading = signal(true);
   public readonly error = signal<string | null>(null);
   public readonly adsEnabled = featureFlags.adsEnabled;
+  private readonly trackedAnalytics = new Set<string>();
 
   constructor() {
     effect(() => {
@@ -106,6 +115,7 @@ export class HoroscopeReader {
           type: state.type,
           is_premium: this.hasPremiumExtension(state.horoscope),
         });
+        this.trackHoroscopeProductAnalytics(state);
       }
     });
   }
@@ -164,5 +174,71 @@ export class HoroscopeReader {
 
   public hasPremiumExtension(horoscope: HoroscopeEntry | undefined): boolean {
     return Boolean(horoscope?.hasPremiumContent || horoscope?.premiumContent);
+  }
+
+  public canDisplayPremiumContent(
+    horoscope: HoroscopeEntry | undefined,
+  ): boolean {
+    return this.isPremium() || Boolean(horoscope?.premiumContent?.trim());
+  }
+
+  public trackPremiumCta(state: HoroscopeReaderState | undefined): void {
+    if (!state?.horoscope) {
+      return;
+    }
+
+    this.analyticsService.trackPremiumCtaClick(
+      this.toAnalyticsParams(state, 'locked'),
+    );
+  }
+
+  private trackHoroscopeProductAnalytics(state: HoroscopeReaderState): void {
+    const baseParams = this.toAnalyticsParams(
+      state,
+      this.canDisplayPremiumContent(state.horoscope) ? 'open' : 'locked',
+    );
+
+    if (state.type === 'dzienny') {
+      this.trackOnce(`daily:${state.horoscope.documentId}`, () => {
+        this.analyticsService.trackDailyHoroscopeView(baseParams);
+      });
+    }
+
+    if (this.hasPremiumExtension(state.horoscope)) {
+      this.trackOnce(`premium-impression:${state.horoscope.documentId}`, () => {
+        this.analyticsService.trackPremiumContentImpression(baseParams);
+      });
+    }
+
+    if (this.canDisplayPremiumContent(state.horoscope)) {
+      this.trackOnce(`premium-view:${state.horoscope.documentId}`, () => {
+        this.analyticsService.trackPremiumContentView(baseParams);
+      });
+    }
+  }
+
+  private trackOnce(key: string, callback: () => void): void {
+    if (this.trackedAnalytics.has(key)) {
+      return;
+    }
+
+    this.trackedAnalytics.add(key);
+    callback();
+  }
+
+  private toAnalyticsParams(
+    state: HoroscopeReaderState,
+    accessState: 'open' | 'locked',
+  ): Record<string, unknown> {
+    return {
+      content_type: 'horoscope',
+      content_id: state.horoscope.documentId,
+      content_slug: `${state.type}-${state.sign}`,
+      sign_slug: state.sign,
+      horoscope_period: state.type,
+      premium_mode: 'open',
+      access_state: accessState,
+      route: `/horoskopy/${state.type}/${state.sign}`,
+    };
   }
 }

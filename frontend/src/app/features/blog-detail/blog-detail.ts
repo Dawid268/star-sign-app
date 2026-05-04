@@ -65,7 +65,15 @@ export class BlogDetail {
         isLoggedIn
           ? this.accountService
               .getMe()
-              .pipe(map((me) => !!me?.subscription?.isPremium))
+              .pipe(
+                map(
+                  (me) =>
+                    !!(
+                      me?.subscription?.hasPremiumAccess ??
+                      me?.subscription?.isPremium
+                    ),
+                ),
+              )
           : of(false),
       ),
     ),
@@ -172,5 +180,24 @@ export class BlogDetail {
       article?.premiumContent ||
       article?.isPremium,
     );
+  }
+
+  public canDisplayPremiumContent(article: Article | undefined): boolean {
+    return this.isPremiumUser() || Boolean(article?.premiumContent?.trim());
+  }
+
+  public trackPremiumCta(article: Article | undefined): void {
+    if (!article) {
+      return;
+    }
+
+    this.analyticsService.trackPremiumCtaClick({
+      content_type: 'article',
+      content_id: article.documentId || String(article.id),
+      content_slug: article.slug,
+      premium_mode: 'open',
+      access_state: this.canDisplayPremiumContent(article) ? 'open' : 'locked',
+      route: `/artykuly/${article.slug}`,
+    });
   }
 }

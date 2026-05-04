@@ -15,6 +15,7 @@ describe('App', () => {
     init: ReturnType<typeof vi.fn>;
     trackEvent: ReturnType<typeof vi.fn>;
     trackBeginCheckout: ReturnType<typeof vi.fn>;
+    trackCheckoutRedirect: ReturnType<typeof vi.fn>;
   };
 
   const cartItem: CartItem = {
@@ -37,6 +38,7 @@ describe('App', () => {
       init: vi.fn(),
       trackEvent: vi.fn(),
       trackBeginCheckout: vi.fn(),
+      trackCheckoutRedirect: vi.fn(),
     };
 
     await TestBed.configureTestingModule({
@@ -109,12 +111,9 @@ describe('App', () => {
         checkout_type: 'shop',
       },
     );
-    expect(analyticsService.trackEvent).toHaveBeenCalledWith(
-      'checkout_redirect',
-      {
-        type: 'shop',
-      },
-    );
+    expect(analyticsService.trackCheckoutRedirect).toHaveBeenCalledWith({
+      type: 'shop',
+    });
     expect(assignSpy).toHaveBeenCalledWith('https://checkout.example/session');
 
     locationSpy.mockRestore();

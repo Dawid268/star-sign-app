@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   input,
+  output,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PREMIUM_PREVIEW_ITEMS } from './premium-preview.config';
@@ -25,6 +26,7 @@ export class PremiumPreviewBlock {
   public readonly ctaLabel = input('Odblokuj dostęp');
   public readonly ctaLink = input('/premium');
   public readonly testId = input('premium-preview-block');
+  public readonly ctaClick = output<void>();
 
   public readonly resolvedHasPremiumContent = computed(() => {
     const explicit = this.hasPremiumContent();
@@ -43,6 +45,14 @@ export class PremiumPreviewBlock {
   public readonly shouldRender = computed(() =>
     this.resolvedHasPremiumContent(),
   );
+
+  public readonly isUnlocked = computed(
+    () => this.isPremium() || Boolean(this.premiumContent()?.trim()),
+  );
+
+  public onCtaClick(): void {
+    this.ctaClick.emit();
+  }
 }
 
 export type PremiumPreviewVariant =

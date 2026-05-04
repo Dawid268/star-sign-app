@@ -20,7 +20,9 @@ describe('TarotResult', () => {
       getDailyCard: vi.fn().mockReturnValue(
         of({
           card: {
+            documentId: 'tarot-magician',
             name: 'The Magician',
+            slug: 'the-magician',
             meaning_upright: 'Focus',
             description: 'Use your tools',
           },
@@ -30,6 +32,8 @@ describe('TarotResult', () => {
     analyticsService = {
       trackFeatureUse: vi.fn(),
       trackEvent: vi.fn(),
+      trackPremiumContentImpression: vi.fn(),
+      trackPremiumContentView: vi.fn(),
     };
 
     await TestBed.configureTestingModule({
@@ -74,15 +78,16 @@ describe('TarotResult', () => {
     expect(component.error()).toBe('Nie udało się pobrać karty dnia.');
   });
 
-  it('should render premium teaser below free card meaning', () => {
+  it('should render open premium content below free card meaning', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent || '';
 
     expect(text).toContain('Focus');
     expect(text).toContain('Pełna analiza karty');
+    expect(text).toContain('Relacje: karta The Magician');
     expect(
-      (fixture.nativeElement as HTMLElement)
-        .querySelector('[data-test="tarot-premium-preview"] a')
-        ?.getAttribute('href'),
-    ).toBe('/premium');
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-test="tarot-premium-preview"] a',
+      ),
+    ).toBeNull();
   });
 });

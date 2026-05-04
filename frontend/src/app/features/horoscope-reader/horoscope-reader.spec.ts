@@ -38,7 +38,16 @@ describe('HoroscopeReader', () => {
         { provide: AuthService, useValue: { isLoggedIn: loggedIn } },
         { provide: AccountService, useValue: accountService },
         { provide: SeoService, useValue: { updateSeo: vi.fn() } },
-        { provide: AnalyticsService, useValue: { trackEvent: vi.fn() } },
+        {
+          provide: AnalyticsService,
+          useValue: {
+            trackEvent: vi.fn(),
+            trackDailyHoroscopeView: vi.fn(),
+            trackPremiumContentImpression: vi.fn(),
+            trackPremiumContentView: vi.fn(),
+            trackPremiumCtaClick: vi.fn(),
+          },
+        },
         {
           provide: ActivatedRoute,
           useValue: {

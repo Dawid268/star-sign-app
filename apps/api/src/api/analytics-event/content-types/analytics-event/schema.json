@@ -1,0 +1,131 @@
+{
+  "kind": "collectionType",
+  "collectionName": "analytics_events",
+  "info": {
+    "singularName": "analytics-event",
+    "pluralName": "analytics-events",
+    "displayName": "Analytics Event",
+    "description": "First-party product analytics event log."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "event_type": {
+      "type": "enumeration",
+      "enum": [
+        "daily_horoscope_view",
+        "premium_content_impression",
+        "premium_content_view",
+        "premium_cta_click",
+        "premium_pricing_view",
+        "begin_checkout",
+        "checkout_redirect",
+        "purchase",
+        "premium_subscription_conversion",
+        "view_item",
+        "select_item"
+      ],
+      "required": true
+    },
+    "occurred_at": {
+      "type": "datetime",
+      "required": true
+    },
+    "event_day": {
+      "type": "date"
+    },
+    "visitor_id": {
+      "type": "string",
+      "required": true,
+      "maxLength": 128
+    },
+    "session_id": {
+      "type": "string",
+      "required": true,
+      "maxLength": 128
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "content_type": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "content_id": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "content_slug": {
+      "type": "string",
+      "maxLength": 180
+    },
+    "sign_slug": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "horoscope_period": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "premium_mode": {
+      "type": "enumeration",
+      "enum": ["open", "paid"]
+    },
+    "access_state": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "route": {
+      "type": "string",
+      "maxLength": 300
+    },
+    "referrer": {
+      "type": "text"
+    },
+    "utm_source": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "utm_medium": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "utm_campaign": {
+      "type": "string",
+      "maxLength": 180
+    },
+    "device_category": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "browser_family": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "plan": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "currency": {
+      "type": "string",
+      "maxLength": 12
+    },
+    "value": {
+      "type": "decimal"
+    },
+    "unique_key": {
+      "type": "string",
+      "maxLength": 400
+    },
+    "is_unique_daily": {
+      "type": "boolean",
+      "default": true
+    },
+    "metadata": {
+      "type": "json"
+    }
+  }
+}

@@ -41,7 +41,15 @@ export class TarotResult implements OnInit {
         loggedIn
           ? this.accountService
               .getMe()
-              .pipe(map((me) => !!me?.subscription?.isPremium))
+              .pipe(
+                map(
+                  (me) =>
+                    !!(
+                      me?.subscription?.hasPremiumAccess ??
+                      me?.subscription?.isPremium
+                    ),
+                ),
+              )
           : of(false),
       ),
     ),
@@ -61,6 +69,22 @@ export class TarotResult implements OnInit {
           this.card.set(draw.card);
           this.analyticsService.trackFeatureUse('tarot_draw', {
             card_name: draw.card.name,
+          });
+          this.analyticsService.trackPremiumContentImpression({
+            content_type: 'tarot_daily',
+            content_id: draw.card.documentId,
+            content_slug: draw.card.slug,
+            premium_mode: 'open',
+            access_state: 'open',
+            route: '/tarot/karta-dnia',
+          });
+          this.analyticsService.trackPremiumContentView({
+            content_type: 'tarot_daily',
+            content_id: draw.card.documentId,
+            content_slug: draw.card.slug,
+            premium_mode: 'open',
+            access_state: 'open',
+            route: '/tarot/karta-dnia',
           });
         } else {
           this.error.set('Nie znaleziono karty na dziś.');

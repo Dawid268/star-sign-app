@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  canReadPremiumContent,
   hasPremiumContent,
   sanitizePremiumEntity,
   sanitizePremiumResponse,
@@ -17,11 +18,47 @@ Rytuał: ${words('rytual', 75)}
 Pytanie refleksyjne: ${words('pytanie', 75)}
 `;
 
+const stubPremiumMode = (premiumMode: 'open' | 'paid'): void => {
+  vi.stubGlobal('strapi', {
+    db: {
+      query: vi.fn((uid: string) => {
+        if (uid === 'api::app-setting.app-setting') {
+          return {
+            findOne: vi.fn(async () => ({ premium_mode: premiumMode })),
+          };
+        }
+
+        throw new Error(`Unexpected query uid: ${uid}`);
+      }),
+    },
+  });
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe('premium-content helpers', () => {
   it('detects meaningful premium content', () => {
     expect(hasPremiumContent(validPremiumContent())).toBe(true);
     expect(hasPremiumContent('   ')).toBe(false);
     expect(hasPremiumContent(null)).toBe(false);
+  });
+
+  it('allows guest premium reads while premium mode is open', async () => {
+    stubPremiumMode('open');
+
+    await expect(canReadPremiumContent({ request: { header: {} } })).resolves.toBe(
+      true,
+    );
+  });
+
+  it('blocks guest premium reads when premium mode is paid', async () => {
+    stubPremiumMode('paid');
+
+    await expect(canReadPremiumContent({ request: { header: {} } })).resolves.toBe(
+      false,
+    );
   });
 
   it('removes premiumContent for non-premium responses and keeps marker', () => {

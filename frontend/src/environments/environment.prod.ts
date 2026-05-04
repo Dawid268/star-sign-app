@@ -15,6 +15,7 @@ export const environment = {
   },
   analytics: {
     ga4MeasurementId: '',
+    gtmContainerId: '',
   },
   seo: {
     defaultImageUrl: '/assets/og-default.png',

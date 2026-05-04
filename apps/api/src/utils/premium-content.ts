@@ -2,6 +2,7 @@ import {
   evaluatePremiumContentQuality,
   type PremiumContentKind,
 } from './premium-quality';
+import { getPremiumMode } from './app-settings';
 
 type SubscriptionStatus =
   | 'inactive'
@@ -115,6 +116,10 @@ const resolveUserId = async (
 export const canReadPremiumContent = async (
   ctx: PremiumRequestContext,
 ): Promise<boolean> => {
+  if ((await getPremiumMode()) === 'open') {
+    return true;
+  }
+
   const userId = await resolveUserId(ctx);
   if (!userId) {
     return false;

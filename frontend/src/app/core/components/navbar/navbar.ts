@@ -45,7 +45,15 @@ export class Navbar {
         loggedIn
           ? this.accountService
               .getMe()
-              .pipe(map((me) => !!me?.subscription?.isPremium))
+              .pipe(
+                map(
+                  (me) =>
+                    !!(
+                      me?.subscription?.hasPremiumAccess ??
+                      me?.subscription?.isPremium
+                    ),
+                ),
+              )
           : of(false),
       ),
     ),

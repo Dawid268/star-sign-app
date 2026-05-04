@@ -17,7 +17,7 @@ test.describe('Soft premium flow', () => {
     ).toBeVisible();
   });
 
-  test('shows free horoscope content before the premium teaser', async ({
+  test('shows free horoscope content and open premium content', async ({
     page,
   }) => {
     await page.goto('/horoskopy/dzienny/baran');
@@ -33,10 +33,46 @@ test.describe('Soft premium flow', () => {
     await expect(
       page
         .locator('[data-test="horoscope-premium-preview"]')
-        .getByRole('link', {
-          name: /Odblokuj pełną interpretację/,
-        }),
-    ).toHaveAttribute('href', '/premium');
+        .getByText('Relacje: wybierz jedną szczerą rozmowę.'),
+    ).toBeVisible();
+  });
+
+  test('tracks daily horoscope and premium content views first-party', async ({
+    page,
+  }) => {
+    await page.unroute('**/api/analytics/events');
+    const analyticsEvents: unknown[] = [];
+    await page.route('**/api/analytics/events', (route) => {
+      analyticsEvents.push(route.request().postDataJSON());
+      return route.fulfill({
+        status: 202,
+        contentType: 'application/json',
+        body: JSON.stringify({ accepted: true, uniqueDaily: true }),
+      });
+    });
+
+    await page.goto('/horoskopy/dzienny/baran');
+
+    await expect
+      .poll(() =>
+        analyticsEvents.some(
+          (event) =>
+            (event as Record<string, unknown>)['event_type'] ===
+            'daily_horoscope_view',
+        ),
+      )
+      .toBe(true);
+    await expect
+      .poll(() =>
+        analyticsEvents.some(
+          (event) =>
+            (event as Record<string, unknown>)['event_type'] ===
+              'premium_content_view' &&
+            (event as Record<string, unknown>)['content_id'] ===
+              'horoscope-baran-dzienny',
+        ),
+      )
+      .toBe(true);
   });
 
   test('shows public article content and a soft premium add-on', async ({

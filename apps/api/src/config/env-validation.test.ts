@@ -31,6 +31,7 @@ const productionEnv = (
   HTTP_CACHE_ENABLED: 'true',
   R2_UPLOAD_ENABLED: 'false',
   SHOP_ENABLED: 'false',
+  STRIPE_REQUIRED: 'false',
   STRIPE_SECRET_KEY: secret(['sk', 'live', ''].join('_')),
   STRIPE_WEBHOOK_SECRET: secret(['whsec', ''].join('_')),
   STRIPE_PREMIUM_MONTHLY_PRICE_ID: 'price_monthly123',
@@ -50,14 +51,24 @@ const validate = async (env: NodeJS.ProcessEnv): Promise<void> => {
 };
 
 describe('production environment validation', () => {
-  it('accepts premium-only production configuration with product shop disabled', async () => {
-    await expect(validate(productionEnv())).resolves.toBeUndefined();
-  });
-
-  it('requires Premium Stripe price IDs even when the product shop is disabled', async () => {
+  it('accepts soft-launch production configuration without Stripe', async () => {
     await expect(
       validate(
         productionEnv({
+          STRIPE_SECRET_KEY: '',
+          STRIPE_WEBHOOK_SECRET: '',
+          STRIPE_PREMIUM_MONTHLY_PRICE_ID: '',
+          STRIPE_PREMIUM_ANNUAL_PRICE_ID: '',
+        }),
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it('requires Premium Stripe price IDs when Stripe is marked required', async () => {
+    await expect(
+      validate(
+        productionEnv({
+          STRIPE_REQUIRED: 'true',
           STRIPE_PREMIUM_MONTHLY_PRICE_ID: '',
         }),
       ),
@@ -68,6 +79,7 @@ describe('production environment validation', () => {
     await expect(
       validate(
         productionEnv({
+          STRIPE_REQUIRED: 'true',
           STRIPE_SECRET_KEY: ['sk', 'test', 'replace', 'me'].join('_'),
         }),
       ),
