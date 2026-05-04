@@ -12,6 +12,7 @@ RUN cd apps/api && npm ci
 COPY . .
 RUN npm exec nx run api:build
 RUN npm exec nx run frontend:build
+RUN cd apps/api && npm prune --omit=dev
 
 FROM node:20-bookworm-slim AS api-runtime
 
@@ -31,8 +32,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4000
 
-COPY --from=builder --chown=node:node /app/package*.json /app/
-COPY --from=builder --chown=node:node /app/node_modules /app/node_modules
 COPY --from=builder --chown=node:node /app/dist/frontend /app/dist/frontend
 
 USER node
