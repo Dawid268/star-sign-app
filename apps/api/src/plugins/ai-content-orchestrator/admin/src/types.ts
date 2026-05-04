@@ -20,14 +20,97 @@ export type Workflow = {
   auto_publish: boolean;
   force_regenerate: boolean;
   topic_mode: 'manual' | 'mixed';
-  horoscope_period: 'Dzienny' | 'Tygodniowy' | 'Miesięczny';
+  horoscope_period: 'Dzienny' | 'Tygodniowy' | 'Miesięczny' | 'Roczny';
   horoscope_type_values: string[];
   all_signs: boolean;
   article_category: number | null;
+  enabled_channels?: Array<'facebook' | 'instagram' | 'twitter'>;
+  fb_page_id?: string | null;
+  ig_user_id?: string | null;
+  x_api_key?: string | null;
+  tt_creator_id?: string | null;
   has_api_token: boolean;
+  has_image_gen_token?: boolean;
+  has_fb_token?: boolean;
+  has_ig_token?: boolean;
+  has_x_api_secret?: boolean;
+  has_x_access_token?: boolean;
+  has_x_access_token_secret?: boolean;
+  has_tt_token?: boolean;
+  image_gen_model?: string | null;
   last_error?: string | null;
   last_generated_at?: string | null;
   last_published_at?: string | null;
+};
+
+export type SocialPlatform = 'facebook' | 'instagram' | 'twitter';
+
+export type SocialTicket = {
+  id: number;
+  platform: SocialPlatform;
+  status: 'pending' | 'scheduled' | 'published' | 'failed' | 'canceled';
+  caption: string;
+  media_url?: string | null;
+  target_url?: string | null;
+  scheduled_at: string;
+  published_on?: string | null;
+  last_error?: string | null;
+  attempt_count?: number;
+  next_attempt_at?: string | null;
+  provider_post_id?: string | null;
+  blocked_reason?: string | null;
+  workflow?: number | { id: number; name?: string } | null;
+  source_run?: number | { id: number } | null;
+};
+
+export type SocialConnectionStatus = {
+  platform: SocialPlatform;
+  status: 'ready' | 'needs_action' | 'blocked' | 'degraded';
+  message: string;
+  details?: Record<string, unknown>;
+};
+
+export type SocialConnectionResult = {
+  workflowId: number;
+  overall: 'ready' | 'needs_action' | 'blocked' | 'degraded';
+  channels: SocialConnectionStatus[];
+};
+
+export type SocialDryRunResult = {
+  workflowId: number;
+  overall: 'ready' | 'needs_action' | 'blocked' | 'degraded';
+  channels: Array<SocialConnectionStatus & { renderedCaption: string }>;
+};
+
+export type AuditCheck = {
+  id: string;
+  area: string;
+  severity: 'critical' | 'warning';
+  status: 'pass' | 'warn' | 'fail';
+  message: string;
+  details?: Record<string, unknown>;
+};
+
+export type AuditFinding = {
+  id: string;
+  area: string;
+  message: string;
+  remediation: string;
+};
+
+export type AuditReport = {
+  decision: 'GO' | 'GO_WITH_WARNINGS' | 'NO_GO';
+  strict: boolean;
+  generatedAt: string;
+  summary: {
+    criticalFailures: number;
+    warnings: number;
+  };
+  checks: AuditCheck[];
+  failed_flows: string[];
+  failed_access_checks: string[];
+  critical_findings: AuditFinding[];
+  non_critical_findings: AuditFinding[];
 };
 
 export type Topic = {
@@ -112,6 +195,11 @@ export type DashboardSummary = {
     scheduled: number;
     failed: number;
   };
+  social: {
+    scheduled: number;
+    failed: number;
+    published: number;
+  };
 };
 
 export type DiagnosticsSummary = {
@@ -144,6 +232,9 @@ export type DiagnosticsSummary = {
 export type SettingsPayload = {
   timezone: string;
   locale: string;
+  image_gen_model?: string;
+  imageGenApiToken?: string;
+  has_image_gen_token?: boolean;
 };
 
 export type MediaAsset = {

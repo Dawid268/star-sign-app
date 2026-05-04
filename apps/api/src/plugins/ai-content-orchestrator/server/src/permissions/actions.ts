@@ -57,4 +57,18 @@ export const pluginActions = [
     subCategory: 'media',
     pluginName: PLUGIN_ID,
   },
+  {
+    section: 'plugins',
+    displayName: 'Manage social publishing',
+    uid: 'manage-social',
+    subCategory: 'social',
+    pluginName: PLUGIN_ID,
+  },
+  {
+    section: 'plugins',
+    displayName: 'Run production audit',
+    uid: 'run-audit',
+    subCategory: 'audit',
+    pluginName: PLUGIN_ID,
+  },
 ] as const;

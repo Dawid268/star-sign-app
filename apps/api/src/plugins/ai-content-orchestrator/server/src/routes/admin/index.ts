@@ -111,6 +111,62 @@ export default () => ({
     },
     {
       method: 'GET',
+      path: '/social/tickets',
+      handler: 'social.listTickets',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.viewRuns),
+      },
+    },
+    {
+      method: 'POST',
+      path: '/social/test-connection',
+      handler: 'social.testConnection',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.manageSocial),
+      },
+    },
+    {
+      method: 'POST',
+      path: '/social/dry-run',
+      handler: 'social.dryRun',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.manageSocial),
+      },
+    },
+    {
+      method: 'POST',
+      path: '/social/tickets/:id/retry',
+      handler: 'social.retryTicket',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.manageSocial),
+      },
+    },
+    {
+      method: 'POST',
+      path: '/social/tickets/:id/cancel',
+      handler: 'social.cancelTicket',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.manageSocial),
+      },
+    },
+    {
+      method: 'GET',
+      path: '/audit/preflight',
+      handler: 'audit.preflight',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.read),
+      },
+    },
+    {
+      method: 'POST',
+      path: '/audit/preflight',
+      handler: 'audit.preflightStrict',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.runAudit),
+      },
+    },
+    {
+      method: 'GET',
       path: '/topics',
       handler: 'topics.find',
       config: {

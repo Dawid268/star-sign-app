@@ -1,6 +1,11 @@
 import { slugify } from './slug';
 
-type MediaPurpose = 'horoscope_sign' | 'daily_card' | 'blog_article' | 'fallback_general';
+type MediaPurpose =
+  | 'horoscope_sign'
+  | 'daily_card'
+  | 'blog_article'
+  | 'zodiac_profile'
+  | 'fallback_general';
 type MediaPeriodScope = 'any' | 'daily' | 'weekly' | 'monthly';
 
 type MediaMappingSuggestion = {
@@ -75,7 +80,7 @@ const pad2 = (value: number): string => String(value).padStart(2, '0');
 
 const stripExtension = (fileName: string): string => fileName.replace(/\.[a-z0-9]+$/i, '');
 
-const toTokens = (fileName: string): string[] => {
+export const toTokens = (fileName: string): string[] => {
   const normalized = slugify(stripExtension(fileName)).replace(/-/g, '_');
   return normalized
     .split(/[^a-z0-9]+/)
@@ -102,7 +107,11 @@ const detectPeriodScope = (tokens: string[]): MediaPeriodScope => {
     return 'weekly';
   }
 
-  if (tokens.includes('monthly') || tokens.includes('miesieczny') || tokens.includes('miesieczna')) {
+  if (
+    tokens.includes('monthly') ||
+    tokens.includes('miesieczny') ||
+    tokens.includes('miesieczna')
+  ) {
     return 'monthly';
   }
 
@@ -110,12 +119,27 @@ const detectPeriodScope = (tokens: string[]): MediaPeriodScope => {
 };
 
 const detectPurpose = (tokens: string[], signSlug: string | null): MediaPurpose => {
-  if (tokens.includes('blog') || tokens.includes('article') || tokens.includes('artykul') || tokens.includes('post')) {
+  if (
+    tokens.includes('blog') ||
+    tokens.includes('article') ||
+    tokens.includes('artykul') ||
+    tokens.includes('post')
+  ) {
     return 'blog_article';
   }
 
   if (tokens.includes('card') || tokens.includes('karta') || tokens.includes('tarot')) {
     return 'daily_card';
+  }
+
+  if (
+    signSlug &&
+    (tokens.includes('zodiac') ||
+      tokens.includes('znak') ||
+      tokens.includes('profile') ||
+      tokens.includes('profil'))
+  ) {
+    return 'zodiac_profile';
   }
 
   if (tokens.includes('horoscope') || tokens.includes('horoskop') || signSlug) {
@@ -194,6 +218,10 @@ const deriveAssetKey = (input: {
     return useHintOrNext(`horoscope-${signSlug}-${normalizedPeriod}`);
   }
 
+  if (purpose === 'zodiac_profile' && signSlug) {
+    return useHintOrNext(`zodiac-profile-${signSlug}`);
+  }
+
   return useHintOrNext('fallback-general');
 };
 
@@ -255,10 +283,7 @@ const deriveLabel = (input: {
   periodScope: MediaPeriodScope;
 }): string => {
   const displayName = toTitleCase(
-    stripExtension(input.fileName)
-      .replace(/[_-]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
+    stripExtension(input.fileName).replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
   );
   const safeDisplayName = displayName.length > 0 ? displayName : 'Asset';
 
@@ -270,6 +295,11 @@ const deriveLabel = (input: {
 
   if (input.purpose === 'daily_card') {
     return `Karta dnia - ${safeDisplayName}`;
+  }
+
+  if (input.purpose === 'zodiac_profile') {
+    const signPart = input.signSlug ? ` ${input.signSlug}` : '';
+    return `Znak zodiaku${signPart} - ${safeDisplayName}`.replace(/\s+/g, ' ').trim();
   }
 
   if (input.purpose === 'blog_article') {
@@ -287,7 +317,9 @@ type GenerateMediaAssetIdentityInput = {
   existingAssetKeys: Set<string>;
 };
 
-export const generateMediaAssetIdentity = (input: GenerateMediaAssetIdentityInput): {
+export const generateMediaAssetIdentity = (
+  input: GenerateMediaAssetIdentityInput
+): {
   asset_key: string;
   label: string;
 } => {
@@ -372,4 +404,9 @@ export const suggestMediaMapping = (input: {
   };
 };
 
-export type { GenerateMediaAssetIdentityInput, MediaMappingSuggestion, MediaPeriodScope, MediaPurpose };
+export type {
+  GenerateMediaAssetIdentityInput,
+  MediaMappingSuggestion,
+  MediaPeriodScope,
+  MediaPurpose,
+};

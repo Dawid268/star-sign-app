@@ -49,10 +49,11 @@
     },
     "horoscope_period": {
       "type": "enumeration",
-      "enum": ["Dzienny", "Tygodniowy", "Miesięczny"]
+      "enum": ["Dzienny", "Tygodniowy", "Miesięczny", "Roczny"]
     },
     "horoscope_type_values": { "type": "json" },
     "all_signs": { "type": "boolean", "default": true },
+    "enabled_channels": { "type": "json" },
     "article_category": {
       "type": "relation",
       "relation": "manyToOne",
@@ -62,6 +63,18 @@
     "last_published_at": { "type": "datetime" },
     "last_generation_slot": { "type": "string" },
     "last_publish_slot": { "type": "string" },
-    "last_error": { "type": "text" }
+    "last_error": { "type": "text" },
+    "fb_page_id": { "type": "string" },
+    "fb_access_token_encrypted": { "type": "text" },
+    "ig_user_id": { "type": "string" },
+    "ig_access_token_encrypted": { "type": "text" },
+    "x_api_key": { "type": "string" },
+    "x_api_secret_encrypted": { "type": "text" },
+    "x_access_token_encrypted": { "type": "text" },
+    "x_access_token_secret_encrypted": { "type": "text" },
+    "tt_creator_id": { "type": "string" },
+    "tt_access_token_encrypted": { "type": "text" },
+    "image_gen_model": { "type": "string", "default": "openai/gpt-image-2" },
+    "image_gen_api_token_encrypted": { "type": "text" }
   }
 }

@@ -60,7 +60,9 @@ const syncEditorRolePermissions = async (strapi: Core.Strapi): Promise<void> => 
 const bootstrap = async ({ strapi }: { strapi: Core.Strapi }): Promise<void> => {
   try {
     const permissionService = strapi.service('admin::permission') as unknown as PermissionService;
-    await permissionService.actionProvider.registerMany(pluginActions as unknown as Record<string, unknown>[]);
+    await permissionService.actionProvider.registerMany(
+      pluginActions as unknown as Record<string, unknown>[]
+    );
     await syncEditorRolePermissions(strapi);
   } catch (error) {
     strapi.log.warn(`[aico] Nie udało się zarejestrować RBAC pluginu: ${String(error)}`);

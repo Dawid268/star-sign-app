@@ -5,10 +5,7 @@ import { toSafeErrorMessage } from '../utils/json';
 
 const workflowsController = ({ strapi }: { strapi: Strapi }) => ({
   async find(ctx: Context): Promise<void> {
-    const workflows = await strapi
-      .plugin('ai-content-orchestrator')
-      .service('workflows')
-      .list();
+    const workflows = await strapi.plugin('ai-content-orchestrator').service('workflows').list();
 
     ctx.body = { data: workflows };
   },
@@ -77,10 +74,7 @@ const workflowsController = ({ strapi }: { strapi: Strapi }) => ({
         return;
       }
 
-      await strapi
-        .plugin('ai-content-orchestrator')
-        .service('workflows')
-        .getByIdOrThrow(id);
+      await strapi.plugin('ai-content-orchestrator').service('workflows').getByIdOrThrow(id);
 
       void strapi
         .plugin('ai-content-orchestrator')
@@ -114,10 +108,7 @@ const workflowsController = ({ strapi }: { strapi: Strapi }) => ({
         return;
       }
 
-      await strapi
-        .plugin('ai-content-orchestrator')
-        .service('workflows')
-        .getByIdOrThrow(id);
+      await strapi.plugin('ai-content-orchestrator').service('workflows').getByIdOrThrow(id);
 
       const result = await strapi
         .plugin('ai-content-orchestrator')
@@ -139,7 +130,11 @@ const workflowsController = ({ strapi }: { strapi: Strapi }) => ({
         return;
       }
 
-      const body = (ctx.request.body ?? {}) as { startDate?: string; endDate?: string; dryRun?: boolean };
+      const body = (ctx.request.body ?? {}) as {
+        startDate?: string;
+        endDate?: string;
+        dryRun?: boolean;
+      };
 
       if (!body.startDate || !body.endDate) {
         ctx.badRequest('Wymagane pola: startDate i endDate (YYYY-MM-DD).');

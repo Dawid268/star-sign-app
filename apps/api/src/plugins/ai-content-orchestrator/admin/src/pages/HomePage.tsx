@@ -2,7 +2,9 @@ import { Page, useFetchClient, useNotification } from '@strapi/strapi/admin';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import { api } from '../api';
+import { WorkflowSocialStep } from './homepage/WorkflowSocialStep';
 import type {
+  AuditReport,
   DashboardSummary,
   DiagnosticsSummary,
   LlmTrace,
@@ -16,11 +18,24 @@ import type {
   Run,
   RunStep,
   SettingsPayload,
+  SocialConnectionResult,
+  SocialDryRunResult,
+  SocialPlatform,
+  SocialTicket,
   Topic,
   Workflow,
 } from '../types';
 
-type TabKey = 'dashboard' | 'workflows' | 'topics' | 'media' | 'runs' | 'settings';
+type TabKey =
+  | 'dashboard'
+  | 'workflows'
+  | 'topics'
+  | 'media'
+  | 'runs'
+  | 'social'
+  | 'audit'
+  | 'settings';
+type OpsState = 'ready' | 'needs_action' | 'blocked' | 'degraded';
 
 type WorkflowFormState = {
   name: string;
@@ -43,10 +58,23 @@ type WorkflowFormState = {
   auto_publish: boolean;
   force_regenerate: boolean;
   topic_mode: 'manual' | 'mixed';
-  horoscope_period: 'Dzienny' | 'Tygodniowy' | 'Miesięczny';
+  horoscope_period: 'Dzienny' | 'Tygodniowy' | 'Miesięczny' | 'Roczny';
   horoscope_type_values: string;
   all_signs: boolean;
   article_category: string;
+  image_gen_model: string;
+  imageGenApiToken: string;
+  enabled_channels: SocialPlatform[];
+  fb_page_id: string;
+  fbAccessToken: string;
+  ig_user_id: string;
+  igAccessToken: string;
+  x_api_key: string;
+  xApiSecret: string;
+  xAccessToken: string;
+  xAccessTokenSecret: string;
+  tt_creator_id: string;
+  ttAccessToken: string;
 };
 
 type TopicFormState = {
@@ -89,32 +117,92 @@ type RunFiltersState = {
   toDate: string;
 };
 
+const COLORS = {
+  primary: '#4f46e5',
+  primaryHover: '#4338ca',
+  primaryLight: '#eef2ff',
+  secondary: '#10b981',
+  danger: '#ef4444',
+  warning: '#f59e0b',
+  text: '#1e293b',
+  textLight: '#64748b',
+  border: '#e2e8f0',
+  cardBg: 'rgba(255, 255, 255, 0.95)',
+};
+
 const CARD_STYLE: React.CSSProperties = {
-  border: '1px solid #dcdce4',
-  borderRadius: 10,
-  padding: 16,
-  background: '#fff',
+  background: COLORS.cardBg,
+  backdropFilter: 'blur(10px)',
+  border: `1px solid ${COLORS.border}`,
+  borderRadius: 16,
+  padding: 24,
+  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+  transition: 'transform 0.2s, box-shadow 0.2s',
 };
 
 const SECTION_TITLE_STYLE: React.CSSProperties = {
-  fontSize: 17,
-  fontWeight: 700,
-  marginBottom: 12,
+  fontSize: 20,
+  fontWeight: 800,
+  color: COLORS.text,
+  marginBottom: 20,
+  letterSpacing: '-0.025em',
 };
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  padding: '8px 10px',
-  borderRadius: 8,
-  border: '1px solid #c8c8d0',
+  padding: '12px 16px',
+  borderRadius: 10,
+  border: `1px solid ${COLORS.border}`,
   fontSize: 14,
+  background: '#f8fafc',
+  transition: 'all 0.2s ease',
+  outline: 'none',
+  color: COLORS.text,
 };
 
 const checkboxRowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 8,
+  fontSize: 13,
+  fontWeight: 500,
+  color: COLORS.text,
+  cursor: 'pointer',
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryHover} 100%)`,
+  color: '#fff',
+  border: 'none',
+  borderRadius: 10,
+  padding: '10px 20px',
   fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+  boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.3)',
+  transition: 'all 0.2s ease',
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  background: '#fff',
+  color: COLORS.text,
+  border: `1px solid ${COLORS.border}`,
+  borderRadius: 10,
+  padding: '10px 20px',
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+  transition: 'all 0.2s ease',
+};
+
+const STAT_CARD_STYLE: React.CSSProperties = {
+  ...CARD_STYLE,
+  background: '#fff',
+  padding: 20,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-start',
+  gap: 8,
 };
 
 const initialWorkflowForm = (): WorkflowFormState => ({
@@ -143,6 +231,19 @@ const initialWorkflowForm = (): WorkflowFormState => ({
   horoscope_type_values: 'Ogólny',
   all_signs: true,
   article_category: '',
+  image_gen_model: 'openai/gpt-image-2',
+  imageGenApiToken: '',
+  enabled_channels: ['facebook', 'instagram', 'twitter'],
+  fb_page_id: '',
+  fbAccessToken: '',
+  ig_user_id: '',
+  igAccessToken: '',
+  x_api_key: '',
+  xApiSecret: '',
+  xAccessToken: '',
+  xAccessTokenSecret: '',
+  tt_creator_id: '',
+  ttAccessToken: '',
 });
 
 const initialTopicForm = (): TopicFormState => ({
@@ -185,17 +286,21 @@ const initialRunFilters = (): RunFiltersState => ({
   toDate: '',
 });
 
-const WORKFLOW_STEP_LABELS = ['Basics', 'Schedule', 'Content', 'Controls'] as const;
+const WORKFLOW_STEP_LABELS = ['Basics', 'Schedule', 'Content', 'Social', 'Controls'] as const;
 
 const STATUS_COLORS: Record<string, { bg: string; border: string; color: string }> = {
-  idle: { bg: '#f4f6fb', border: '#d8deec', color: '#41495a' },
-  pending: { bg: '#f4f6fb', border: '#d8deec', color: '#41495a' },
-  running: { bg: '#eef6ff', border: '#a8d4ff', color: '#07599b' },
-  success: { bg: '#edf9f1', border: '#b9e8c7', color: '#116b33' },
-  failed: { bg: '#fff0f0', border: '#ffc7c7', color: '#a42020' },
-  blocked_budget: { bg: '#fff6e5', border: '#ffd58a', color: '#8a5b00' },
-  enabled: { bg: '#edf9f1', border: '#b9e8c7', color: '#116b33' },
-  disabled: { bg: '#f4f6fb', border: '#d8deec', color: '#606477' },
+  idle: { bg: '#f1f5f9', border: '#e2e8f0', color: '#64748b' },
+  pending: { bg: '#f1f5f9', border: '#e2e8f0', color: '#64748b' },
+  ready: { bg: '#f0fdf4', border: '#dcfce7', color: '#16a34a' },
+  needs_action: { bg: '#fffbeb', border: '#fde68a', color: '#b45309' },
+  blocked: { bg: '#fef2f2', border: '#fecaca', color: '#dc2626' },
+  degraded: { bg: '#eff6ff', border: '#dbeafe', color: '#2563eb' },
+  running: { bg: '#eff6ff', border: '#dbeafe', color: '#2563eb' },
+  success: { bg: '#f0fdf4', border: '#dcfce7', color: '#16a34a' },
+  failed: { bg: '#fef2f2', border: '#fee2e2', color: '#dc2626' },
+  blocked_budget: { bg: '#fffbeb', border: '#fef3c7', color: '#d97706' },
+  enabled: { bg: '#f0fdf4', border: '#dcfce7', color: '#16a34a' },
+  disabled: { bg: '#f1f5f9', border: '#e2e8f0', color: '#64748b' },
 };
 
 const pad2 = (value: number): string => String(value).padStart(2, '0');
@@ -303,10 +408,7 @@ const computeGeneratedIdentity = (input: {
   }
 
   const displayName = toTitleCase(
-    stripExtension(input.fileName)
-      .replace(/[_-]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
+    stripExtension(input.fileName).replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
   );
   const safeDisplayName = displayName || 'Asset';
 
@@ -318,7 +420,9 @@ const computeGeneratedIdentity = (input: {
   } else if (input.purpose === 'horoscope_sign') {
     const normalizedPeriod = input.periodScope === 'any' ? 'daily' : input.periodScope;
     const signPart = normalizedSign ? ` ${normalizedSign}` : '';
-    label = `Horoskop${signPart} ${normalizedPeriod} - ${safeDisplayName}`.replace(/\s+/g, ' ').trim();
+    label = `Horoskop${signPart} ${normalizedPeriod} - ${safeDisplayName}`
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   return {
@@ -331,20 +435,28 @@ const isRecordValue = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
 
-const getRunWorkflowId = (run: Run): number | null => {
-  if (typeof run.workflow === 'number') {
-    return run.workflow;
+const getWorkflowId = (value: unknown): number | null => {
+  if (typeof value === 'number') {
+    return value;
   }
 
-  if (isRecordValue(run.workflow) && typeof run.workflow.id === 'number') {
-    return run.workflow.id;
+  if (isRecordValue(value) && typeof value.id === 'number') {
+    return value.id;
   }
 
   return null;
 };
 
+const getRunWorkflowId = (run: Run): number | null => {
+  return getWorkflowId(run.workflow);
+};
+
 const getRunWorkflowName = (run: Run, workflows: Workflow[]): string => {
-  if (isRecordValue(run.workflow) && typeof run.workflow.name === 'string' && run.workflow.name.trim()) {
+  if (
+    isRecordValue(run.workflow) &&
+    typeof run.workflow.name === 'string' &&
+    run.workflow.name.trim()
+  ) {
     return run.workflow.name;
   }
 
@@ -363,7 +475,8 @@ const normalizeRunStep = (value: unknown, index: number): RunStep | null => {
   }
 
   const id = typeof value.id === 'string' && value.id.trim() ? value.id : `step-${index + 1}`;
-  const label = typeof value.label === 'string' && value.label.trim() ? value.label : `Step ${index + 1}`;
+  const label =
+    typeof value.label === 'string' && value.label.trim() ? value.label : `Step ${index + 1}`;
   const status = isRunStepStatus(value.status) ? value.status : 'pending';
 
   return {
@@ -396,9 +509,12 @@ const normalizeLlmTrace = (value: unknown, index: number): LlmTrace | null => {
 
   return {
     id: typeof value.id === 'string' && value.id.trim() ? value.id : `llm-${index + 1}`,
-    label: typeof value.label === 'string' && value.label.trim() ? value.label : `LLM call ${index + 1}`,
+    label:
+      typeof value.label === 'string' && value.label.trim() ? value.label : `LLM call ${index + 1}`,
     workflowType:
-      value.workflowType === 'horoscope' || value.workflowType === 'daily_card' || value.workflowType === 'article'
+      value.workflowType === 'horoscope' ||
+      value.workflowType === 'daily_card' ||
+      value.workflowType === 'article'
         ? value.workflowType
         : undefined,
     createdAt: typeof value.createdAt === 'string' ? value.createdAt : '',
@@ -407,7 +523,8 @@ const normalizeLlmTrace = (value: unknown, index: number): LlmTrace | null => {
       temperature: Number(value.request.temperature ?? 0),
       maxCompletionTokens: Number(value.request.maxCompletionTokens ?? 0),
       prompt: typeof value.request.prompt === 'string' ? value.request.prompt : '',
-      schemaDescription: typeof value.request.schemaDescription === 'string' ? value.request.schemaDescription : '',
+      schemaDescription:
+        typeof value.request.schemaDescription === 'string' ? value.request.schemaDescription : '',
       messages,
     },
     response: {
@@ -530,11 +647,212 @@ const getRunLlmTraces = (run: Run): LlmTrace[] => {
     .filter((trace): trace is LlmTrace => Boolean(trace));
 };
 
+const toOpsStateFromErrorMessage = (message: string): OpsState => {
+  const normalized = message.toLowerCase();
+  if (normalized.includes('401') || normalized.includes('403')) {
+    return 'blocked';
+  }
+
+  if (normalized.includes('404')) {
+    return 'needs_action';
+  }
+
+  return 'degraded';
+};
+
+const toOpsStateFromSocialOverall = (overall: SocialConnectionResult['overall']): OpsState => {
+  if (overall === 'ready') {
+    return 'ready';
+  }
+  if (overall === 'blocked') {
+    return 'blocked';
+  }
+  if (overall === 'degraded') {
+    return 'degraded';
+  }
+  return 'needs_action';
+};
+
+const toOpsStateFromAuditDecision = (decision: AuditReport['decision']): OpsState => {
+  if (decision === 'GO') {
+    return 'ready';
+  }
+  if (decision === 'GO_WITH_WARNINGS') {
+    return 'needs_action';
+  }
+  return 'blocked';
+};
+
+const OPS_STATE_PRIORITY: Record<OpsState, number> = {
+  ready: 0,
+  needs_action: 1,
+  degraded: 2,
+  blocked: 3,
+};
+
+const mergeOpsState = (current: OpsState, next: OpsState): OpsState =>
+  OPS_STATE_PRIORITY[next] > OPS_STATE_PRIORITY[current] ? next : current;
+
+const ErrorInsight = ({ error, details }: { error?: string | null; details?: any }) => {
+  if (!error) return null;
+
+  let title = 'Nierozpoznany błąd';
+  let action = 'Sprawdź logi serwera dla szczegółów.';
+  let type: 'warning' | 'critical' = 'critical';
+
+  if (error.includes('429') || error.toLowerCase().includes('limit')) {
+    title = 'Przekroczono limity (Rate Limit)';
+    action =
+      'Sprawdź stan konta w OpenRouter/Replicate lub zwiększ limity w ustawieniach workflow.';
+    type = 'warning';
+  } else if (error.includes('401') || error.toLowerCase().includes('token')) {
+    title = 'Błąd autoryzacji (Invalid Token)';
+    action = 'Sprawdź poprawność klucza API w ustawieniach workflow lub w zakładce Settings.';
+  } else if (error.includes('JSON')) {
+    title = 'Błąd formatowania AI (JSON Error)';
+    action =
+      'Zwiększ parametr "temperature" lub dopracuj prompt. AI nie zwróciło poprawnego formatu.';
+  } else if (error.includes('media-asset')) {
+    title = 'Błąd zasobów mediów';
+    action = 'Brakuje zdjęcia dla tej kategorii i autonomia nie zdołała go wygenerować.';
+  } else if (
+    error.toLowerCase().includes('aborted') ||
+    error.toLowerCase().includes('zatrzymano')
+  ) {
+    title = 'Przerwano ręcznie';
+    action = 'Użytkownik zatrzymał proces w trakcie pracy.';
+    type = 'warning';
+  } else if (
+    error.toLowerCase().includes('budget') ||
+    error.toLowerCase().includes('limit dzienny')
+  ) {
+    title = 'Zablokowano budżet';
+    action = 'Osiągnięto dzienny limit requestów lub tokenów dla tego workflow.';
+    type = 'warning';
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: 16,
+        borderRadius: 12,
+        border: `1px solid ${type === 'critical' ? '#ffc7c7' : '#ffd58a'}`,
+        background: type === 'critical' ? '#fffafa' : '#fffcf5',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+      }}
+    >
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: 14,
+          color: type === 'critical' ? '#a42020' : '#8a5b00',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        {type === 'critical' ? '🚫' : '⚠️'} {title}
+      </div>
+      <div style={{ fontSize: 12, marginTop: 6, color: '#4f4f60', lineHeight: 1.5 }}>
+        <strong>Treść błędu:</strong> {error}
+      </div>
+      <div
+        style={{
+          fontSize: 12,
+          marginTop: 12,
+          padding: '8px 12px',
+          background: type === 'critical' ? '#ffeded' : '#fff3dc',
+          borderRadius: 6,
+          fontWeight: 600,
+          color: '#222',
+        }}
+      >
+        💡 Rekomendacja: <span style={{ fontWeight: 400 }}>{action}</span>
+      </div>
+    </div>
+  );
+};
+
+const AutonomousIntelligence = ({ run }: { run: Run }) => {
+  const steps = getRunSteps(run);
+  const designStep = steps.find((s) => s.id === 'image_design');
+  const genStep = steps.find((s) => s.id === 'image_generation');
+
+  if (!designStep && !genStep) return null;
+
+  return (
+    <div
+      style={{ marginTop: 12, border: '1px solid #dcdce4', borderRadius: 8, overflow: 'hidden' }}
+    >
+      <div
+        style={{
+          background: '#f0f0f7',
+          padding: '6px 12px',
+          fontSize: 12,
+          fontWeight: 700,
+          borderBottom: '1px solid #dcdce4',
+          color: '#212134',
+        }}
+      >
+        🤖 Autonomous Creative Agent
+      </div>
+      <div style={{ padding: 12, background: '#fff', display: 'grid', gap: 10 }}>
+        {designStep && (
+          <div>
+            <div
+              style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#666' }}
+            >
+              Designed Prompt (EN)
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                marginTop: 4,
+                fontStyle: 'italic',
+                color: '#333',
+                background: '#f9f9fb',
+                padding: 8,
+                borderRadius: 6,
+              }}
+            >
+              "{(designStep.output as any)?.fullPrompt || designStep.message}"
+            </div>
+          </div>
+        )}
+        {genStep?.status === 'success' && (genStep.output as any)?.mediaAssetId && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div
+              style={{
+                padding: '4px 8px',
+                background: '#edf9f1',
+                color: '#116b33',
+                borderRadius: 4,
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
+              ASSET CREATED #{(genStep.output as any).mediaAssetId}
+            </div>
+            <span style={{ fontSize: 11, color: '#666' }}>
+              Wysłano do Cloudflare R2 i zarejestrowano w katalogu.
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const HomePage = () => {
   const client = useFetchClient();
   const { toggleNotification } = useNotification();
 
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
+  const [showWorkflowModal, setShowWorkflowModal] = useState(false);
+  const [showTopicModal, setShowTopicModal] = useState(false);
+  const [selectedRun, setSelectedRun] = useState<Run | null>(null);
+  const [showRunModal, setShowRunModal] = useState(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
 
@@ -544,22 +862,46 @@ const HomePage = () => {
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
   const [mediaUsage, setMediaUsage] = useState<MediaUsage[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
+  const [socialTickets, setSocialTickets] = useState<SocialTicket[]>([]);
   const [runFilters, setRunFilters] = useState<RunFiltersState>(initialRunFilters());
+  const [socialFilters, setSocialFilters] = useState<{
+    platform: 'all' | SocialPlatform;
+    status: 'all' | SocialTicket['status'];
+    workflow: string;
+  }>({ platform: 'all', status: 'all', workflow: '' });
   const [expandedRunIds, setExpandedRunIds] = useState<number[]>([]);
   const [runningWorkflowIds, setRunningWorkflowIds] = useState<number[]>([]);
-  const [settings, setSettings] = useState<SettingsPayload>({ timezone: 'Europe/Warsaw', locale: 'pl' });
+  const [settings, setSettings] = useState<SettingsPayload>({
+    timezone: 'Europe/Warsaw',
+    locale: 'pl',
+    image_gen_model: 'openai/gpt-image-2',
+    imageGenApiToken: '',
+  });
   const [diagnostics, setDiagnostics] = useState<DiagnosticsSummary | null>(null);
   const [coverageSummary, setCoverageSummary] = useState<Record<string, unknown> | null>(null);
+  const [auditReport, setAuditReport] = useState<AuditReport | null>(null);
+  const [socialConnectionResult, setSocialConnectionResult] =
+    useState<SocialConnectionResult | null>(null);
+  const [socialDryRunResult, setSocialDryRunResult] = useState<SocialDryRunResult | null>(null);
+  const [coreOpsState, setCoreOpsState] = useState<OpsState>('ready');
+  const [coreOpsMessage, setCoreOpsMessage] = useState<string | null>(null);
+  const [socialOpsState, setSocialOpsState] = useState<OpsState>('ready');
+  const [socialOpsMessage, setSocialOpsMessage] = useState<string | null>(null);
+  const [auditOpsState, setAuditOpsState] = useState<OpsState>('ready');
+  const [auditOpsMessage, setAuditOpsMessage] = useState<string | null>(null);
 
   const [workflowForm, setWorkflowForm] = useState<WorkflowFormState>(initialWorkflowForm());
   const [editingWorkflowId, setEditingWorkflowId] = useState<number | null>(null);
   const [workflowStep, setWorkflowStep] = useState<number>(0);
 
   const [topicForm, setTopicForm] = useState<TopicFormState>(initialTopicForm());
-  const [mediaAssetForm, setMediaAssetForm] = useState<MediaAssetFormState>(initialMediaAssetForm());
+  const [mediaAssetForm, setMediaAssetForm] =
+    useState<MediaAssetFormState>(initialMediaAssetForm());
   const [mediaFilters, setMediaFilters] = useState<MediaFiltersState>(initialMediaFilters());
   const [mediaLibrary, setMediaLibrary] = useState<MediaLibraryFile[]>([]);
-  const [mediaLibraryPagination, setMediaLibraryPagination] = useState<MediaLibraryListResult['pagination']>({
+  const [mediaLibraryPagination, setMediaLibraryPagination] = useState<
+    MediaLibraryListResult['pagination']
+  >({
     page: 1,
     pageSize: 24,
     pageCount: 1,
@@ -576,7 +918,11 @@ const HomePage = () => {
   const [backfillEnd, setBackfillEnd] = useState<string>('');
 
   const workflowOptions = useMemo(
-    () => workflows.map((workflow) => ({ value: String(workflow.id), label: `#${workflow.id} ${workflow.name}` })),
+    () =>
+      workflows.map((workflow) => ({
+        value: String(workflow.id),
+        label: `#${workflow.id} ${workflow.name}`,
+      })),
     [workflows]
   );
 
@@ -610,7 +956,10 @@ const HomePage = () => {
     const purpose = mediaAssetForm.purpose;
     const signSlug =
       purpose === 'horoscope_sign'
-        ? mediaAssetForm.sign_slug.trim() || selectedMediaFile.mapping?.sign_slug?.trim() || selectedMediaFile.suggestion.sign_slug || ''
+        ? mediaAssetForm.sign_slug.trim() ||
+          selectedMediaFile.mapping?.sign_slug?.trim() ||
+          selectedMediaFile.suggestion.sign_slug ||
+          ''
         : mediaAssetForm.sign_slug.trim();
     const periodScope = mediaAssetForm.period_scope;
 
@@ -654,7 +1003,9 @@ const HomePage = () => {
         const haystack = `${item.asset_key} ${item.label} ${item.asset?.name ?? ''}`.toLowerCase();
         return haystack.includes(search);
       })
-      .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || a.asset_key.localeCompare(b.asset_key))
+      .sort(
+        (a, b) => (b.priority ?? 0) - (a.priority ?? 0) || a.asset_key.localeCompare(b.asset_key)
+      )
       .slice(0, 40);
   }, [mediaAssets, topicImageSearch]);
 
@@ -696,8 +1047,88 @@ const HomePage = () => {
     });
   }, [runFilters, runs, workflows]);
 
+  const filteredSocialTickets = useMemo(() => {
+    return socialTickets.filter((ticket) => {
+      if (socialFilters.platform !== 'all' && ticket.platform !== socialFilters.platform) {
+        return false;
+      }
+
+      if (socialFilters.status !== 'all' && ticket.status !== socialFilters.status) {
+        return false;
+      }
+
+      if (socialFilters.workflow.trim()) {
+        const workflowId = getWorkflowId(ticket.workflow);
+        return String(workflowId ?? '').includes(socialFilters.workflow.trim());
+      }
+
+      return true;
+    });
+  }, [socialFilters, socialTickets]);
+
   const liveRunCount = useMemo(() => runs.filter((run) => run.status === 'running').length, [runs]);
-  const hasLiveActivity = liveRunCount > 0 || workflows.some((workflow) => workflow.status === 'running');
+  const hasLiveActivity =
+    liveRunCount > 0 || workflows.some((workflow) => workflow.status === 'running');
+  const editingWorkflow = useMemo(
+    () => workflows.find((workflow) => workflow.id === editingWorkflowId) ?? null,
+    [editingWorkflowId, workflows]
+  );
+
+  const socialStepValidationIssues = useMemo(() => {
+    const channels = workflowForm.enabled_channels;
+    const issues: string[] = [];
+
+    const hasFbToken =
+      Boolean(workflowForm.fbAccessToken.trim()) || Boolean(editingWorkflow?.has_fb_token);
+    const hasIgToken =
+      Boolean(workflowForm.igAccessToken.trim()) || Boolean(editingWorkflow?.has_ig_token);
+    const hasXApiSecret =
+      Boolean(workflowForm.xApiSecret.trim()) || Boolean(editingWorkflow?.has_x_api_secret);
+    const hasXAccessToken =
+      Boolean(workflowForm.xAccessToken.trim()) || Boolean(editingWorkflow?.has_x_access_token);
+    const hasXAccessTokenSecret =
+      Boolean(workflowForm.xAccessTokenSecret.trim()) ||
+      Boolean(editingWorkflow?.has_x_access_token_secret);
+
+    if (channels.length === 0) {
+      issues.push('Wybierz minimum jeden kanał publikacji.');
+    }
+
+    if (channels.includes('facebook')) {
+      if (!workflowForm.fb_page_id.trim()) {
+        issues.push('Facebook: brak FB Page ID.');
+      }
+      if (!hasFbToken) {
+        issues.push('Facebook: brak FB Access Token.');
+      }
+    }
+
+    if (channels.includes('instagram')) {
+      if (!workflowForm.ig_user_id.trim()) {
+        issues.push('Instagram: brak IG User ID.');
+      }
+      if (!hasIgToken) {
+        issues.push('Instagram: brak IG Access Token.');
+      }
+    }
+
+    if (channels.includes('twitter')) {
+      if (!workflowForm.x_api_key.trim()) {
+        issues.push('X: brak API Key.');
+      }
+      if (!hasXApiSecret) {
+        issues.push('X: brak API Secret.');
+      }
+      if (!hasXAccessToken) {
+        issues.push('X: brak Access Token.');
+      }
+      if (!hasXAccessTokenSecret) {
+        issues.push('X: brak Access Token Secret.');
+      }
+    }
+
+    return issues;
+  }, [editingWorkflow, workflowForm]);
 
   const showSuccess = (message: string): void => {
     toggleNotification({ type: 'success', message });
@@ -707,19 +1138,48 @@ const HomePage = () => {
     toggleNotification({ type: 'danger', message });
   };
 
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return String(error);
+  };
+
+  const runOptionalRequest = async <T,>(
+    request: Promise<T>
+  ): Promise<{ ok: true; data: T } | { ok: false; error: string }> => {
+    try {
+      const data = await request;
+      return { ok: true, data };
+    } catch (error) {
+      return { ok: false, error: getErrorMessage(error) };
+    }
+  };
+
   const refreshMonitoringData = async (notifyOnError = false): Promise<void> => {
     try {
-      const [summaryData, diagnosticsData, workflowsData, runsData] = await Promise.all([
-        api.getDashboard(client),
-        api.getDiagnostics(client),
-        api.getWorkflows(client),
-        api.getRuns(client, { limit: 200 }),
-      ]);
+      const [summaryData, diagnosticsData, workflowsData, runsData, socialTicketsResult] =
+        await Promise.all([
+          api.getDashboard(client),
+          api.getDiagnostics(client),
+          api.getWorkflows(client),
+          api.getRuns(client, { limit: 200 }),
+          runOptionalRequest(api.getSocialTickets(client, { limit: 200 })),
+        ]);
 
       setSummary(summaryData);
       setDiagnostics(diagnosticsData);
       setWorkflows(workflowsData);
       setRuns(runsData);
+      if (socialTicketsResult.ok) {
+        setSocialTickets(socialTicketsResult.data);
+        setSocialOpsState('ready');
+        setSocialOpsMessage(null);
+      } else {
+        const message = `Social API: ${socialTicketsResult.error}`;
+        setSocialOpsState(toOpsStateFromErrorMessage(message));
+        setSocialOpsMessage(message);
+      }
       setRunningWorkflowIds((prev) =>
         prev.filter(
           (id) =>
@@ -734,7 +1194,9 @@ const HomePage = () => {
     }
   };
 
-  const loadMediaLibrary = async (nextFilters?: Partial<MediaFiltersState>): Promise<MediaLibraryListResult | null> => {
+  const loadMediaLibrary = async (
+    nextFilters?: Partial<MediaFiltersState>
+  ): Promise<MediaLibraryListResult | null> => {
     const mergedFilters: MediaFiltersState = {
       ...mediaFilters,
       ...nextFilters,
@@ -772,40 +1234,142 @@ const HomePage = () => {
 
   const loadAll = async (): Promise<void> => {
     setLoading(true);
-
     try {
       const [
-        summaryData,
-        diagnosticsData,
-        workflowsData,
-        topicsData,
-        mediaAssetsData,
-        mediaUsageData,
-        runsData,
-        settingsData,
+        summaryResult,
+        diagnosticsResult,
+        workflowsResult,
+        topicsResult,
+        mediaAssetsResult,
+        mediaUsageResult,
+        runsResult,
+        settingsResult,
+        socialTicketsResult,
+        auditResult,
       ] = await Promise.all([
-        api.getDashboard(client),
-        api.getDiagnostics(client),
-        api.getWorkflows(client),
-        api.getTopics(client),
-        api.getMediaAssets(client),
-        api.getMediaUsage(client, 120),
-        api.getRuns(client, { limit: 200 }),
-        api.getSettings(client),
+        runOptionalRequest(api.getDashboard(client)),
+        runOptionalRequest(api.getDiagnostics(client)),
+        runOptionalRequest(api.getWorkflows(client)),
+        runOptionalRequest(api.getTopics(client)),
+        runOptionalRequest(api.getMediaAssets(client)),
+        runOptionalRequest(api.getMediaUsage(client, 120)),
+        runOptionalRequest(api.getRuns(client, { limit: 200 })),
+        runOptionalRequest(api.getSettings(client)),
+        runOptionalRequest(api.getSocialTickets(client, { limit: 200 })),
+        runOptionalRequest(api.getAuditPreflight(client)),
       ]);
 
-      setSummary(summaryData);
-      setDiagnostics(diagnosticsData);
-      setWorkflows(workflowsData);
-      setTopics(topicsData);
-      setMediaAssets(mediaAssetsData);
-      setMediaUsage(mediaUsageData);
-      setRuns(runsData);
-      setSettings(settingsData);
+      const coreErrors: string[] = [];
+      let nextCoreState: OpsState = 'ready';
+
+      if (summaryResult.ok) {
+        setSummary(summaryResult.data);
+      } else {
+        setSummary(null);
+        const message = `Dashboard API: ${summaryResult.error}`;
+        coreErrors.push(message);
+        nextCoreState = mergeOpsState(nextCoreState, toOpsStateFromErrorMessage(message));
+      }
+
+      if (diagnosticsResult.ok) {
+        setDiagnostics(diagnosticsResult.data);
+      } else {
+        setDiagnostics(null);
+        const message = `Diagnostics API: ${diagnosticsResult.error}`;
+        coreErrors.push(message);
+        nextCoreState = mergeOpsState(nextCoreState, toOpsStateFromErrorMessage(message));
+      }
+
+      if (workflowsResult.ok) {
+        setWorkflows(workflowsResult.data);
+      } else {
+        setWorkflows([]);
+        const message = `Workflows API: ${workflowsResult.error}`;
+        coreErrors.push(message);
+        nextCoreState = mergeOpsState(nextCoreState, toOpsStateFromErrorMessage(message));
+      }
+
+      if (topicsResult.ok) {
+        setTopics(topicsResult.data);
+      } else {
+        setTopics([]);
+        const message = `Topics API: ${topicsResult.error}`;
+        coreErrors.push(message);
+        nextCoreState = mergeOpsState(nextCoreState, toOpsStateFromErrorMessage(message));
+      }
+
+      if (mediaAssetsResult.ok) {
+        setMediaAssets(mediaAssetsResult.data);
+      } else {
+        setMediaAssets([]);
+        const message = `Media Assets API: ${mediaAssetsResult.error}`;
+        coreErrors.push(message);
+        nextCoreState = mergeOpsState(nextCoreState, toOpsStateFromErrorMessage(message));
+      }
+
+      if (mediaUsageResult.ok) {
+        setMediaUsage(mediaUsageResult.data);
+      } else {
+        setMediaUsage([]);
+        const message = `Media Usage API: ${mediaUsageResult.error}`;
+        coreErrors.push(message);
+        nextCoreState = mergeOpsState(nextCoreState, toOpsStateFromErrorMessage(message));
+      }
+
+      if (runsResult.ok) {
+        setRuns(runsResult.data);
+      } else {
+        setRuns([]);
+        const message = `Runs API: ${runsResult.error}`;
+        coreErrors.push(message);
+        nextCoreState = mergeOpsState(nextCoreState, toOpsStateFromErrorMessage(message));
+      }
+
+      if (settingsResult.ok) {
+        setSettings(settingsResult.data);
+      } else {
+        setSettings({
+          timezone: 'Europe/Warsaw',
+          locale: 'pl',
+          image_gen_model: 'openai/gpt-image-2',
+          imageGenApiToken: '',
+        });
+        const message = `Settings API: ${settingsResult.error}`;
+        coreErrors.push(message);
+        nextCoreState = mergeOpsState(nextCoreState, toOpsStateFromErrorMessage(message));
+      }
+
+      if (socialTicketsResult.ok) {
+        setSocialTickets(socialTicketsResult.data);
+        setSocialOpsState('ready');
+        setSocialOpsMessage(null);
+      } else {
+        const message = `Social API: ${socialTicketsResult.error}`;
+        setSocialTickets([]);
+        setSocialOpsState(toOpsStateFromErrorMessage(message));
+        setSocialOpsMessage(message);
+      }
+
+      if (auditResult.ok) {
+        setAuditReport(auditResult.data);
+        setAuditOpsState(toOpsStateFromAuditDecision(auditResult.data.decision));
+        setAuditOpsMessage(null);
+      } else {
+        const message = `Audit API: ${auditResult.error}`;
+        setAuditReport(null);
+        setAuditOpsState(toOpsStateFromErrorMessage(message));
+        setAuditOpsMessage(message);
+      }
+
+      if (coreErrors.length > 0) {
+        setCoreOpsState(nextCoreState);
+        setCoreOpsMessage(coreErrors.join(' | '));
+      } else {
+        setCoreOpsState('ready');
+        setCoreOpsMessage(null);
+      }
 
       await loadMediaLibrary();
-    } catch (error) {
-      showError(`Nie udało się załadować danych pluginu: ${String(error)}`);
     } finally {
       setLoading(false);
     }
@@ -816,7 +1380,12 @@ const HomePage = () => {
   }, []);
 
   useEffect(() => {
-    if (activeTab !== 'runs' && activeTab !== 'workflows' && !hasLiveActivity && runningWorkflowIds.length === 0) {
+    if (
+      activeTab !== 'runs' &&
+      activeTab !== 'workflows' &&
+      !hasLiveActivity &&
+      runningWorkflowIds.length === 0
+    ) {
       return undefined;
     }
 
@@ -871,11 +1440,14 @@ const HomePage = () => {
     setWorkflowForm(initialWorkflowForm());
     setEditingWorkflowId(null);
     setWorkflowStep(0);
+    setSocialConnectionResult(null);
+    setSocialDryRunResult(null);
   };
 
   const onPickWorkflowToEdit = (workflow: Workflow): void => {
     setEditingWorkflowId(workflow.id);
-    setWorkflowStep(0);
+    setSocialConnectionResult(null);
+    setSocialDryRunResult(null);
     setWorkflowForm({
       name: workflow.name,
       enabled: workflow.enabled,
@@ -893,81 +1465,137 @@ const HomePage = () => {
       retry_backoff_seconds: workflow.retry_backoff_seconds,
       daily_request_limit: workflow.daily_request_limit,
       daily_token_limit: workflow.daily_token_limit,
-      allow_manual_edit: workflow.allow_manual_edit,
-      auto_publish: workflow.auto_publish,
-      force_regenerate: workflow.force_regenerate,
-      topic_mode: workflow.topic_mode,
-      horoscope_period: workflow.horoscope_period,
-      horoscope_type_values: (workflow.horoscope_type_values || []).join(', '),
-      all_signs: workflow.all_signs,
-      article_category: workflow.article_category ? String(workflow.article_category) : '',
+      allow_manual_edit: Boolean(workflow.allow_manual_edit),
+      auto_publish: Boolean(workflow.auto_publish),
+      force_regenerate: Boolean(workflow.force_regenerate),
+      topic_mode: workflow.topic_mode || 'mixed',
+      horoscope_period: workflow.horoscope_period || 'Dzienny',
+      horoscope_type_values: Array.isArray(workflow.horoscope_type_values)
+        ? workflow.horoscope_type_values.join(', ')
+        : 'Ogólny',
+      all_signs: Boolean(workflow.all_signs),
+      article_category: workflow.article_category?.toString() || '',
+      image_gen_model: workflow.image_gen_model ?? 'openai/gpt-image-2',
+      imageGenApiToken: '',
+      enabled_channels: Array.isArray(workflow.enabled_channels)
+        ? workflow.enabled_channels
+        : ['facebook', 'instagram', 'twitter'],
+      fb_page_id: workflow.fb_page_id || '',
+      fbAccessToken: '',
+      ig_user_id: workflow.ig_user_id || '',
+      igAccessToken: '',
+      x_api_key: workflow.x_api_key || '',
+      xApiSecret: '',
+      xAccessToken: '',
+      xAccessTokenSecret: '',
+      tt_creator_id: workflow.tt_creator_id || '',
+      ttAccessToken: '',
     });
+    setWorkflowStep(0);
   };
 
-  const saveWorkflow = async (): Promise<void> => {
+  const buildWorkflowPayload = (): Record<string, unknown> => {
+    const {
+      apiToken,
+      imageGenApiToken,
+      fbAccessToken,
+      igAccessToken,
+      xApiSecret,
+      xAccessToken,
+      xAccessTokenSecret,
+      ttAccessToken,
+      ...data
+    } = workflowForm;
+
+    const payload: Record<string, unknown> = {
+      ...data,
+      horoscope_type_values: data.horoscope_type_values
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+      article_category: data.article_category ? Number(data.article_category) : null,
+    };
+
+    if (apiToken.trim()) payload.apiToken = apiToken.trim();
+    if (imageGenApiToken.trim()) payload.imageGenApiToken = imageGenApiToken.trim();
+    if (fbAccessToken.trim()) payload.fbAccessToken = fbAccessToken.trim();
+    if (igAccessToken.trim()) payload.igAccessToken = igAccessToken.trim();
+    if (xApiSecret.trim()) payload.xApiSecret = xApiSecret.trim();
+    if (xAccessToken.trim()) payload.xAccessToken = xAccessToken.trim();
+    if (xAccessTokenSecret.trim()) payload.xAccessTokenSecret = xAccessTokenSecret.trim();
+    if (ttAccessToken.trim()) payload.ttAccessToken = ttAccessToken.trim();
+
+    return payload;
+  };
+
+  const persistWorkflowDraft = async ({
+    silent = false,
+    resetAfterSave = false,
+  }: {
+    silent?: boolean;
+    resetAfterSave?: boolean;
+  } = {}): Promise<number | null> => {
     if (!workflowForm.name.trim()) {
       setWorkflowStep(0);
       showError('Nazwa workflow jest wymagana.');
-      return;
+      return null;
+    }
+
+    if (!workflowForm.prompt_template.trim()) {
+      setWorkflowStep(2);
+      showError('Prompt Template jest wymagany.');
+      return null;
+    }
+
+    if (socialStepValidationIssues.length > 0) {
+      setWorkflowStep(3);
+      showError('Konfiguracja social wymaga uzupełnienia.');
+      return null;
     }
 
     setSaving(true);
 
-    const payload: Record<string, unknown> = {
-      name: workflowForm.name.trim(),
-      enabled: workflowForm.enabled,
-      workflow_type: workflowForm.workflow_type,
-      generate_cron: workflowForm.generate_cron,
-      publish_cron: workflowForm.publish_cron,
-      timezone: workflowForm.timezone,
-      locale: workflowForm.locale,
-      llm_model: workflowForm.llm_model,
-      prompt_template: workflowForm.prompt_template,
-      temperature: workflowForm.temperature,
-      max_completion_tokens: workflowForm.max_completion_tokens,
-      retry_max: workflowForm.retry_max,
-      retry_backoff_seconds: workflowForm.retry_backoff_seconds,
-      daily_request_limit: workflowForm.daily_request_limit,
-      daily_token_limit: workflowForm.daily_token_limit,
-      allow_manual_edit: workflowForm.allow_manual_edit,
-      auto_publish: workflowForm.auto_publish,
-      force_regenerate: workflowForm.force_regenerate,
-      topic_mode: workflowForm.topic_mode,
-      horoscope_period: workflowForm.horoscope_period,
-      horoscope_type_values: workflowForm.horoscope_type_values
-        .split(',')
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0),
-      all_signs: workflowForm.all_signs,
-      article_category: workflowForm.article_category ? Number(workflowForm.article_category) : null,
-    };
-
-    if (workflowForm.apiToken.trim()) {
-      payload.apiToken = workflowForm.apiToken.trim();
-    }
-
     try {
+      const payload = buildWorkflowPayload();
+      const workflow = editingWorkflowId
+        ? await api.updateWorkflow(client, editingWorkflowId, payload)
+        : await api.createWorkflow(client, payload);
+
+      setEditingWorkflowId(workflow.id);
+
       if (editingWorkflowId) {
-        await api.updateWorkflow(client, editingWorkflowId, payload);
-        showSuccess('Workflow zaktualizowany.');
+        if (!silent) {
+          showSuccess('Workflow zaktualizowany.');
+        }
       } else {
-        await api.createWorkflow(client, payload);
-        showSuccess('Workflow utworzony.');
+        if (!silent) {
+          showSuccess('Workflow utworzony.');
+        }
       }
 
-      resetWorkflowForm();
       await refreshMonitoringData();
+      if (resetAfterSave) {
+        resetWorkflowForm();
+      }
+      return workflow.id;
     } catch (error) {
       showError(`Nie udało się zapisać workflow: ${String(error)}`);
+      return null;
     } finally {
       setSaving(false);
     }
   };
 
+  const saveWorkflow = async (): Promise<void> => {
+    await persistWorkflowDraft({ resetAfterSave: true });
+  };
+
   const runNow = async (workflowId: number): Promise<void> => {
     setRunningWorkflowIds((prev) => (prev.includes(workflowId) ? prev : [...prev, workflowId]));
     setWorkflows((prev) =>
-      prev.map((workflow) => (workflow.id === workflowId ? { ...workflow, status: 'running', last_error: null } : workflow))
+      prev.map((workflow) =>
+        workflow.id === workflowId ? { ...workflow, status: 'running', last_error: null } : workflow
+      )
     );
 
     try {
@@ -993,10 +1621,16 @@ const HomePage = () => {
       setRunningWorkflowIds((prev) => prev.filter((id) => id !== workflowId));
       setWorkflows((prev) =>
         prev.map((workflow) =>
-          workflow.id === workflowId ? { ...workflow, status: 'idle', last_error: 'Zatrzymano ręcznie.' } : workflow
+          workflow.id === workflowId
+            ? { ...workflow, status: 'idle', last_error: 'Zatrzymano ręcznie.' }
+            : workflow
         )
       );
-      showSuccess(result.stopped === false ? `Workflow #${workflowId} nie był uruchomiony.` : `Workflow #${workflowId} zatrzymany.`);
+      showSuccess(
+        result.stopped === false
+          ? `Workflow #${workflowId} nie był uruchomiony.`
+          : `Workflow #${workflowId} zatrzymany.`
+      );
       await refreshMonitoringData();
     } catch (error) {
       showError(`Stop workflow nie powiódł się: ${String(error)}`);
@@ -1012,7 +1646,9 @@ const HomePage = () => {
       return;
     }
 
-    const confirmed = window.confirm(`Usunąć workflow #${workflow.id} "${workflow.name}"? Tej operacji nie można cofnąć.`);
+    const confirmed = window.confirm(
+      `Usunąć workflow #${workflow.id} "${workflow.name}"? Tej operacji nie można cofnąć.`
+    );
     if (!confirmed) {
       return;
     }
@@ -1075,7 +1711,9 @@ const HomePage = () => {
         brief: topicForm.brief.trim() || undefined,
         image_asset_key: topicForm.image_asset_key.trim() || undefined,
         workflow: topicForm.workflow ? Number(topicForm.workflow) : undefined,
-        article_category: topicForm.article_category ? Number(topicForm.article_category) : undefined,
+        article_category: topicForm.article_category
+          ? Number(topicForm.article_category)
+          : undefined,
         scheduled_for: topicForm.scheduled_for || undefined,
       });
 
@@ -1085,6 +1723,20 @@ const HomePage = () => {
       await loadAll();
     } catch (error) {
       showError(`Nie udało się dodać tematu: ${String(error)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteTopic = async (id: number): Promise<void> => {
+    if (!window.confirm('Czy na pewno chcesz usunąć ten temat?')) return;
+    setSaving(true);
+    try {
+      await api.deleteTopic(client, id);
+      showSuccess('Temat usunięty.');
+      await loadAll();
+    } catch (error) {
+      showError(`Błąd podczas usuwania tematu: ${String(error)}`);
     } finally {
       setSaving(false);
     }
@@ -1104,8 +1756,132 @@ const HomePage = () => {
     }
   };
 
+  const refreshSocialTickets = async (): Promise<void> => {
+    try {
+      const items = await api.getSocialTickets(client, { limit: 200 });
+      setSocialTickets(items);
+      setSocialOpsState('ready');
+      setSocialOpsMessage(null);
+    } catch (error) {
+      const message = `Nie udało się pobrać ticketów social: ${String(error)}`;
+      setSocialOpsState(toOpsStateFromErrorMessage(message));
+      setSocialOpsMessage(message);
+      showError(message);
+    }
+  };
+
+  const resolveWorkflowIdForSocialAction = async (): Promise<number | null> =>
+    persistWorkflowDraft({ silent: true, resetAfterSave: false });
+
+  const testWorkflowSocialConnection = async (): Promise<void> => {
+    const workflowId = await resolveWorkflowIdForSocialAction();
+    if (!workflowId) return;
+
+    setSaving(true);
+    try {
+      const result = await api.testSocialConnection(client, {
+        workflowId,
+        channels: workflowForm.enabled_channels,
+      });
+      setSocialConnectionResult(result);
+      setSocialOpsState(toOpsStateFromSocialOverall(result.overall));
+      setSocialOpsMessage(result.overall === 'ready' ? null : `Test connection: ${result.overall}`);
+      showSuccess(`Test połączeń zakończony: ${result.overall.toUpperCase()}`);
+    } catch (error) {
+      const message = `Test połączeń nie powiódł się: ${String(error)}`;
+      setSocialOpsState(toOpsStateFromErrorMessage(message));
+      setSocialOpsMessage(message);
+      showError(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const dryRunWorkflowSocial = async (): Promise<void> => {
+    const workflowId = await resolveWorkflowIdForSocialAction();
+    if (!workflowId) return;
+
+    setSaving(true);
+    try {
+      const result = await api.dryRunSocial(client, {
+        workflowId,
+        channels: workflowForm.enabled_channels,
+        caption: 'Test autopublikacji Star Sign',
+        mediaUrl: 'https://star-sign.app/assets/og-default.jpg',
+        targetUrl: 'https://star-sign.app',
+      });
+      setSocialDryRunResult(result);
+      setSocialOpsState(toOpsStateFromSocialOverall(result.overall));
+      setSocialOpsMessage(result.overall === 'ready' ? null : `Dry run: ${result.overall}`);
+      showSuccess(`Dry-run zakończony: ${result.overall.toUpperCase()}`);
+    } catch (error) {
+      const message = `Dry-run nie powiódł się: ${String(error)}`;
+      setSocialOpsState(toOpsStateFromErrorMessage(message));
+      setSocialOpsMessage(message);
+      showError(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const retrySocialTicket = async (ticketId: number): Promise<void> => {
+    setSaving(true);
+    try {
+      await api.retrySocialTicket(client, ticketId);
+      await refreshSocialTickets();
+      showSuccess(`Ticket #${ticketId} ustawiony do ponowienia.`);
+    } catch (error) {
+      showError(`Nie udało się ponowić ticketu #${ticketId}: ${String(error)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancelSocialTicket = async (ticketId: number): Promise<void> => {
+    setSaving(true);
+    try {
+      await api.cancelSocialTicket(client, ticketId);
+      await refreshSocialTickets();
+      showSuccess(`Ticket #${ticketId} anulowany.`);
+    } catch (error) {
+      showError(`Nie udało się anulować ticketu #${ticketId}: ${String(error)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const runPreflightAudit = async (strict: boolean): Promise<void> => {
+    setSaving(true);
+    try {
+      const report = await api.runAuditPreflight(client, strict);
+      setAuditReport(report);
+      setAuditOpsState(toOpsStateFromAuditDecision(report.decision));
+      setAuditOpsMessage(
+        report.decision === 'GO'
+          ? null
+          : report.decision === 'GO_WITH_WARNINGS'
+            ? 'Audit wykrył ostrzeżenia wymagające działania.'
+            : 'Audit wykrył krytyczne braki (NO_GO).'
+      );
+      if (report.decision === 'NO_GO') {
+        showError('Audit zakończony decyzją NO_GO.');
+      } else {
+        showSuccess(`Audit zakończony: ${report.decision}`);
+      }
+    } catch (error) {
+      const message = `Audit preflight nie powiódł się: ${String(error)}`;
+      setAuditOpsState(toOpsStateFromErrorMessage(message));
+      setAuditOpsMessage(message);
+      showError(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const toggleRunDetails = (runId: number): void => {
-    setExpandedRunIds((prev) => (prev.includes(runId) ? prev.filter((id) => id !== runId) : [...prev, runId]));
+    setExpandedRunIds((prev) =>
+      prev.includes(runId) ? prev.filter((id) => id !== runId) : [...prev, runId]
+    );
   };
 
   const saveSettings = async (): Promise<void> => {
@@ -1175,7 +1951,9 @@ const HomePage = () => {
       return;
     }
 
-    setMediaAssetForm(selected.mapping ? mapAssetToForm(selected.mapping) : mapSuggestionToForm(selected));
+    setMediaAssetForm(
+      selected.mapping ? mapAssetToForm(selected.mapping) : mapSuggestionToForm(selected)
+    );
   };
 
   const pickMediaFile = (item: MediaLibraryFile): void => {
@@ -1266,7 +2044,7 @@ const HomePage = () => {
     }
   };
 
-  const saveMediaAsset = async (): Promise<void> => {
+  const saveMediaMapping = async (): Promise<void> => {
     if (!selectedMediaFile) {
       showError('Wybierz zdjęcie z kafelka.');
       return;
@@ -1311,6 +2089,26 @@ const HomePage = () => {
     }
   };
 
+  const deleteMediaMapping = async (id: number): Promise<void> => {
+    if (!window.confirm('Czy na pewno chcesz usunąć to mapowanie?')) return;
+    setSaving(true);
+    try {
+      await api.deleteMediaAsset(client, id);
+      showSuccess('Mapowanie usunięte.');
+      await refreshMediaCatalogData();
+    } catch (error) {
+      showError(`Błąd podczas usuwania mapowania: ${String(error)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getTopicWorkflowName = (topic: Topic, workflowList: Workflow[]): string => {
+    if (!topic.workflow) return '-';
+    const wf = workflowList.find((w) => w.id === topic.workflow);
+    return wf ? wf.name : '-';
+  };
+
   const goToMediaPage = async (page: number): Promise<void> => {
     await loadMediaLibrary({ page });
   };
@@ -1349,6 +2147,594 @@ const HomePage = () => {
     }
   }, [mediaLibrary]);
 
+  const renderWorkflowModal = () => (
+    <Modal
+      title={editingWorkflowId ? `Edycja Workflow: ${workflowForm.name}` : 'Nowy Workflow'}
+      isOpen={showWorkflowModal}
+      onClose={() => setShowWorkflowModal(false)}
+      maxWidth={1000}
+      footer={
+        <>
+          {workflowStep > 0 && (
+            <button
+              type="button"
+              style={secondaryButtonStyle}
+              onClick={() => setWorkflowStep((prev) => prev - 1)}
+            >
+              Poprzedni krok
+            </button>
+          )}
+          {workflowStep < WORKFLOW_STEP_LABELS.length - 1 ? (
+            <button
+              type="button"
+              style={primaryButtonStyle}
+              onClick={() => {
+                // Basic validation for Step 0
+                if (workflowStep === 0 && !workflowForm.name) {
+                  showError('Nazwa workflow jest wymagana.');
+                  return;
+                }
+                if (workflowStep === 3 && socialStepValidationIssues.length > 0) {
+                  showError('Uzupełnij konfigurację social przed przejściem dalej.');
+                  return;
+                }
+                setWorkflowStep((prev) => prev + 1);
+              }}
+            >
+              Następny krok
+            </button>
+          ) : (
+            <button
+              type="button"
+              style={primaryButtonStyle}
+              disabled={saving}
+              onClick={() => {
+                if (!workflowForm.prompt_template) {
+                  showError('Prompt Template jest wymagany.');
+                  setWorkflowStep(2);
+                  return;
+                }
+                void saveWorkflow();
+              }}
+            >
+              {saving
+                ? 'Zapisywanie...'
+                : editingWorkflowId
+                  ? 'Zaktualizuj Workflow'
+                  : 'Utwórz Workflow'}
+            </button>
+          )}
+        </>
+      }
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 32 }}>
+        <div style={{ borderRight: `1px solid ${COLORS.border}`, paddingRight: 24 }}>
+          {WORKFLOW_STEP_LABELS.map((label, idx) => (
+            <div
+              key={label}
+              style={{
+                padding: '12px 16px',
+                borderRadius: 12,
+                background: workflowStep === idx ? COLORS.primaryLight : 'transparent',
+                color: workflowStep === idx ? COLORS.primary : COLORS.textLight,
+                fontWeight: 700,
+                fontSize: 14,
+                marginBottom: 4,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                cursor: 'pointer',
+              }}
+              onClick={() => setWorkflowStep(idx)}
+            >
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  background: workflowStep === idx ? COLORS.primary : '#e2e8f0',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                }}
+              >
+                {idx + 1}
+              </div>
+              {label}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ minHeight: 400 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, marginBottom: 24 }}>
+            Krok {workflowStep + 1}: {WORKFLOW_STEP_LABELS[workflowStep]}
+          </h3>
+
+          {workflowStep === 0 && (
+            <div style={{ display: 'grid', gap: 20 }}>
+              <Field label="Nazwa">
+                <input
+                  style={inputStyle}
+                  value={workflowForm.name}
+                  placeholder="np. Horoskop Dzienny - Główne Wydanie"
+                  onChange={(e) => setWorkflowForm((prev) => ({ ...prev, name: e.target.value }))}
+                />
+              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <Field label="Typ Workflow">
+                  <select
+                    style={inputStyle}
+                    value={workflowForm.workflow_type}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({ ...prev, workflow_type: e.target.value as any }))
+                    }
+                  >
+                    <option value="horoscope">horoscope</option>
+                    <option value="daily_card">daily_card</option>
+                    <option value="article">article</option>
+                  </select>
+                </Field>
+                <Field label="Tryb Tematów">
+                  <select
+                    style={inputStyle}
+                    value={workflowForm.topic_mode}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({ ...prev, topic_mode: e.target.value as any }))
+                    }
+                  >
+                    <option value="mixed">Mieszany (Auto + Ręczny)</option>
+                    <option value="manual">Tylko Ręczny</option>
+                  </select>
+                </Field>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <Field label="Lokalizacja">
+                  <input
+                    style={inputStyle}
+                    value={workflowForm.locale}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({ ...prev, locale: e.target.value }))
+                    }
+                  />
+                </Field>
+                <Field label="Strefa Czasowa">
+                  <input
+                    style={inputStyle}
+                    value={workflowForm.timezone}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({ ...prev, timezone: e.target.value }))
+                    }
+                  />
+                </Field>
+              </div>
+              <label style={checkboxRowStyle}>
+                <input
+                  type="checkbox"
+                  checked={workflowForm.enabled}
+                  onChange={(e) =>
+                    setWorkflowForm((prev) => ({ ...prev, enabled: e.target.checked }))
+                  }
+                />
+                Włączony (Active)
+              </label>
+            </div>
+          )}
+
+          {workflowStep === 1 && (
+            <div style={{ display: 'grid', gap: 24 }}>
+              <div
+                style={{
+                  padding: 16,
+                  background: '#f8fafc',
+                  borderRadius: 12,
+                  border: `1px solid ${COLORS.border}`,
+                }}
+              >
+                <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.6 }}>
+                  Harmonogram używa formatu <strong>cron</strong> (np. <code>0 8 * * *</code> dla
+                  godziny 08:00 każdego dnia).
+                </p>
+              </div>
+              <Field label="Harmonogram Generowania">
+                <input
+                  style={inputStyle}
+                  value={workflowForm.generate_cron}
+                  onChange={(e) =>
+                    setWorkflowForm((prev) => ({ ...prev, generate_cron: e.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="Harmonogram Publikacji">
+                <input
+                  style={inputStyle}
+                  value={workflowForm.publish_cron}
+                  onChange={(e) =>
+                    setWorkflowForm((prev) => ({ ...prev, publish_cron: e.target.value }))
+                  }
+                />
+              </Field>
+            </div>
+          )}
+
+          {workflowStep === 2 && (
+            <div style={{ display: 'grid', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <Field label="Model LLM">
+                  <input
+                    style={inputStyle}
+                    value={workflowForm.llm_model}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({ ...prev, llm_model: e.target.value }))
+                    }
+                  />
+                </Field>
+                <Field
+                  label={editingWorkflowId ? 'API Token (Zostaw puste aby zachować)' : 'API Token'}
+                >
+                  <input
+                    type="password"
+                    style={inputStyle}
+                    value={workflowForm.apiToken}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({ ...prev, apiToken: e.target.value }))
+                    }
+                  />
+                </Field>
+              </div>
+
+              {workflowForm.workflow_type === 'horoscope' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                  <Field label="Okres Horoskopu">
+                    <select
+                      style={inputStyle}
+                      value={workflowForm.horoscope_period}
+                      onChange={(e) =>
+                        setWorkflowForm((prev) => ({
+                          ...prev,
+                          horoscope_period: e.target.value as any,
+                        }))
+                      }
+                    >
+                      <option value="Dzienny">Dzienny</option>
+                      <option value="Tygodniowy">Tygodniowy</option>
+                      <option value="Miesięczny">Miesięczny</option>
+                      <option value="Roczny">Roczny</option>
+                    </select>
+                  </Field>
+                  <Field label="Typy Horoskopów (oddzielone przecinkiem)">
+                    <input
+                      style={inputStyle}
+                      value={workflowForm.horoscope_type_values}
+                      onChange={(e) =>
+                        setWorkflowForm((prev) => ({
+                          ...prev,
+                          horoscope_type_values: e.target.value,
+                        }))
+                      }
+                    />
+                  </Field>
+                </div>
+              )}
+
+              <Field label="Prompt Template (Main Context)">
+                <textarea
+                  style={{ ...inputStyle, minHeight: 200, fontFamily: 'monospace', fontSize: 13 }}
+                  value={workflowForm.prompt_template}
+                  onChange={(e) =>
+                    setWorkflowForm((prev) => ({ ...prev, prompt_template: e.target.value }))
+                  }
+                />
+              </Field>
+            </div>
+          )}
+
+          {workflowStep === 3 && (
+            <div style={{ display: 'grid', gap: 24 }}>
+              <div
+                style={{
+                  padding: 16,
+                  background: '#f0f9ff',
+                  borderRadius: 12,
+                  border: `1px solid #bae6fd`,
+                }}
+              >
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#0369a1', marginBottom: 8 }}>
+                  Guided Social Onboarding (FB / IG / X)
+                </h4>
+                <p style={{ margin: 0, fontSize: 12, color: '#0c4a6e', lineHeight: 1.5 }}>
+                  Kroki: wybierz kanały, uzupełnij credentials, uruchom{' '}
+                  <strong>Test Connection</strong> i<strong> Dry Run</strong>, dopiero potem aktywuj
+                  auto-publish.
+                </p>
+              </div>
+              <WorkflowSocialStep
+                workflowForm={workflowForm}
+                editingWorkflowId={editingWorkflowId}
+                saving={saving}
+                socialConnectionResult={socialConnectionResult}
+                socialDryRunResult={socialDryRunResult}
+                validationIssues={socialStepValidationIssues}
+                inputStyle={inputStyle}
+                checkboxRowStyle={checkboxRowStyle}
+                secondaryButtonStyle={secondaryButtonStyle}
+                textColor={COLORS.text}
+                textLightColor={COLORS.textLight}
+                borderColor={COLORS.border}
+                Field={Field}
+                onWorkflowFormChange={(next) => {
+                  setWorkflowForm((prev) => ({
+                    ...prev,
+                    ...next,
+                  }));
+                }}
+                onTestConnection={() => {
+                  void testWorkflowSocialConnection();
+                }}
+                onDryRun={() => {
+                  void dryRunWorkflowSocial();
+                }}
+              />
+            </div>
+          )}
+
+          {workflowStep === 4 && (
+            <div style={{ display: 'grid', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                <Field label="Temperature">
+                  <input
+                    type="number"
+                    step="0.1"
+                    style={inputStyle}
+                    value={workflowForm.temperature}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({ ...prev, temperature: Number(e.target.value) }))
+                    }
+                  />
+                </Field>
+                <Field label="Max Tokens">
+                  <input
+                    type="number"
+                    style={inputStyle}
+                    value={workflowForm.max_completion_tokens}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({
+                        ...prev,
+                        max_completion_tokens: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </Field>
+                <Field label="Max Retries">
+                  <input
+                    type="number"
+                    style={inputStyle}
+                    value={workflowForm.retry_max}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({ ...prev, retry_max: Number(e.target.value) }))
+                    }
+                  />
+                </Field>
+              </div>
+              <div style={{ display: 'grid', gap: 12 }}>
+                <label style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={workflowForm.auto_publish}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({ ...prev, auto_publish: e.target.checked }))
+                    }
+                  />
+                  Automatyczna publikacja (pomiń moderację)
+                </label>
+                <label style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={workflowForm.force_regenerate}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({ ...prev, force_regenerate: e.target.checked }))
+                    }
+                  />
+                  Wymuś regenerację (nawet jeśli treść istnieje)
+                </label>
+                {workflowForm.workflow_type === 'horoscope' && (
+                  <label style={checkboxRowStyle}>
+                    <input
+                      type="checkbox"
+                      checked={workflowForm.all_signs}
+                      onChange={(e) =>
+                        setWorkflowForm((prev) => ({ ...prev, all_signs: e.target.checked }))
+                      }
+                    />
+                    Generuj dla wszystkich 12 znaków zodiaku
+                  </label>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+
+  const renderTopicModal = () => (
+    <Modal
+      title="Nowy Temat w Kolejce"
+      isOpen={showTopicModal}
+      onClose={() => setShowTopicModal(false)}
+      maxWidth={600}
+      footer={
+        <>
+          <button
+            type="button"
+            style={secondaryButtonStyle}
+            onClick={() => setShowTopicModal(false)}
+          >
+            Anuluj
+          </button>
+          <button
+            type="button"
+            style={primaryButtonStyle}
+            disabled={saving}
+            onClick={() => {
+              if (!topicForm.title) {
+                showError('Tytuł tematu jest wymagany.');
+                return;
+              }
+              if (!topicForm.workflow) {
+                showError('Musisz wybrać workflow dla tego tematu.');
+                return;
+              }
+              void createTopic();
+            }}
+          >
+            {saving ? 'Dodawanie...' : 'Dodaj Temat'}
+          </button>
+        </>
+      }
+    >
+      <div style={{ display: 'grid', gap: 20 }}>
+        <Field label="Tytuł / Nazwa Tematu">
+          <input
+            style={inputStyle}
+            value={topicForm.title}
+            placeholder="np. Pełnia Księżyca w Skorpionie"
+            onChange={(e) => setTopicForm((prev) => ({ ...prev, title: e.target.value }))}
+          />
+        </Field>
+        <Field label="Brief / Wytyczne (Opcjonalnie)">
+          <textarea
+            style={{ ...inputStyle, minHeight: 100 }}
+            value={topicForm.brief}
+            placeholder="Szczególne wytyczne dla LLM..."
+            onChange={(e) => setTopicForm((prev) => ({ ...prev, brief: e.target.value }))}
+          />
+        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <Field label="Przypisany Workflow">
+            <select
+              style={inputStyle}
+              value={topicForm.workflow}
+              onChange={(e) => setTopicForm((prev) => ({ ...prev, workflow: e.target.value }))}
+            >
+              <option value="">Wybierz workflow...</option>
+              {workflows.map((wf) => (
+                <option key={wf.id} value={wf.id}>
+                  {wf.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Zasób Graficzny (Klucz)">
+            <input
+              style={inputStyle}
+              value={topicForm.image_asset_key}
+              placeholder="np. scorpion_moon"
+              onChange={(e) =>
+                setTopicForm((prev) => ({ ...prev, image_asset_key: e.target.value }))
+              }
+            />
+          </Field>
+        </div>
+        <Field label="Planowana Data (Opcjonalnie)">
+          <input
+            type="datetime-local"
+            style={inputStyle}
+            value={topicForm.scheduled_for}
+            onChange={(e) => setTopicForm((prev) => ({ ...prev, scheduled_for: e.target.value }))}
+          />
+        </Field>
+      </div>
+    </Modal>
+  );
+
+  const renderRunDetailsModal = () => (
+    <Modal
+      title={selectedRun ? `Szczegóły Run #${selectedRun.id}` : 'Szczegóły Run'}
+      isOpen={showRunModal}
+      onClose={() => {
+        setShowRunModal(false);
+        setSelectedRun(null);
+      }}
+      maxWidth={820}
+      footer={
+        <button
+          type="button"
+          style={secondaryButtonStyle}
+          onClick={() => {
+            setShowRunModal(false);
+            setSelectedRun(null);
+          }}
+        >
+          Zamknij
+        </button>
+      }
+    >
+      {selectedRun ? (
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}
+          >
+            <Field label="Status">
+              <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', minHeight: 42 }}>
+                <StatusPill status={selectedRun.status} />
+              </div>
+            </Field>
+            <Field label="Typ">
+              <input style={inputStyle} value={selectedRun.run_type} disabled />
+            </Field>
+            <Field label="Start">
+              <input
+                style={inputStyle}
+                value={new Date(selectedRun.started_at).toLocaleString()}
+                disabled
+              />
+            </Field>
+            <Field label="Koniec">
+              <input
+                style={inputStyle}
+                value={
+                  selectedRun.finished_at ? new Date(selectedRun.finished_at).toLocaleString() : '-'
+                }
+                disabled
+              />
+            </Field>
+          </div>
+          {selectedRun.error_message && (
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: 10,
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#b91c1c',
+              }}
+            >
+              {selectedRun.error_message}
+            </div>
+          )}
+          <Field label="Details (JSON)">
+            <pre
+              style={{
+                margin: 0,
+                padding: 12,
+                borderRadius: 10,
+                background: '#0f172a',
+                color: '#e2e8f0',
+                maxHeight: 260,
+                overflow: 'auto',
+                fontSize: 12,
+              }}
+            >
+              {JSON.stringify(selectedRun.details ?? {}, null, 2)}
+            </pre>
+          </Field>
+        </div>
+      ) : null}
+    </Modal>
+  );
+
   if (loading) {
     return <Page.Loading />;
   }
@@ -1357,1582 +2743,2443 @@ const HomePage = () => {
     <Page.Main>
       <div
         style={{
-          padding: 24,
+          padding: '32px 40px',
           display: 'grid',
-          gap: 18,
-          background: 'linear-gradient(180deg, #f9f8ff 0%, #f5f8ff 100%)',
+          gap: 24,
+          background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+          minHeight: '100vh',
         }}
       >
-      <Page.Title>AI Content Orchestrator</Page.Title>
-
-      <section style={{ ...CARD_STYLE, paddingBottom: 10 }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {(
-            [
-              ['dashboard', 'Dashboard'],
-              ['workflows', 'Workflows'],
-              ['topics', 'Topic Queue'],
-              ['media', 'Media Catalog'],
-              ['runs', 'Monitoring'],
-              ['settings', 'Settings'],
-            ] as Array<[TabKey, string]>
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setActiveTab(key)}
-              style={{
-                border: '1px solid #d0d0db',
-                background: activeTab === key ? '#2b5bd7' : '#fff',
-                color: activeTab === key ? '#fff' : '#1f1f29',
-                borderRadius: 8,
-                padding: '8px 12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => {
-              void loadAll();
-            }}
-            style={{
-              border: '1px solid #d0d0db',
-              background: '#fff',
-              color: '#1f1f29',
-              borderRadius: 8,
-              padding: '8px 12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              marginLeft: 'auto',
-            }}
-          >
-            Refresh
-          </button>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 8,
+          }}
+        >
+          <Page.Title>AI Content Orchestrator</Page.Title>
+          <div style={{ display: 'flex', gap: 12 }}>
+            {summary && (
+              <div
+                style={{
+                  fontSize: 13,
+                  color: COLORS.textLight,
+                  background: '#fff',
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  border: `1px solid ${COLORS.border}`,
+                }}
+              >
+                System status:{' '}
+                <span style={{ color: COLORS.secondary, fontWeight: 700 }}>Online</span>
+              </div>
+            )}
+          </div>
         </div>
-      </section>
 
-      {activeTab === 'dashboard' && (
-        <section style={CARD_STYLE}>
-          <h2 style={SECTION_TITLE_STYLE}>Status systemu</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-            <StatTile label="Workflow total" value={summary?.workflows.total ?? 0} />
-            <StatTile label="Workflow enabled" value={summary?.workflows.enabled ?? 0} />
-            <StatTile label="Workflow failed" value={summary?.workflows.failed ?? 0} />
-            <StatTile label="Topics pending" value={summary?.topics.pending ?? 0} />
-            <StatTile label="Runs failed" value={summary?.runs.failed ?? 0} />
-            <StatTile label="Tickets scheduled" value={summary?.publications.scheduled ?? 0} />
-          </div>
-          <div
-            style={{
-              marginTop: 14,
-              border: diagnostics?.ok ? '1px solid #b9e6ca' : '1px solid #ffd4a8',
-              background: diagnostics?.ok ? '#f1fbf5' : '#fff8ef',
-              borderRadius: 8,
-              padding: 12,
-            }}
-          >
-            <strong style={{ fontSize: 13 }}>
-              Diagnostyka: {diagnostics?.ok ? 'gotowe do pracy' : 'wymaga uwagi'}
-            </strong>
-            <div style={{ fontSize: 12, color: '#4f4f60', marginTop: 6 }}>
-              Media linked active: {diagnostics?.media.linkedActive ?? 0}/{diagnostics?.media.total ?? 0} • unassigned topics:{' '}
-              {diagnostics?.topics.unassignedPending ?? 0}
-            </div>
-            {diagnostics?.workflows.issues.length ? (
-              <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12 }}>
-                {diagnostics.workflows.issues.slice(0, 8).map((issue) => (
-                  <li key={`${issue.workflowId}-${issue.message}`}>
-                    #{issue.workflowId} {issue.name}: {issue.message}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'workflows' && (
-        <section style={CARD_STYLE}>
-          <h2 style={SECTION_TITLE_STYLE}>Workflows</h2>
-
-          <div style={{ overflowX: 'auto', marginBottom: 16 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
-              <thead>
-                <tr>
-                  <Th>ID</Th>
-                  <Th>Name</Th>
-                  <Th>Type</Th>
-                  <Th>Status</Th>
-                  <Th>Enabled</Th>
-                  <Th>Generate</Th>
-                  <Th>Publish</Th>
-                  <Th>Last error</Th>
-                  <Th>Actions</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {workflows.map((workflow) => (
-                  <tr key={workflow.id}>
-                    <Td>{workflow.id}</Td>
-                    <Td>{workflow.name}</Td>
-                    <Td>{workflow.workflow_type}</Td>
-                    <Td>
-                      <StatusPill status={workflow.status} />
-                    </Td>
-                    <Td>{workflow.enabled ? 'yes' : 'no'}</Td>
-                    <Td>{workflow.generate_cron}</Td>
-                    <Td>{workflow.publish_cron}</Td>
-                    <Td>{workflow.last_error || '-'}</Td>
-                    <Td>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <ActionButton
-                          label="Edit"
-                          onClick={() => onPickWorkflowToEdit(workflow)}
-                          disabled={saving}
-                        />
-                        <ActionButton
-                          label={runningWorkflowIds.includes(workflow.id) || workflow.status === 'running' ? 'Running' : 'Run now'}
-                          onClick={() => {
-                            void runNow(workflow.id);
-                          }}
-                          disabled={saving || runningWorkflowIds.includes(workflow.id) || workflow.status === 'running'}
-                        />
-                        <ActionButton
-                          label="Stop"
-                          onClick={() => {
-                            void stopWorkflow(workflow.id);
-                          }}
-                          disabled={saving || (!runningWorkflowIds.includes(workflow.id) && workflow.status !== 'running')}
-                          tone="danger"
-                        />
-                        <ActionButton
-                          label="Logs"
-                          onClick={() => {
-                            setRunFilters((prev) => ({ ...prev, workflowName: workflow.name }));
-                            setActiveTab('runs');
-                          }}
-                          disabled={saving}
-                        />
-                        <ActionButton
-                          label="Backfill"
-                          onClick={() => {
-                            void runBackfill(workflow.id, false);
-                          }}
-                          disabled={saving}
-                        />
-                        <ActionButton
-                          label="Dry run"
-                          onClick={() => {
-                            void runBackfill(workflow.id, true);
-                          }}
-                          disabled={saving}
-                        />
-                        <ActionButton
-                          label="Delete"
-                          onClick={() => {
-                            void deleteWorkflow(workflow);
-                          }}
-                          disabled={saving || runningWorkflowIds.includes(workflow.id) || workflow.status === 'running'}
-                          tone="danger"
-                        />
-                      </div>
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              padding: 12,
-              border: '1px solid #e5e5ef',
-              borderRadius: 8,
-              background: '#fbfcff',
-              marginBottom: 16,
-            }}
-          >
-            <Field label="Backfill start">
-              <input
-                type="date"
-                value={backfillStart}
-                onChange={(event) => setBackfillStart(event.target.value)}
-                style={inputStyle}
-              />
-            </Field>
-            <Field label="Backfill end">
-              <input
-                type="date"
-                value={backfillEnd}
-                onChange={(event) => setBackfillEnd(event.target.value)}
-                style={inputStyle}
-              />
-            </Field>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <div style={{ display: 'grid', gap: 8, alignContent: 'start' }}>
-              {WORKFLOW_STEP_LABELS.map((label, index) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setWorkflowStep(index)}
-                  style={{
-                    border: workflowStep === index ? '1px solid #2350c4' : '1px solid #d9dce8',
-                    background: workflowStep === index ? '#edf3ff' : '#fff',
-                    color: workflowStep === index ? '#123e9c' : '#33364a',
-                    borderRadius: 8,
-                    padding: '10px 12px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontWeight: 700,
-                  }}
-                >
-                  {index + 1}. {label}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-                <h3 style={{ margin: 0, fontSize: 16 }}>
-                  {editingWorkflowId ? `Edit workflow #${editingWorkflowId}` : 'Create workflow'}
-                </h3>
-                <StatusPill status={workflowForm.enabled ? 'enabled' : 'disabled'} />
-              </div>
-
-              {workflowStep === 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                  <Field label="Name">
-                    <input
-                      style={inputStyle}
-                      value={workflowForm.name}
-                      onChange={(event) => setWorkflowForm((prev) => ({ ...prev, name: event.target.value }))}
-                    />
-                  </Field>
-                  <Field label="Type">
-                    <select
-                      style={inputStyle}
-                      value={workflowForm.workflow_type}
-                      onChange={(event) =>
-                        setWorkflowForm((prev) => ({
-                          ...prev,
-                          workflow_type: event.target.value as WorkflowFormState['workflow_type'],
-                        }))
-                      }
-                    >
-                      <option value="horoscope">horoscope</option>
-                      <option value="daily_card">daily_card</option>
-                      <option value="article">article</option>
-                    </select>
-                  </Field>
-                  <Field label="Timezone">
-                    <input
-                      style={inputStyle}
-                      value={workflowForm.timezone}
-                      onChange={(event) => setWorkflowForm((prev) => ({ ...prev, timezone: event.target.value }))}
-                    />
-                  </Field>
-                  <Field label="Locale">
-                    <input
-                      style={inputStyle}
-                      value={workflowForm.locale}
-                      onChange={(event) => setWorkflowForm((prev) => ({ ...prev, locale: event.target.value }))}
-                    />
-                  </Field>
-                  <Field label="Topic mode">
-                    <select
-                      style={inputStyle}
-                      value={workflowForm.topic_mode}
-                      onChange={(event) =>
-                        setWorkflowForm((prev) => ({
-                          ...prev,
-                          topic_mode: event.target.value as WorkflowFormState['topic_mode'],
-                        }))
-                      }
-                    >
-                      <option value="mixed">mixed</option>
-                      <option value="manual">manual</option>
-                    </select>
-                  </Field>
-                  <label style={{ ...checkboxRowStyle, alignSelf: 'end', minHeight: 38 }}>
-                    <input
-                      type="checkbox"
-                      checked={workflowForm.enabled}
-                      onChange={(event) => setWorkflowForm((prev) => ({ ...prev, enabled: event.target.checked }))}
-                    />
-                    enabled
-                  </label>
-                </div>
-              )}
-
-              {workflowStep === 1 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
-                  <Field label="Generate cron">
-                    <input
-                      style={inputStyle}
-                      value={workflowForm.generate_cron}
-                      onChange={(event) => setWorkflowForm((prev) => ({ ...prev, generate_cron: event.target.value }))}
-                    />
-                  </Field>
-                  <Field label="Publish cron">
-                    <input
-                      style={inputStyle}
-                      value={workflowForm.publish_cron}
-                      onChange={(event) => setWorkflowForm((prev) => ({ ...prev, publish_cron: event.target.value }))}
-                    />
-                  </Field>
-                </div>
-              )}
-
-              {workflowStep === 2 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
-                  <Field label="Model">
-                    <input
-                      style={inputStyle}
-                      value={workflowForm.llm_model}
-                      onChange={(event) => setWorkflowForm((prev) => ({ ...prev, llm_model: event.target.value }))}
-                    />
-                  </Field>
-                  <Field label={editingWorkflowId ? 'New API token (optional)' : 'API token'}>
-                    <input
-                      type="password"
-                      style={inputStyle}
-                      value={workflowForm.apiToken}
-                      onChange={(event) => setWorkflowForm((prev) => ({ ...prev, apiToken: event.target.value }))}
-                    />
-                  </Field>
-                  {workflowForm.workflow_type === 'horoscope' ? (
-                    <>
-                      <Field label="Horoscope period">
-                        <select
-                          style={inputStyle}
-                          value={workflowForm.horoscope_period}
-                          onChange={(event) =>
-                            setWorkflowForm((prev) => ({
-                              ...prev,
-                              horoscope_period: event.target.value as WorkflowFormState['horoscope_period'],
-                            }))
-                          }
-                        >
-                          <option value="Dzienny">Dzienny</option>
-                          <option value="Tygodniowy">Tygodniowy</option>
-                          <option value="Miesięczny">Miesięczny</option>
-                        </select>
-                      </Field>
-                      <Field label="Horoscope types">
-                        <input
-                          style={inputStyle}
-                          value={workflowForm.horoscope_type_values}
-                          onChange={(event) =>
-                            setWorkflowForm((prev) => ({ ...prev, horoscope_type_values: event.target.value }))
-                          }
-                        />
-                      </Field>
-                    </>
-                  ) : null}
-                  {workflowForm.workflow_type === 'article' ? (
-                    <Field label="Article category ID">
-                      <input
-                        style={inputStyle}
-                        value={workflowForm.article_category}
-                        onChange={(event) =>
-                          setWorkflowForm((prev) => ({ ...prev, article_category: event.target.value }))
-                        }
-                      />
-                    </Field>
-                  ) : null}
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <Field label="Prompt template">
-                      <textarea
-                        style={{ ...inputStyle, minHeight: 160 }}
-                        value={workflowForm.prompt_template}
-                        onChange={(event) =>
-                          setWorkflowForm((prev) => ({ ...prev, prompt_template: event.target.value }))
-                        }
-                      />
-                    </Field>
-                  </div>
-                </div>
-              )}
-
-              {workflowStep === 3 && (
-                <div style={{ display: 'grid', gap: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
-                    <Field label="Temperature">
-                      <input
-                        type="number"
-                        style={inputStyle}
-                        value={workflowForm.temperature}
-                        onChange={(event) =>
-                          setWorkflowForm((prev) => ({ ...prev, temperature: Number(event.target.value) }))
-                        }
-                      />
-                    </Field>
-                    <Field label="Max completion tokens">
-                      <input
-                        type="number"
-                        style={inputStyle}
-                        value={workflowForm.max_completion_tokens}
-                        onChange={(event) =>
-                          setWorkflowForm((prev) => ({ ...prev, max_completion_tokens: Number(event.target.value) }))
-                        }
-                      />
-                    </Field>
-                    <Field label="Retry max">
-                      <input
-                        type="number"
-                        style={inputStyle}
-                        value={workflowForm.retry_max}
-                        onChange={(event) =>
-                          setWorkflowForm((prev) => ({ ...prev, retry_max: Number(event.target.value) }))
-                        }
-                      />
-                    </Field>
-                    <Field label="Retry backoff (sec)">
-                      <input
-                        type="number"
-                        style={inputStyle}
-                        value={workflowForm.retry_backoff_seconds}
-                        onChange={(event) =>
-                          setWorkflowForm((prev) => ({ ...prev, retry_backoff_seconds: Number(event.target.value) }))
-                        }
-                      />
-                    </Field>
-                    <Field label="Daily request limit">
-                      <input
-                        type="number"
-                        style={inputStyle}
-                        value={workflowForm.daily_request_limit}
-                        onChange={(event) =>
-                          setWorkflowForm((prev) => ({ ...prev, daily_request_limit: Number(event.target.value) }))
-                        }
-                      />
-                    </Field>
-                    <Field label="Daily token limit">
-                      <input
-                        type="number"
-                        style={inputStyle}
-                        value={workflowForm.daily_token_limit}
-                        onChange={(event) =>
-                          setWorkflowForm((prev) => ({ ...prev, daily_token_limit: Number(event.target.value) }))
-                        }
-                      />
-                    </Field>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 8 }}>
-                    <label style={checkboxRowStyle}>
-                      <input
-                        type="checkbox"
-                        checked={workflowForm.auto_publish}
-                        onChange={(event) => setWorkflowForm((prev) => ({ ...prev, auto_publish: event.target.checked }))}
-                      />
-                      auto publish
-                    </label>
-                    <label style={checkboxRowStyle}>
-                      <input
-                        type="checkbox"
-                        checked={workflowForm.force_regenerate}
-                        onChange={(event) =>
-                          setWorkflowForm((prev) => ({ ...prev, force_regenerate: event.target.checked }))
-                        }
-                      />
-                      force regenerate live
-                    </label>
-                    <label style={checkboxRowStyle}>
-                      <input
-                        type="checkbox"
-                        checked={workflowForm.allow_manual_edit}
-                        onChange={(event) =>
-                          setWorkflowForm((prev) => ({ ...prev, allow_manual_edit: event.target.checked }))
-                        }
-                      />
-                      allow manual edit
-                    </label>
-                    <label style={checkboxRowStyle}>
-                      <input
-                        type="checkbox"
-                        checked={workflowForm.all_signs}
-                        onChange={(event) => setWorkflowForm((prev) => ({ ...prev, all_signs: event.target.checked }))}
-                      />
-                      all zodiac signs
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  disabled={workflowStep === 0 || saving}
-                  style={secondaryButtonStyle}
-                  onClick={() => setWorkflowStep((prev) => Math.max(0, prev - 1))}
-                >
-                  Previous
-                </button>
-                {workflowStep < WORKFLOW_STEP_LABELS.length - 1 ? (
-                  <button
-                    type="button"
-                    disabled={saving}
-                    style={primaryButtonStyle}
-                    onClick={() => setWorkflowStep((prev) => Math.min(WORKFLOW_STEP_LABELS.length - 1, prev + 1))}
-                  >
-                    Next
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void saveWorkflow();
-                    }}
-                    disabled={saving}
-                    style={primaryButtonStyle}
-                  >
-                    {editingWorkflowId ? 'Update workflow' : 'Create workflow'}
-                  </button>
-                )}
-                <button type="button" onClick={resetWorkflowForm} disabled={saving} style={secondaryButtonStyle}>
-                  Reset
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'topics' && (
-        <section style={CARD_STYLE}>
-          <h2 style={SECTION_TITLE_STYLE}>Topic Queue</h2>
-
-          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-            <Field label="Title">
-              <input
-                style={inputStyle}
-                value={topicForm.title}
-                onChange={(event) => setTopicForm((prev) => ({ ...prev, title: event.target.value }))}
-              />
-            </Field>
-            <Field label="Brief">
-              <input
-                style={inputStyle}
-                value={topicForm.brief}
-                onChange={(event) => setTopicForm((prev) => ({ ...prev, brief: event.target.value }))}
-              />
-            </Field>
-            <Field label="Workflow ID">
-              <input
-                style={inputStyle}
-                value={topicForm.workflow}
-                onChange={(event) => setTopicForm((prev) => ({ ...prev, workflow: event.target.value }))}
-                list="aico-workflow-list"
-              />
-              <datalist id="aico-workflow-list">
-                {workflowOptions.map((option) => (
-                  <option key={option.value} value={option.value} label={option.label} />
-                ))}
-              </datalist>
-            </Field>
-            <Field label="Article category ID">
-              <input
-                style={inputStyle}
-                value={topicForm.article_category}
-                onChange={(event) => setTopicForm((prev) => ({ ...prev, article_category: event.target.value }))}
-              />
-            </Field>
-            <Field label="Scheduled for (ISO datetime)">
-              <input
-                style={inputStyle}
-                value={topicForm.scheduled_for}
-                onChange={(event) => setTopicForm((prev) => ({ ...prev, scheduled_for: event.target.value }))}
-                placeholder="2026-04-29T08:00:00.000Z"
-              />
-            </Field>
-            <Field label="Image asset key (required for article workflow)">
-              <div style={{ display: 'grid', gap: 8 }}>
-                <input
-                  style={inputStyle}
-                  value={topicImageSearch}
-                  onChange={(event) => setTopicImageSearch(event.target.value)}
-                  placeholder="Szukaj po asset_key / label / nazwie pliku"
-                />
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 12, color: '#6b6b7d' }}>
-                    Wybrany klucz: <strong>{topicForm.image_asset_key || '-'}</strong>
-                  </span>
-                  {topicForm.image_asset_key ? (
-                    <button
-                      type="button"
-                      style={secondaryButtonStyle}
-                      onClick={() => setTopicForm((prev) => ({ ...prev, image_asset_key: '' }))}
-                    >
-                      Wyczyść wybór
-                    </button>
-                  ) : null}
-                </div>
+        <section style={{ ...CARD_STYLE, padding: 8, borderRadius: 12, background: '#fff' }}>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {(
+              [
+                ['dashboard', 'Dashboard'],
+                ['workflows', 'Workflows'],
+                ['topics', 'Topic Queue'],
+                ['media', 'Media Catalog'],
+                ['runs', 'Monitoring'],
+                ['social', 'Social Ops'],
+                ['audit', 'Audit'],
+                ['settings', 'Settings'],
+              ] as Array<[TabKey, string]>
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setActiveTab(key)}
+                style={{
+                  border: 'none',
+                  background: activeTab === key ? COLORS.primaryLight : 'transparent',
+                  color: activeTab === key ? COLORS.primary : COLORS.textLight,
+                  borderRadius: 10,
+                  padding: '10px 20px',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
                 <div
                   style={{
-                    border: '1px solid #e5e5f0',
-                    borderRadius: 8,
-                    padding: 8,
-                    maxHeight: 220,
-                    overflowY: 'auto',
-                    background: '#fcfcff',
-                    display: 'grid',
-                    gap: 6,
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: activeTab === key ? COLORS.primary : 'transparent',
+                    transition: 'all 0.2s',
                   }}
-                >
-                  {topicPickerAssets.length === 0 ? (
-                    <span style={{ fontSize: 12, color: '#6b6b7d' }}>
-                      Brak wyników. Dodaj mapowania w Media Catalog.
-                    </span>
-                  ) : (
-                    topicPickerAssets.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        style={{
-                          border: topicForm.image_asset_key === item.asset_key ? '1px solid #2350c4' : '1px solid #d8d8e5',
-                          borderRadius: 8,
-                          padding: 6,
-                          background: topicForm.image_asset_key === item.asset_key ? '#eef3ff' : '#fff',
-                          textAlign: 'left',
-                          display: 'grid',
-                          gap: 4,
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => {
-                          setTopicForm((prev) => ({ ...prev, image_asset_key: item.asset_key }));
-                        }}
-                      >
-                        {item.asset?.url ? (
-                          <img
-                            src={item.asset.url}
-                            alt={item.label}
-                            style={{ width: '100%', height: 56, objectFit: 'cover', borderRadius: 6, background: '#f4f4fa' }}
-                          />
-                        ) : null}
-                        <strong style={{ fontSize: 12 }}>{item.asset_key}</strong>
-                        <span style={{ fontSize: 11, color: '#666' }}>{item.label}</span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            </Field>
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            <button
-              type="button"
-              disabled={saving}
-              style={primaryButtonStyle}
-              onClick={() => {
-                void createTopic();
-              }}
-            >
-              Add topic
-            </button>
-            <span style={{ fontSize: 12, color: '#666', alignSelf: 'center' }}>
-              Typ workflow: {selectedTopicWorkflow?.workflow_type ?? '-'}
-            </span>
-          </div>
-
-          <div style={{ marginTop: 16, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
-              <thead>
-                <tr>
-                  <Th>ID</Th>
-                  <Th>Title</Th>
-                  <Th>Status</Th>
-                  <Th>Workflow</Th>
-                  <Th>Image key</Th>
-                  <Th>Scheduled</Th>
-                  <Th>Error</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {topics.map((topic) => (
-                  <tr key={topic.id}>
-                    <Td>{topic.id}</Td>
-                    <Td>{topic.title}</Td>
-                    <Td>{topic.status}</Td>
-                    <Td>{topic.workflow ?? '-'}</Td>
-                    <Td>{topic.image_asset_key ?? '-'}</Td>
-                    <Td>{topic.scheduled_for ?? '-'}</Td>
-                    <Td>{topic.error_message ?? '-'}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                />
+                {label}
+              </button>
+            ))}
           </div>
         </section>
-      )}
 
-      {activeTab === 'media' && (
-        <section style={CARD_STYLE}>
-          <h2 style={SECTION_TITLE_STYLE}>Media Catalog</h2>
-
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              disabled={saving}
-              style={secondaryButtonStyle}
-              onClick={() => {
-                void validateCoverage(false);
-              }}
-            >
-              Validate coverage
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              style={secondaryButtonStyle}
-              onClick={() => {
-                void validateCoverage(true);
-              }}
-            >
-              Validate + disable workflows
-            </button>
-            <button
-              type="button"
-              disabled={mediaLibraryLoading}
-              style={secondaryButtonStyle}
-              onClick={() => {
-                void refreshMediaGrid();
-              }}
-            >
-              Refresh grid
-            </button>
-          </div>
-
-          {coverageSummary ? (
-            <pre
+        {coreOpsState !== 'ready' ? (
+          <section
+            style={{
+              ...CARD_STYLE,
+              padding: 14,
+              border:
+                coreOpsState === 'blocked'
+                  ? '1px solid #fecaca'
+                  : coreOpsState === 'degraded'
+                    ? '1px solid #bfdbfe'
+                    : '1px solid #fde68a',
+              background:
+                coreOpsState === 'blocked'
+                  ? '#fef2f2'
+                  : coreOpsState === 'degraded'
+                    ? '#eff6ff'
+                    : '#fffbeb',
+            }}
+          >
+            <div
               style={{
-                background: '#f6f6fc',
-                border: '1px solid #e3e3ef',
-                padding: 10,
-                borderRadius: 8,
                 fontSize: 12,
-                overflowX: 'auto',
-                marginBottom: 16,
+                color:
+                  coreOpsState === 'blocked'
+                    ? '#991b1b'
+                    : coreOpsState === 'degraded'
+                      ? '#1d4ed8'
+                      : '#92400e',
               }}
             >
-              {JSON.stringify(coverageSummary, null, 2)}
-            </pre>
-          ) : null}
+              Status: <strong>{coreOpsState}</strong>.{' '}
+              {coreOpsMessage ||
+                'Część sekcji nie załadowała się poprawnie. Sprawdź integracje i uprawnienia.'}
+            </div>
+          </section>
+        ) : null}
 
-          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 12 }}>
-            <Field label="Search">
-              <input
-                style={inputStyle}
-                value={mediaFilters.search}
-                onChange={(event) =>
-                  setMediaFilters((prev) => ({ ...prev, search: event.target.value }))
-                }
-                placeholder="name / key / label"
-              />
-            </Field>
-            <Field label="Mapped">
-              <select
-                style={inputStyle}
-                value={mediaFilters.mapped}
-                onChange={(event) =>
-                  setMediaFilters((prev) => ({
-                    ...prev,
-                    mapped: event.target.value as MediaFiltersState['mapped'],
-                  }))
-                }
+        {activeTab === 'dashboard' && (
+          <div style={{ display: 'grid', gap: 24 }}>
+            <section style={CARD_STYLE}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 24,
+                }}
               >
-                <option value="all">all</option>
-                <option value="mapped">mapped</option>
-                <option value="unmapped">unmapped</option>
-              </select>
-            </Field>
-            <Field label="Purpose">
-              <select
-                style={inputStyle}
-                value={mediaFilters.purpose}
-                onChange={(event) =>
-                  setMediaFilters((prev) => ({
-                    ...prev,
-                    purpose: event.target.value as MediaFiltersState['purpose'],
-                  }))
-                }
+                <h2 style={{ ...SECTION_TITLE_STYLE, marginBottom: 0 }}>Centrum Dowodzenia</h2>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '4px 12px',
+                    background: diagnostics?.ok ? '#f0fdf4' : '#fff7ed',
+                    borderRadius: 20,
+                    border: `1px solid ${diagnostics?.ok ? '#dcfce7' : '#ffedd5'}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: diagnostics?.ok ? COLORS.secondary : COLORS.warning,
+                      boxShadow: `0 0 8px ${diagnostics?.ok ? COLORS.secondary : COLORS.warning}`,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: diagnostics?.ok ? '#166534' : '#9a3412',
+                    }}
+                  >
+                    {diagnostics?.ok ? 'SYSTEM GOTOWY' : 'WYMAGA UWAGI'}
+                  </span>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: 20,
+                }}
               >
-                <option value="all">all</option>
-                <option value="blog_article">blog_article</option>
-                <option value="daily_card">daily_card</option>
-                <option value="horoscope_sign">horoscope_sign</option>
-                <option value="fallback_general">fallback_general</option>
-              </select>
-            </Field>
-            <Field label="Sign">
-              <select
-                style={inputStyle}
-                value={mediaFilters.sign}
-                onChange={(event) => setMediaFilters((prev) => ({ ...prev, sign: event.target.value }))}
+                <StatTile
+                  label="Aktywne Workflows"
+                  value={`${summary?.workflows.enabled ?? 0} / ${summary?.workflows.total ?? 0}`}
+                />
+                <StatTile label="Oczekujące Tematy" value={summary?.topics.pending ?? 0} />
+                <StatTile
+                  label="Zaplanowane Publikacje"
+                  value={summary?.publications.scheduled ?? 0}
+                />
+                <StatTile label="Błędy Wykonań (Total)" value={summary?.runs.failed ?? 0} />
+                <StatTile
+                  label="Social Media"
+                  value={`${summary?.social?.published ?? 0} ok / ${summary?.social?.scheduled ?? 0} zaplan.`}
+                  subValue={summary?.social?.failed ? `${summary.social.failed} błędów` : undefined}
+                  color={summary?.social?.failed ? COLORS.danger : undefined}
+                />
+              </div>
+            </section>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+              <section style={CARD_STYLE}>
+                <h3 style={{ ...SECTION_TITLE_STYLE, fontSize: 16 }}>Status Zasobów</h3>
+                <div style={{ display: 'grid', gap: 16 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      background: '#f8fafc',
+                      borderRadius: 12,
+                    }}
+                  >
+                    <span style={{ fontSize: 14, color: COLORS.textLight }}>
+                      Media aktywne / Razem
+                    </span>
+                    <strong style={{ fontSize: 14, color: COLORS.text }}>
+                      {diagnostics?.media.linkedActive ?? 0} / {diagnostics?.media.total ?? 0}
+                    </strong>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      background: '#f8fafc',
+                      borderRadius: 12,
+                    }}
+                  >
+                    <span style={{ fontSize: 14, color: COLORS.textLight }}>
+                      Nieprzypisane tematy
+                    </span>
+                    <strong
+                      style={{
+                        fontSize: 14,
+                        color: diagnostics?.topics.unassignedPending
+                          ? COLORS.warning
+                          : COLORS.secondary,
+                      }}
+                    >
+                      {diagnostics?.topics.unassignedPending ?? 0}
+                    </strong>
+                  </div>
+                </div>
+              </section>
+
+              <section style={CARD_STYLE}>
+                <h3 style={{ ...SECTION_TITLE_STYLE, fontSize: 16 }}>Ostatnie Problemy</h3>
+                {diagnostics?.workflows.issues.length ? (
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {diagnostics.workflows.issues.slice(0, 4).map((issue) => (
+                      <div
+                        key={`${issue.workflowId}-${issue.message}`}
+                        style={{
+                          padding: '10px 12px',
+                          background: '#fef2f2',
+                          border: '1px solid #fee2e2',
+                          borderRadius: 10,
+                          fontSize: 13,
+                          color: '#991b1b',
+                          display: 'flex',
+                          gap: 10,
+                        }}
+                      >
+                        <span style={{ fontWeight: 700 }}>#{issue.workflowId}</span>
+                        <span>{issue.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: '20px',
+                      textAlign: 'center',
+                      color: COLORS.secondary,
+                      fontWeight: 600,
+                    }}
+                  >
+                    ✅ Wszystkie systemy sprawne
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'workflows' && (
+          <section style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
+            <div
+              style={{
+                padding: '24px 28px',
+                borderBottom: `1px solid ${COLORS.border}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: '#fcfcfd',
+              }}
+            >
+              <div>
+                <h2 style={{ ...SECTION_TITLE_STYLE, marginBottom: 4 }}>Zarządzanie Workflow</h2>
+                <p style={{ fontSize: 13, color: COLORS.textLight, margin: 0 }}>
+                  Konfiguruj automatyczne generowanie horoskopów, kart i artykułów.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingWorkflowId(null);
+                  setWorkflowForm(initialWorkflowForm());
+                  setWorkflowStep(0);
+                  setShowWorkflowModal(true);
+                }}
+                style={primaryButtonStyle}
               >
-                {signOptions.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Active">
-              <select
-                style={inputStyle}
-                value={mediaFilters.active}
-                onChange={(event) =>
-                  setMediaFilters((prev) => ({
-                    ...prev,
-                    active: event.target.value as MediaFiltersState['active'],
-                  }))
-                }
+                + Nowy Workflow
+              </button>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <Th>ID</Th>
+                    <Th>Nazwa</Th>
+                    <Th>Typ</Th>
+                    <Th>Status</Th>
+                    <Th>Aktywny</Th>
+                    <Th>Harmonogram</Th>
+                    <Th>Ostatni Błąd</Th>
+                    <Th style={{ textAlign: 'right' }}>Akcje</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workflows.map((workflow) => (
+                    <tr key={workflow.id} style={{ transition: 'background 0.2s' }}>
+                      <Td>
+                        <span style={{ color: COLORS.textLight, fontWeight: 700 }}>
+                          #{workflow.id}
+                        </span>
+                      </Td>
+                      <Td>
+                        <strong style={{ color: COLORS.text }}>{workflow.name}</strong>
+                      </Td>
+                      <Td>
+                        <span
+                          style={{
+                            fontSize: 12,
+                            padding: '2px 8px',
+                            background: '#f1f5f9',
+                            borderRadius: 6,
+                            color: '#475569',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {workflow.workflow_type}
+                        </span>
+                      </Td>
+                      <Td>
+                        <StatusPill status={workflow.status} />
+                      </Td>
+                      <Td>
+                        <div
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            background: workflow.enabled ? COLORS.secondary : '#cbd5e1',
+                            margin: '0 auto',
+                          }}
+                        />
+                      </Td>
+                      <Td>
+                        <div style={{ fontSize: 12, color: COLORS.textLight }}>
+                          Gen: {workflow.generate_cron}
+                          <br />
+                          Pub: {workflow.publish_cron}
+                        </div>
+                      </Td>
+                      <Td>
+                        {workflow.last_error ? (
+                          <span
+                            style={{
+                              color: COLORS.danger,
+                              fontSize: 12,
+                              display: 'block',
+                              maxWidth: 200,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {workflow.last_error}
+                          </span>
+                        ) : (
+                          '-'
+                        )}
+                      </Td>
+                      <Td>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onPickWorkflowToEdit(workflow);
+                              setShowWorkflowModal(true);
+                            }}
+                            style={{
+                              border: `1px solid ${COLORS.border}`,
+                              background: '#fff',
+                              borderRadius: 8,
+                              padding: '6px 12px',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Edytuj
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void runNow(workflow.id)}
+                            disabled={
+                              saving ||
+                              runningWorkflowIds.includes(workflow.id) ||
+                              workflow.status === 'running'
+                            }
+                            style={{
+                              background: COLORS.primaryLight,
+                              color: COLORS.primary,
+                              border: 'none',
+                              borderRadius: 8,
+                              padding: '6px 12px',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              opacity:
+                                runningWorkflowIds.includes(workflow.id) ||
+                                workflow.status === 'running'
+                                  ? 0.5
+                                  : 1,
+                            }}
+                          >
+                            {runningWorkflowIds.includes(workflow.id) ||
+                            workflow.status === 'running'
+                              ? 'W toku...'
+                              : 'Uruchom'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRunFilters((prev) => ({ ...prev, workflowName: workflow.name }));
+                              setActiveTab('runs');
+                            }}
+                            style={{
+                              border: `1px solid ${COLORS.border}`,
+                              background: '#fff',
+                              borderRadius: 8,
+                              padding: '6px 12px',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Logi
+                          </button>
+                        </div>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {workflows.length === 0 && (
+                <div style={{ padding: 40, textAlign: 'center', color: COLORS.textLight }}>
+                  Brak zdefiniowanych workflow. Kliknij "+ Nowy Workflow", aby zacząć.
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'topics' && (
+          <section style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
+            <div
+              style={{
+                padding: '24px 28px',
+                borderBottom: `1px solid ${COLORS.border}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: '#fcfcfd',
+              }}
+            >
+              <div>
+                <h2 style={{ ...SECTION_TITLE_STYLE, marginBottom: 4 }}>Kolejka Tematów</h2>
+                <p style={{ fontSize: 13, color: COLORS.textLight, margin: 0 }}>
+                  Zarządzaj ręcznymi tematami i planuj generowanie treści.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setTopicForm(initialTopicForm());
+                  setShowTopicModal(true);
+                }}
+                style={primaryButtonStyle}
               >
-                <option value="all">all</option>
-                <option value="active">active</option>
-                <option value="inactive">inactive</option>
-              </select>
-            </Field>
-            <Field label="Sort">
-              <select
-                style={inputStyle}
-                onChange={(event) =>
-                  setMediaFilters((prev) => ({ ...prev, sort: event.target.value as MediaFiltersState['sort'] }))
-                }
-                value={mediaFilters.sort}
+                + Nowy Temat
+              </button>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <Th>ID</Th>
+                    <Th>Tytuł / Brief</Th>
+                    <Th>Workflow</Th>
+                    <Th>Status</Th>
+                    <Th>Planowany</Th>
+                    <Th>Grafika</Th>
+                    <Th style={{ textAlign: 'right' }}>Akcje</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topics.map((topic) => (
+                    <tr key={topic.id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                      <Td>
+                        <span style={{ color: COLORS.textLight, fontWeight: 700 }}>
+                          #{topic.id}
+                        </span>
+                      </Td>
+                      <Td>
+                        <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>
+                          {topic.title}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: COLORS.textLight,
+                            maxWidth: 300,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {topic.brief}
+                        </div>
+                      </Td>
+                      <Td>
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>
+                          {getTopicWorkflowName(topic, workflows)}
+                        </span>
+                      </Td>
+                      <Td>
+                        <StatusPill status={topic.status} />
+                      </Td>
+                      <Td>
+                        <div style={{ fontSize: 11, color: COLORS.textLight }}>
+                          {topic.scheduled_for ? formatDateTime(topic.scheduled_for) : '-'}
+                        </div>
+                      </Td>
+                      <Td>
+                        {topic.image_asset_key ? (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              padding: '2px 6px',
+                              background: '#eef2ff',
+                              borderRadius: 4,
+                              color: COLORS.primary,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {topic.image_asset_key}
+                          </span>
+                        ) : (
+                          '-'
+                        )}
+                      </Td>
+                      <Td>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            onClick={() => void deleteTopic(topic.id)}
+                            style={{
+                              border: `1px solid ${COLORS.border}`,
+                              background: '#fff',
+                              borderRadius: 8,
+                              padding: '6px 12px',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: COLORS.danger,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Usuń
+                          </button>
+                        </div>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {topics.length === 0 && (
+                <div style={{ padding: 40, textAlign: 'center', color: COLORS.textLight }}>
+                  Brak tematów w kolejce.
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'media' && (
+          <div style={{ display: 'grid', gap: 24 }}>
+            <section style={CARD_STYLE}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 24,
+                }}
               >
-                <option value="createdAtDesc">createdAt desc</option>
-                <option value="createdAtAsc">createdAt asc</option>
-                <option value="nameAsc">name asc</option>
-                <option value="nameDesc">name desc</option>
-              </select>
-            </Field>
-            <div style={{ display: 'flex', alignItems: 'end' }}>
+                <h2 style={{ ...SECTION_TITLE_STYLE, marginBottom: 0 }}>Katalog Mediów</h2>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    style={secondaryButtonStyle}
+                    onClick={() => void validateCoverage(false)}
+                  >
+                    Waliduj pokrycie
+                  </button>
+                  <button
+                    type="button"
+                    disabled={mediaLibraryLoading}
+                    style={primaryButtonStyle}
+                    onClick={() => void refreshMediaGrid()}
+                  >
+                    Odśwież siatkę
+                  </button>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: 16,
+                  background: '#f8fafc',
+                  padding: 20,
+                  borderRadius: 12,
+                  border: `1px solid ${COLORS.border}`,
+                  marginBottom: 24,
+                }}
+              >
+                <Field label="Szukaj">
+                  <input
+                    style={inputStyle}
+                    value={mediaFilters.search}
+                    onChange={(event) =>
+                      setMediaFilters((prev) => ({ ...prev, search: event.target.value }))
+                    }
+                    placeholder="Nazwa / Klucz / Etykieta"
+                  />
+                </Field>
+                <Field label="Mapowanie">
+                  <select
+                    style={inputStyle}
+                    value={mediaFilters.mapped}
+                    onChange={(event) =>
+                      setMediaFilters((prev) => ({ ...prev, mapped: event.target.value as any }))
+                    }
+                  >
+                    <option value="all">Wszystkie</option>
+                    <option value="mapped">Zmapowane</option>
+                    <option value="unmapped">Niezmapowane</option>
+                  </select>
+                </Field>
+                <Field label="Przeznaczenie">
+                  <select
+                    style={inputStyle}
+                    value={mediaFilters.purpose}
+                    onChange={(event) =>
+                      setMediaFilters((prev) => ({ ...prev, purpose: event.target.value as any }))
+                    }
+                  >
+                    <option value="all">Wszystkie</option>
+                    <option value="blog_article">Artykuł</option>
+                    <option value="daily_card">Karta dnia</option>
+                    <option value="horoscope_sign">Znak zodiaku</option>
+                    <option value="fallback_general">Ogólne</option>
+                  </select>
+                </Field>
+                <Field label="Znak zodiaku">
+                  <select
+                    style={inputStyle}
+                    value={mediaFilters.sign}
+                    onChange={(event) =>
+                      setMediaFilters((prev) => ({ ...prev, sign: event.target.value }))
+                    }
+                  >
+                    {signOptions.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <div style={{ display: 'flex', alignItems: 'end' }}>
+                  <button
+                    type="button"
+                    style={{ ...primaryButtonStyle, width: '100%', padding: '12px' }}
+                    onClick={() => void loadMediaLibrary({ page: 1 })}
+                    disabled={mediaLibraryLoading}
+                  >
+                    Filtruj
+                  </button>
+                </div>
+              </div>
+
+              {mediaLibrary.length === 0 && !mediaLibraryLoading ? (
+                <div
+                  style={{
+                    padding: 40,
+                    textAlign: 'center',
+                    background: '#f8fafc',
+                    borderRadius: 12,
+                    border: `1px dashed ${COLORS.border}`,
+                  }}
+                >
+                  <div style={{ fontSize: 40, marginBottom: 16 }}>🖼️</div>
+                  <h3 style={{ fontWeight: 700, color: COLORS.text }}>Brak plików w bibliotece</h3>
+                  <p style={{ color: COLORS.textLight, fontSize: 14, marginTop: 8 }}>
+                    Dodaj obrazy w panelu Media Library, a następnie wróć tutaj i kliknij "Odśwież
+                    siatkę".
+                  </p>
+                  <a
+                    href="/admin/plugins/upload"
+                    style={{
+                      display: 'inline-block',
+                      marginTop: 16,
+                      color: COLORS.primary,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Idź do Media Library →
+                  </a>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <span style={{ fontSize: 13, color: COLORS.textLight }}>
+                        Znaleziono: <strong>{mediaLibraryPagination.total}</strong> plików
+                      </span>
+                      {bulkSelectedFileIds.length > 0 && (
+                        <span
+                          style={{
+                            fontSize: 12,
+                            background: COLORS.primaryLight,
+                            color: COLORS.primary,
+                            padding: '4px 12px',
+                            borderRadius: 20,
+                            fontWeight: 700,
+                          }}
+                        >
+                          Zaznaczono: {bulkSelectedFileIds.length}
+                        </span>
+                      )}
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                        gap: 12,
+                        maxHeight: 600,
+                        overflowY: 'auto',
+                        paddingRight: 8,
+                      }}
+                    >
+                      {mediaLibrary.map((item) => {
+                        const isSelected = selectedMediaFileId === item.id;
+                        const isBulkSelected = bulkSelectedFileIds.includes(item.id);
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => pickMediaFile(item)}
+                            style={{
+                              border: isSelected
+                                ? `2px solid ${COLORS.primary}`
+                                : `1px solid ${COLORS.border}`,
+                              borderRadius: 12,
+                              padding: 8,
+                              background: isSelected ? COLORS.primaryLight : '#fff',
+                              cursor: 'pointer',
+                              position: 'relative',
+                              transition: 'all 0.2s',
+                            }}
+                          >
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: 12,
+                                left: 12,
+                                zIndex: 1,
+                                background: '#fff',
+                                borderRadius: 4,
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isBulkSelected}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={() => toggleBulkSelection(item.id)}
+                                style={{ width: 16, height: 16 }}
+                              />
+                            </div>
+                            {item.url ? (
+                              <img
+                                src={item.url}
+                                alt=""
+                                style={{
+                                  width: '100%',
+                                  height: 100,
+                                  objectFit: 'cover',
+                                  borderRadius: 8,
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: '100%',
+                                  height: 100,
+                                  background: '#f1f5f9',
+                                  borderRadius: 8,
+                                }}
+                              />
+                            )}
+                            <div style={{ marginTop: 8 }}>
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  color: COLORS.text,
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {item.name}
+                              </div>
+                              <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                                <span
+                                  style={{
+                                    fontSize: 9,
+                                    background: item.mapping ? '#dcfce7' : '#f1f5f9',
+                                    color: item.mapping ? '#16a34a' : '#475569',
+                                    padding: '2px 6px',
+                                    borderRadius: 4,
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {item.mapping ? 'MAPPED' : 'NEW'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 12 }}>
+                      <button
+                        type="button"
+                        style={secondaryButtonStyle}
+                        disabled={mediaLibraryPagination.page <= 1 || mediaLibraryLoading}
+                        onClick={() => void goToMediaPage(mediaLibraryPagination.page - 1)}
+                      >
+                        ← Poprzednia
+                      </button>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>
+                        {mediaLibraryPagination.page} / {mediaLibraryPagination.pageCount}
+                      </span>
+                      <button
+                        type="button"
+                        style={secondaryButtonStyle}
+                        disabled={
+                          mediaLibraryPagination.page >= mediaLibraryPagination.pageCount ||
+                          mediaLibraryLoading
+                        }
+                        onClick={() => void goToMediaPage(mediaLibraryPagination.page + 1)}
+                      >
+                        Następna →
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ borderLeft: `1px solid ${COLORS.border}`, paddingLeft: 24 }}>
+                    {selectedMediaFile ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                        <div
+                          style={{
+                            background: '#f8fafc',
+                            padding: 16,
+                            borderRadius: 12,
+                            border: `1px solid ${COLORS.border}`,
+                          }}
+                        >
+                          <h3
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: COLORS.text,
+                              marginBottom: 12,
+                            }}
+                          >
+                            Wybrany plik
+                          </h3>
+                          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                            {selectedMediaFile.url ? (
+                              <img
+                                src={selectedMediaFile.url}
+                                alt=""
+                                style={{
+                                  width: 80,
+                                  height: 80,
+                                  objectFit: 'cover',
+                                  borderRadius: 8,
+                                  border: `1px solid ${COLORS.border}`,
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: 80,
+                                  height: 80,
+                                  background: '#f1f5f9',
+                                  borderRadius: 8,
+                                }}
+                              />
+                            )}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.text }}>
+                                {selectedMediaFile.name}
+                              </div>
+                              <div style={{ fontSize: 11, color: COLORS.textLight, marginTop: 4 }}>
+                                ID: #{selectedMediaFile.id}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gap: 16 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <Field label="Asset Key">
+                              <input
+                                style={{
+                                  ...inputStyle,
+                                  background: '#f8fafc',
+                                  cursor: 'not-allowed',
+                                }}
+                                value={generatedMediaIdentity.asset_key}
+                                readOnly
+                              />
+                            </Field>
+                            <Field label="Etykieta">
+                              <input
+                                style={{
+                                  ...inputStyle,
+                                  background: '#f8fafc',
+                                  cursor: 'not-allowed',
+                                }}
+                                value={generatedMediaIdentity.label}
+                                readOnly
+                              />
+                            </Field>
+                          </div>
+
+                          <Field label="Przeznaczenie (Purpose)">
+                            <select
+                              style={inputStyle}
+                              value={mediaAssetForm.purpose}
+                              onChange={(event) => {
+                                const purpose = event.target.value as any;
+                                const fallbackSign =
+                                  purpose === 'horoscope_sign'
+                                    ? mediaAssetForm.sign_slug.trim() ||
+                                      selectedMediaFile.mapping?.sign_slug?.trim() ||
+                                      selectedMediaFile.suggestion.sign_slug ||
+                                      ''
+                                    : mediaAssetForm.sign_slug;
+                                setMediaAssetForm((prev) => ({
+                                  ...prev,
+                                  purpose,
+                                  sign_slug: fallbackSign,
+                                }));
+                              }}
+                            >
+                              <option value="blog_article">Artykuł blogowy</option>
+                              <option value="daily_card">Karta dnia</option>
+                              <option value="horoscope_sign">Znak zodiaku</option>
+                              <option value="fallback_general">Ogólny fallback</option>
+                            </select>
+                          </Field>
+
+                          {mediaAssetForm.purpose === 'horoscope_sign' && (
+                            <Field label="Znak zodiaku">
+                              <select
+                                style={inputStyle}
+                                value={mediaAssetForm.sign_slug}
+                                onChange={(event) =>
+                                  setMediaAssetForm((prev) => ({
+                                    ...prev,
+                                    sign_slug: event.target.value,
+                                  }))
+                                }
+                              >
+                                <option value="">Wybierz znak...</option>
+                                {signOptions
+                                  .filter((s) => s !== 'all')
+                                  .map((item) => (
+                                    <option key={item} value={item.toLowerCase()}>
+                                      {item}
+                                    </option>
+                                  ))}
+                              </select>
+                            </Field>
+                          )}
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <Field label="Zasięg czasowy">
+                              <select
+                                style={inputStyle}
+                                value={mediaAssetForm.period_scope}
+                                onChange={(event) =>
+                                  setMediaAssetForm((prev) => ({
+                                    ...prev,
+                                    period_scope: event.target.value as any,
+                                  }))
+                                }
+                              >
+                                <option value="any">Dowolny</option>
+                                <option value="daily">Dzienny</option>
+                                <option value="weekly">Tygodniowy</option>
+                                <option value="monthly">Miesięczny</option>
+                              </select>
+                            </Field>
+                            <Field label="Priorytet">
+                              <input
+                                type="number"
+                                style={inputStyle}
+                                value={mediaAssetForm.priority}
+                                onChange={(event) =>
+                                  setMediaAssetForm((prev) => ({
+                                    ...prev,
+                                    priority: Number(event.target.value),
+                                  }))
+                                }
+                              />
+                            </Field>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                            <button
+                              type="button"
+                              style={{ ...primaryButtonStyle, flex: 1 }}
+                              disabled={saving}
+                              onClick={() => void saveMediaMapping()}
+                            >
+                              {saving ? 'Zapisywanie...' : 'Zapisz mapowanie'}
+                            </button>
+                            {selectedMediaFile.mapping && (
+                              <button
+                                type="button"
+                                style={{
+                                  ...secondaryButtonStyle,
+                                  color: COLORS.danger,
+                                  borderColor: COLORS.danger,
+                                }}
+                                disabled={saving}
+                                onClick={() =>
+                                  void deleteMediaMapping(selectedMediaFile.mapping!.id)
+                                }
+                              >
+                                Usuń
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          height: '100%',
+                          color: COLORS.textLight,
+                          textAlign: 'center',
+                          padding: 40,
+                        }}
+                      >
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>👈</div>
+                        <h3 style={{ fontWeight: 600 }}>Wybierz plik</h3>
+                        <p style={{ fontSize: 13, marginTop: 8 }}>
+                          Kliknij w kafel po lewej stronie, aby edytować mapowanie.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section style={CARD_STYLE}>
+              <h2 style={SECTION_TITLE_STYLE}>Operacje Masowe (Bulk)</h2>
+              <div
+                style={{
+                  background: '#f8fafc',
+                  padding: 20,
+                  borderRadius: 12,
+                  border: `1px solid ${COLORS.border}`,
+                }}
+              >
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    style={secondaryButtonStyle}
+                    disabled={saving || bulkSelectedFileIds.length === 0}
+                    onClick={() => void previewBulkMapping()}
+                  >
+                    Podgląd zmian ({bulkSelectedFileIds.length})
+                  </button>
+                  <button
+                    type="button"
+                    style={primaryButtonStyle}
+                    disabled={saving || bulkSelectedFileIds.length === 0}
+                    onClick={() => void applyBulkMapping()}
+                  >
+                    Zastosuj mapowanie masowe
+                  </button>
+                </div>
+
+                {bulkPreview && (
+                  <div style={{ marginTop: 20 }}>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
+                        gap: 12,
+                        marginBottom: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          background: '#fff',
+                          padding: 12,
+                          borderRadius: 8,
+                          border: `1px solid ${COLORS.border}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: COLORS.textLight,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Suma
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 800 }}>
+                          {bulkPreview.summary.total}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          background: '#fff',
+                          padding: 12,
+                          borderRadius: 8,
+                          border: `1px solid ${COLORS.border}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: COLORS.textLight,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Nowe
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.secondary }}>
+                          {bulkPreview.summary.previewCreate}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          background: '#fff',
+                          padding: 12,
+                          borderRadius: 8,
+                          border: `1px solid ${COLORS.border}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: COLORS.textLight,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Błędy
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.danger }}>
+                          {bulkPreview.summary.errors}
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        maxHeight: 300,
+                        overflowY: 'auto',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr
+                            style={{
+                              background: '#f1f5f9',
+                              borderBottom: `1px solid ${COLORS.border}`,
+                            }}
+                          >
+                            <Th>Plik</Th>
+                            <Th>Akcja</Th>
+                            <Th>Klucz</Th>
+                            <Th>Status</Th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bulkPreview.items.map((row: any, i: number) => (
+                            <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                              <Td>#{row.fileId}</Td>
+                              <Td>{row.action}</Td>
+                              <Td>{row.asset_key}</Td>
+                              <Td>{row.status}</Td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section style={CARD_STYLE}>
+              <h2 style={SECTION_TITLE_STYLE}>Ostatnie użycie mediów</h2>
+              <div
+                style={{
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                }}
+              >
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr
+                      style={{ background: '#f8fafc', borderBottom: `1px solid ${COLORS.border}` }}
+                    >
+                      <Th>Zasób</Th>
+                      <Th>Workflow</Th>
+                      <Th>Treść</Th>
+                      <Th>Kontekst</Th>
+                      <Th>Data</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mediaUsage.length === 0 ? (
+                      <tr>
+                        <Td
+                          colSpan={5}
+                          style={{ textAlign: 'center', padding: 24, color: COLORS.textLight }}
+                        >
+                          Brak danych o użyciu mediów.
+                        </Td>
+                      </tr>
+                    ) : (
+                      mediaUsage.map((item) => (
+                        <tr key={item.id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                          <Td>
+                            <strong style={{ color: COLORS.text }}>{item.media_asset}</strong>
+                          </Td>
+                          <Td>{item.workflow}</Td>
+                          <Td>
+                            {item.content_uid} (#{item.content_entry_id})
+                          </Td>
+                          <Td>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                background: '#f1f5f9',
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                              }}
+                            >
+                              {item.context_key}
+                            </span>
+                          </Td>
+                          <Td style={{ color: COLORS.textLight }}>
+                            {new Date(item.used_at).toLocaleString()}
+                          </Td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeTab === 'runs' && (
+          <section style={CARD_STYLE}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <div>
+                <h2 style={{ ...SECTION_TITLE_STYLE, marginBottom: 4 }}>Monitoring Operacyjny</h2>
+                <p style={{ margin: 0, fontSize: 12, color: '#666' }}>
+                  Historia wykonań, analiza AI i diagnostyka błędów w czasie rzeczywistym.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <StatTile label="Aktywne" value={liveRunCount} />
+                <StatTile
+                  label="Ostatnie 24h"
+                  value={
+                    runs.filter((r) => new Date(r.started_at) > new Date(Date.now() - 86400000))
+                      .length
+                  }
+                />
+                <StatTile
+                  label="Błędy (24h)"
+                  value={
+                    runs.filter(
+                      (r) =>
+                        r.status === 'failed' &&
+                        new Date(r.started_at) > new Date(Date.now() - 86400000)
+                    ).length
+                  }
+                />
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: 10,
+                marginBottom: 14,
+              }}
+            >
+              <Field label="Status">
+                <select
+                  style={inputStyle}
+                  value={runFilters.status}
+                  onChange={(event) =>
+                    setRunFilters((prev) => ({
+                      ...prev,
+                      status: event.target.value as RunFiltersState['status'],
+                    }))
+                  }
+                >
+                  <option value="all">all</option>
+                  <option value="running">running</option>
+                  <option value="success">success</option>
+                  <option value="failed">failed</option>
+                  <option value="blocked_budget">blocked_budget</option>
+                </select>
+              </Field>
+              <Field label="Workflow name">
+                <input
+                  style={inputStyle}
+                  value={runFilters.workflowName}
+                  onChange={(event) =>
+                    setRunFilters((prev) => ({ ...prev, workflowName: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="From">
+                <input
+                  type="date"
+                  style={inputStyle}
+                  value={runFilters.fromDate}
+                  onChange={(event) =>
+                    setRunFilters((prev) => ({ ...prev, fromDate: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="To">
+                <input
+                  type="date"
+                  style={inputStyle}
+                  value={runFilters.toDate}
+                  onChange={(event) =>
+                    setRunFilters((prev) => ({ ...prev, toDate: event.target.value }))
+                  }
+                />
+              </Field>
+              <div style={{ display: 'flex', alignItems: 'end', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  style={secondaryButtonStyle}
+                  onClick={() => setRunFilters(initialRunFilters())}
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  style={primaryButtonStyle}
+                  onClick={() => {
+                    void refreshMonitoringData(true);
+                  }}
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 980 }}>
+                <thead>
+                  <tr>
+                    <Th />
+                    <Th>ID</Th>
+                    <Th>Workflow</Th>
+                    <Th>Type</Th>
+                    <Th>Status</Th>
+                    <Th>Started</Th>
+                    <Th>Duration</Th>
+                    <Th>Result</Th>
+                    <Th>Action</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRuns.map((run) => {
+                    const isExpanded = expandedRunIds.includes(run.id);
+                    const steps = getRunSteps(run);
+                    const llmTraces = getRunLlmTraces(run);
+                    return (
+                      <Fragment key={run.id}>
+                        <tr
+                          style={{
+                            transition: 'background 0.2s',
+                            borderBottom: `1px solid ${COLORS.border}`,
+                          }}
+                        >
+                          <Td>
+                            <button
+                              type="button"
+                              onClick={() => toggleRunDetails(run.id)}
+                              style={{
+                                border: `1px solid ${COLORS.border}`,
+                                background: '#fff',
+                                borderRadius: 8,
+                                width: 28,
+                                height: 28,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                fontWeight: 800,
+                                color: COLORS.primary,
+                              }}
+                              aria-expanded={isExpanded}
+                            >
+                              {isExpanded ? '−' : '+'}
+                            </button>
+                          </Td>
+                          <Td>
+                            <span style={{ color: COLORS.textLight, fontWeight: 700 }}>
+                              #{run.id}
+                            </span>
+                          </Td>
+                          <Td>
+                            <strong style={{ color: COLORS.text }}>
+                              {getRunWorkflowName(run, workflows)}
+                            </strong>
+                          </Td>
+                          <Td>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: '2px 6px',
+                                background: '#f1f5f9',
+                                borderRadius: 4,
+                                color: '#475569',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {run.run_type}
+                            </span>
+                          </Td>
+                          <Td>
+                            <StatusPill status={run.status} />
+                          </Td>
+                          <Td>
+                            <div style={{ fontSize: 12, color: COLORS.text }}>
+                              {formatDateTime(run.started_at)}
+                            </div>
+                          </Td>
+                          <Td>
+                            <div style={{ fontSize: 12, color: COLORS.textLight, fontWeight: 600 }}>
+                              {formatDuration(run.started_at, run.finished_at)}
+                            </div>
+                          </Td>
+                          <Td>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: COLORS.text,
+                                maxWidth: 200,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {getRunResultSummary(run)}
+                            </div>
+                          </Td>
+                          <Td>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                              <button
+                                type="button"
+                                disabled={saving || run.status === 'running'}
+                                onClick={() => void retryRun(run.id)}
+                                style={{
+                                  border: `1px solid ${COLORS.border}`,
+                                  background: '#fff',
+                                  borderRadius: 8,
+                                  padding: '6px 12px',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  opacity: saving || run.status === 'running' ? 0.5 : 1,
+                                }}
+                              >
+                                Ponów
+                              </button>
+                            </div>
+                          </Td>
+                        </tr>
+                        {isExpanded ? (
+                          <tr>
+                            <td
+                              colSpan={9}
+                              style={{
+                                padding: 12,
+                                borderBottom: '1px solid #e8eaf3',
+                                background: '#fbfcff',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                                  gap: 12,
+                                }}
+                              >
+                                <div style={{ overflowX: 'auto' }}>
+                                  <strong style={{ fontSize: 13 }}>Steps</strong>
+                                  <table
+                                    style={{
+                                      width: '100%',
+                                      borderCollapse: 'collapse',
+                                      marginTop: 8,
+                                      minWidth: 560,
+                                    }}
+                                  >
+                                    <thead>
+                                      <tr>
+                                        <Th>Status</Th>
+                                        <Th>Step</Th>
+                                        <Th>Message</Th>
+                                        <Th>Output</Th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {steps.map((step) => (
+                                        <tr key={step.id}>
+                                          <Td>
+                                            <StatusPill status={step.status} />
+                                          </Td>
+                                          <Td>{step.label}</Td>
+                                          <Td>{step.message || '-'}</Td>
+                                          <Td>
+                                            <code style={{ whiteSpace: 'pre-wrap', fontSize: 11 }}>
+                                              {formatDetailValue(step.output)}
+                                            </code>
+                                          </Td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                <div>
+                                  <strong style={{ fontSize: 13 }}>Details</strong>
+                                  <div
+                                    style={{
+                                      display: 'grid',
+                                      gap: 6,
+                                      fontSize: 12,
+                                      color: '#3a3d4f',
+                                      marginTop: 8,
+                                      marginBottom: 8,
+                                    }}
+                                  >
+                                    <span>Started: {formatDateTime(run.started_at)}</span>
+                                    <span>Finished: {formatDateTime(run.finished_at)}</span>
+                                    <span>Prompt tokens: {run.usage_prompt_tokens ?? 0}</span>
+                                    <span>
+                                      Completion tokens: {run.usage_completion_tokens ?? 0}
+                                    </span>
+                                    <span>Total tokens: {run.usage_total_tokens ?? 0}</span>
+                                  </div>
+
+                                  <ErrorInsight error={run.error_message} details={run.details} />
+                                  <AutonomousIntelligence run={run} />
+
+                                  <div style={{ marginTop: 16 }}>
+                                    <strong style={{ fontSize: 13 }}>LLM trace</strong>
+                                  </div>
+                                  {llmTraces.length === 0 ? (
+                                    <div
+                                      style={{
+                                        marginTop: 8,
+                                        marginBottom: 10,
+                                        color: '#606477',
+                                        fontSize: 12,
+                                      }}
+                                    >
+                                      Brak zapisanego promptu/odpowiedzi dla tego runa.
+                                    </div>
+                                  ) : (
+                                    <div
+                                      style={{
+                                        display: 'grid',
+                                        gap: 10,
+                                        marginTop: 8,
+                                        marginBottom: 10,
+                                      }}
+                                    >
+                                      {llmTraces.map((trace) => (
+                                        <details
+                                          key={trace.id}
+                                          open={llmTraces.length === 1}
+                                          style={{
+                                            border: '1px solid #dfe3ef',
+                                            borderRadius: 8,
+                                            background: '#fff',
+                                            padding: 10,
+                                          }}
+                                        >
+                                          <summary
+                                            style={{
+                                              cursor: 'pointer',
+                                              fontSize: 12,
+                                              fontWeight: 700,
+                                            }}
+                                          >
+                                            {trace.label} • {trace.request.model} •{' '}
+                                            {formatDateTime(trace.createdAt)}
+                                          </summary>
+                                          <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+                                            <div style={{ fontSize: 12, color: '#4c5265' }}>
+                                              temp {trace.request.temperature} • max{' '}
+                                              {trace.request.maxCompletionTokens} • tokens{' '}
+                                              {trace.response.usage.total_tokens}
+                                            </div>
+                                            <Field label="Prompt">
+                                              <textarea
+                                                readOnly
+                                                style={{
+                                                  ...inputStyle,
+                                                  minHeight: 140,
+                                                  fontFamily: 'monospace',
+                                                  fontSize: 12,
+                                                }}
+                                                value={trace.request.prompt}
+                                              />
+                                            </Field>
+                                            <Field label="Messages sent to OpenRouter">
+                                              <textarea
+                                                readOnly
+                                                style={{
+                                                  ...inputStyle,
+                                                  minHeight: 180,
+                                                  fontFamily: 'monospace',
+                                                  fontSize: 12,
+                                                }}
+                                                value={JSON.stringify(
+                                                  trace.request.messages,
+                                                  null,
+                                                  2
+                                                )}
+                                              />
+                                            </Field>
+                                            <Field label="Raw response content">
+                                              <textarea
+                                                readOnly
+                                                style={{
+                                                  ...inputStyle,
+                                                  minHeight: 160,
+                                                  fontFamily: 'monospace',
+                                                  fontSize: 12,
+                                                }}
+                                                value={trace.response.content}
+                                              />
+                                            </Field>
+                                            <Field label="Parsed response JSON">
+                                              <textarea
+                                                readOnly
+                                                style={{
+                                                  ...inputStyle,
+                                                  minHeight: 160,
+                                                  fontFamily: 'monospace',
+                                                  fontSize: 12,
+                                                }}
+                                                value={formatDetailValue(trace.response.payload)}
+                                              />
+                                            </Field>
+                                          </div>
+                                        </details>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <strong style={{ fontSize: 13 }}>Raw details</strong>
+                                  <pre
+                                    style={{
+                                      background: '#f3f5fb',
+                                      border: '1px solid #e0e4ef',
+                                      borderRadius: 8,
+                                      padding: 10,
+                                      fontSize: 11,
+                                      overflowX: 'auto',
+                                      maxHeight: 260,
+                                    }}
+                                  >
+                                    {JSON.stringify(run.details ?? {}, null, 2)}
+                                  </pre>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {filteredRuns.length === 0 ? (
+                <div style={{ padding: 14, color: '#606477', fontSize: 13 }}>
+                  Brak uruchomień dla wybranych filtrów.
+                </div>
+              ) : null}
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'social' && (
+          <section style={CARD_STYLE}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <h2 style={{ ...SECTION_TITLE_STYLE, marginBottom: 0 }}>Social Ticket Ops</h2>
               <button
                 type="button"
                 style={primaryButtonStyle}
                 onClick={() => {
-                  void loadMediaLibrary({ page: 1 });
+                  void refreshSocialTickets();
                 }}
-                disabled={mediaLibraryLoading}
               >
-                Zastosuj filtry
+                Odśwież
               </button>
             </div>
-          </div>
 
-          {mediaLibrary.length === 0 && !mediaLibraryLoading ? (
+            {socialOpsState !== 'ready' ? (
+              <div
+                style={{
+                  marginBottom: 14,
+                  padding: 12,
+                  borderRadius: 10,
+                  border:
+                    socialOpsState === 'blocked'
+                      ? '1px solid #fecaca'
+                      : socialOpsState === 'degraded'
+                        ? '1px solid #bfdbfe'
+                        : '1px solid #facc15',
+                  background:
+                    socialOpsState === 'blocked'
+                      ? '#fef2f2'
+                      : socialOpsState === 'degraded'
+                        ? '#eff6ff'
+                        : '#fefce8',
+                  color:
+                    socialOpsState === 'blocked'
+                      ? '#991b1b'
+                      : socialOpsState === 'degraded'
+                        ? '#1e40af'
+                        : '#854d0e',
+                  fontSize: 12,
+                }}
+              >
+                Status: <strong>{socialOpsState}</strong>.{' '}
+                {socialOpsMessage || 'Sprawdź RBAC i konfigurację endpointów social.'}
+              </div>
+            ) : null}
+
             <div
               style={{
-                border: '1px dashed #cfd3e6',
-                borderRadius: 10,
-                padding: 16,
-                background: '#fafbff',
-                marginBottom: 14,
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                gap: 12,
+                marginBottom: 16,
               }}
             >
-              <strong>Brak plików w Media Library.</strong>
-              <p style={{ marginTop: 8, marginBottom: 8, fontSize: 13, color: '#4a4a5f' }}>
-                1) Dodaj obrazy w panelu Upload. 2) Wróć tutaj i kliknij Refresh grid. 3) Kliknij kafelek i zapisz mapowanie.
-              </p>
-              <a href="/admin/plugins/upload" style={{ fontSize: 13 }}>
-                Otwórz Media Library
-              </a>
-            </div>
-          ) : null}
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 12 }}>
-            <div style={{ border: '1px solid #e6e6f1', borderRadius: 10, padding: 10, minHeight: 460 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-                <strong style={{ fontSize: 13 }}>
-                  Kafelki ({mediaLibraryPagination.total})
-                </strong>
-                <span style={{ fontSize: 12, color: '#666' }}>
-                  Bulk zaznaczonych: {bulkSelectedFileIds.length}
-                </span>
+              <Field label="Platform">
+                <select
+                  style={inputStyle}
+                  value={socialFilters.platform}
+                  onChange={(event) =>
+                    setSocialFilters((prev) => ({
+                      ...prev,
+                      platform: event.target.value as typeof socialFilters.platform,
+                    }))
+                  }
+                >
+                  <option value="all">all</option>
+                  <option value="facebook">facebook</option>
+                  <option value="instagram">instagram</option>
+                  <option value="twitter">twitter</option>
+                </select>
+              </Field>
+              <Field label="Status">
+                <select
+                  style={inputStyle}
+                  value={socialFilters.status}
+                  onChange={(event) =>
+                    setSocialFilters((prev) => ({
+                      ...prev,
+                      status: event.target.value as typeof socialFilters.status,
+                    }))
+                  }
+                >
+                  <option value="all">all</option>
+                  <option value="scheduled">scheduled</option>
+                  <option value="pending">pending</option>
+                  <option value="published">published</option>
+                  <option value="failed">failed</option>
+                  <option value="canceled">canceled</option>
+                </select>
+              </Field>
+              <Field label="Workflow ID">
+                <input
+                  style={inputStyle}
+                  value={socialFilters.workflow}
+                  onChange={(event) =>
+                    setSocialFilters((prev) => ({ ...prev, workflow: event.target.value }))
+                  }
+                  placeholder="np. 3"
+                />
+              </Field>
+              <div style={{ display: 'flex', alignItems: 'end', gap: 8 }}>
+                <button
+                  type="button"
+                  style={secondaryButtonStyle}
+                  onClick={() => setSocialFilters({ platform: 'all', status: 'all', workflow: '' })}
+                >
+                  Clear
+                </button>
               </div>
-              {mediaLibraryLoading ? (
-                <span style={{ fontSize: 12, color: '#666' }}>Ładowanie...</span>
-              ) : (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                    gap: 10,
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1080 }}>
+                <thead>
+                  <tr>
+                    <Th>ID</Th>
+                    <Th>Platform</Th>
+                    <Th>Status</Th>
+                    <Th>Workflow</Th>
+                    <Th>Scheduled</Th>
+                    <Th>Attempt</Th>
+                    <Th>Next Retry</Th>
+                    <Th>Last Error</Th>
+                    <Th>Action</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSocialTickets.map((ticket) => (
+                    <tr key={ticket.id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                      <Td>#{ticket.id}</Td>
+                      <Td>{ticket.platform}</Td>
+                      <Td>
+                        <StatusPill status={ticket.status} />
+                      </Td>
+                      <Td>{getWorkflowId(ticket.workflow) ?? '-'}</Td>
+                      <Td>{formatDateTime(ticket.scheduled_at)}</Td>
+                      <Td>{ticket.attempt_count ?? 0}</Td>
+                      <Td>
+                        {ticket.next_attempt_at ? formatDateTime(ticket.next_attempt_at) : '-'}
+                      </Td>
+                      <Td>
+                        <div
+                          style={{
+                            maxWidth: 320,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {ticket.last_error || ticket.blocked_reason || '-'}
+                        </div>
+                      </Td>
+                      <Td>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            type="button"
+                            style={secondaryButtonStyle}
+                            disabled={
+                              saving ||
+                              ticket.status === 'published' ||
+                              ticket.status === 'canceled'
+                            }
+                            onClick={() => {
+                              void retrySocialTicket(ticket.id);
+                            }}
+                          >
+                            Retry
+                          </button>
+                          <button
+                            type="button"
+                            style={secondaryButtonStyle}
+                            disabled={
+                              saving ||
+                              ticket.status === 'published' ||
+                              ticket.status === 'canceled'
+                            }
+                            onClick={() => {
+                              void cancelSocialTicket(ticket.id);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filteredSocialTickets.length === 0 ? (
+                <div style={{ padding: 14, color: '#606477', fontSize: 13 }}>
+                  Brak ticketów social dla filtrów.
+                </div>
+              ) : null}
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'audit' && (
+          <section style={CARD_STYLE}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <h2 style={{ ...SECTION_TITLE_STYLE, marginBottom: 0 }}>
+                Production Audit (Go/No-Go)
+              </h2>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  style={secondaryButtonStyle}
+                  disabled={saving}
+                  onClick={() => {
+                    void runPreflightAudit(false);
                   }}
                 >
-                  {mediaLibrary.map((item) => {
-                    const isSelected = selectedMediaFileId === item.id;
-                    const isBulkSelected = bulkSelectedFileIds.includes(item.id);
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => pickMediaFile(item)}
+                  Run (soft)
+                </button>
+                <button
+                  type="button"
+                  style={primaryButtonStyle}
+                  disabled={saving}
+                  onClick={() => {
+                    void runPreflightAudit(true);
+                  }}
+                >
+                  Run Strict
+                </button>
+              </div>
+            </div>
+
+            {auditOpsState !== 'ready' ? (
+              <div
+                style={{
+                  marginBottom: 14,
+                  padding: 12,
+                  borderRadius: 10,
+                  border:
+                    auditOpsState === 'blocked'
+                      ? '1px solid #fecaca'
+                      : auditOpsState === 'degraded'
+                        ? '1px solid #bfdbfe'
+                        : '1px solid #facc15',
+                  background:
+                    auditOpsState === 'blocked'
+                      ? '#fef2f2'
+                      : auditOpsState === 'degraded'
+                        ? '#eff6ff'
+                        : '#fefce8',
+                  color:
+                    auditOpsState === 'blocked'
+                      ? '#991b1b'
+                      : auditOpsState === 'degraded'
+                        ? '#1e40af'
+                        : '#854d0e',
+                  fontSize: 12,
+                }}
+              >
+                Status: <strong>{auditOpsState}</strong>.{' '}
+                {auditOpsMessage || 'Sprawdź autoryzację i endpoint preflight.'}
+              </div>
+            ) : null}
+
+            {auditReport ? (
+              <div style={{ display: 'grid', gap: 14 }}>
+                <div
+                  style={{
+                    padding: 14,
+                    borderRadius: 12,
+                    border: `1px solid ${auditReport.decision === 'NO_GO' ? '#fecaca' : auditReport.decision === 'GO_WITH_WARNINGS' ? '#fde68a' : '#86efac'}`,
+                    background:
+                      auditReport.decision === 'NO_GO'
+                        ? '#fef2f2'
+                        : auditReport.decision === 'GO_WITH_WARNINGS'
+                          ? '#fffbeb'
+                          : '#f0fdf4',
+                  }}
+                >
+                  <div style={{ fontSize: 16, fontWeight: 800 }}>
+                    Decision: {auditReport.decision}
+                  </div>
+                  <div style={{ fontSize: 12, color: COLORS.textLight, marginTop: 4 }}>
+                    Critical failures: {auditReport.summary.criticalFailures} | Warnings:{' '}
+                    {auditReport.summary.warnings} | Generated:{' '}
+                    {formatDateTime(auditReport.generatedAt)}
+                  </div>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 940 }}>
+                    <thead>
+                      <tr>
+                        <Th>Area</Th>
+                        <Th>ID</Th>
+                        <Th>Severity</Th>
+                        <Th>Status</Th>
+                        <Th>Message</Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditReport.checks.map((check) => (
+                        <tr key={check.id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                          <Td>{check.area}</Td>
+                          <Td>{check.id}</Td>
+                          <Td>{check.severity}</Td>
+                          <Td>
+                            <StatusPill
+                              status={
+                                check.status === 'pass'
+                                  ? 'success'
+                                  : check.status === 'warn'
+                                    ? 'blocked_budget'
+                                    : 'failed'
+                              }
+                            />
+                          </Td>
+                          <Td>{check.message}</Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div
+                    style={{
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 10,
+                      padding: 12,
+                      background: '#fff',
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+                      Failed Flows
+                    </div>
+                    {auditReport.failed_flows.length === 0 ? (
+                      <div style={{ fontSize: 12, color: COLORS.textLight }}>
+                        Brak krytycznych błędów flow.
+                      </div>
+                    ) : (
+                      <ul
                         style={{
-                          border: isSelected ? '2px solid #2b5bd7' : '1px solid #d8d8e5',
-                          borderRadius: 10,
-                          padding: 8,
-                          background: '#fff',
-                          textAlign: 'left',
-                          cursor: 'pointer',
+                          margin: 0,
+                          paddingLeft: 18,
+                          fontSize: 12,
+                          color: COLORS.text,
                           display: 'grid',
                           gap: 6,
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <input
-                            type="checkbox"
-                            checked={isBulkSelected}
-                            onChange={(event) => {
-                              event.stopPropagation();
-                              toggleBulkSelection(item.id);
-                            }}
-                          />
-                          <span
-                            style={{
-                              fontSize: 11,
-                              color: item.mapping ? '#0f7337' : '#8c5a00',
-                              background: item.mapping ? '#e8f7ef' : '#fff6e6',
-                              borderRadius: 99,
-                              padding: '2px 6px',
-                            }}
-                          >
-                            {item.mapping ? 'mapped' : 'unmapped'}
-                          </span>
-                        </div>
-                        {item.url ? (
-                          <img
-                            src={item.url}
-                            alt={item.name}
-                            style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 8, background: '#f4f4fa' }}
-                          />
-                        ) : (
-                          <div style={{ width: '100%', height: 90, borderRadius: 8, background: '#f4f4fa' }} />
-                        )}
-                        <strong style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.name}
-                        </strong>
-                        <span style={{ fontSize: 11, color: '#555' }}>
-                          {item.mapping?.asset_key ?? item.suggestion.asset_key}
-                        </span>
-                        <span style={{ fontSize: 11, color: '#555' }}>
-                          {(item.mapping?.purpose ?? item.suggestion.purpose) + (item.mapping?.sign_slug ? ` / ${item.mapping.sign_slug}` : '')}
-                        </span>
-                        <span style={{ fontSize: 11, color: '#777' }}>
-                          {item.mapping?.mapping_source ?? 'suggestion'} • conf {item.mapping?.mapping_confidence ?? item.suggestion.confidence}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  style={secondaryButtonStyle}
-                  disabled={mediaLibraryPagination.page <= 1 || mediaLibraryLoading}
-                  onClick={() => {
-                    void goToMediaPage(mediaLibraryPagination.page - 1);
-                  }}
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  style={secondaryButtonStyle}
-                  disabled={mediaLibraryPagination.page >= mediaLibraryPagination.pageCount || mediaLibraryLoading}
-                  onClick={() => {
-                    void goToMediaPage(mediaLibraryPagination.page + 1);
-                  }}
-                >
-                  Next
-                </button>
-                <span style={{ fontSize: 12, color: '#666' }}>
-                  Page {mediaLibraryPagination.page} / {mediaLibraryPagination.pageCount}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ border: '1px solid #e6e6f1', borderRadius: 10, padding: 10, minHeight: 460 }}>
-              <strong style={{ fontSize: 13 }}>Szczegóły i mapowanie</strong>
-              {selectedMediaFile ? (
-                <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
-                  <div style={{ fontSize: 12, color: '#666' }}>
-                    Plik #{selectedMediaFile.id} • {selectedMediaFile.name}
+                        {auditReport.failed_flows.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
-                  <div style={{ fontSize: 12, color: '#666' }}>
-                    URL: {selectedMediaFile.url || '-'}
-                  </div>
-                  <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr' }}>
-                    <Field label="Asset key">
-                      <input
-                        style={inputStyle}
-                        value={generatedMediaIdentity.asset_key}
-                        readOnly
-                      />
-                    </Field>
-                    <Field label="Label">
-                      <input
-                        style={inputStyle}
-                        value={generatedMediaIdentity.label}
-                        readOnly
-                      />
-                    </Field>
-                    <div style={{ gridColumn: '1 / -1', fontSize: 11, color: '#666' }}>
-                      asset_key i label sa generowane przez backend z nazwy pliku oraz purpose.
+
+                  <div
+                    style={{
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 10,
+                      padding: 12,
+                      background: '#fff',
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+                      Failed Access Checks
                     </div>
-                    <Field label="Purpose">
-                      <select
-                        style={inputStyle}
-                        value={mediaAssetForm.purpose}
-                        onChange={(event) => {
-                          const purpose = event.target.value as MediaAssetFormState['purpose'];
-                          const fallbackSign =
-                            purpose === 'horoscope_sign'
-                              ? mediaAssetForm.sign_slug.trim() ||
-                                selectedMediaFile.mapping?.sign_slug?.trim() ||
-                                selectedMediaFile.suggestion.sign_slug ||
-                                ''
-                              : mediaAssetForm.sign_slug;
-                          setMediaAssetForm((prev) => ({ ...prev, purpose, sign_slug: fallbackSign }));
+                    {auditReport.failed_access_checks.length === 0 ? (
+                      <div style={{ fontSize: 12, color: COLORS.textLight }}>
+                        Brak krytycznych braków RBAC/route.
+                      </div>
+                    ) : (
+                      <ul
+                        style={{
+                          margin: 0,
+                          paddingLeft: 18,
+                          fontSize: 12,
+                          color: COLORS.text,
+                          display: 'grid',
+                          gap: 6,
                         }}
                       >
-                        <option value="blog_article">blog_article</option>
-                        <option value="daily_card">daily_card</option>
-                        <option value="horoscope_sign">horoscope_sign</option>
-                        <option value="fallback_general">fallback_general</option>
-                      </select>
-                    </Field>
-                    <Field label="Sign slug">
-                      <input
-                        style={inputStyle}
-                        value={mediaAssetForm.sign_slug}
-                        onChange={(event) => {
-                          const sign_slug = event.target.value;
-                          setMediaAssetForm((prev) => ({ ...prev, sign_slug }));
-                        }}
-                      />
-                    </Field>
-                    <Field label="Period scope">
-                      <select
-                        style={inputStyle}
-                        value={mediaAssetForm.period_scope}
-                        onChange={(event) => {
-                          const period_scope = event.target.value as MediaAssetFormState['period_scope'];
-                          setMediaAssetForm((prev) => ({ ...prev, period_scope }));
-                        }}
-                      >
-                        <option value="any">any</option>
-                        <option value="daily">daily</option>
-                        <option value="weekly">weekly</option>
-                        <option value="monthly">monthly</option>
-                      </select>
-                    </Field>
-                    <Field label="Keywords">
-                      <input
-                        style={inputStyle}
-                        value={mediaAssetForm.keywords}
-                        onChange={(event) =>
-                          setMediaAssetForm((prev) => ({ ...prev, keywords: event.target.value }))
-                        }
-                      />
-                    </Field>
-                    <Field label="Priority">
-                      <input
-                        type="number"
-                        style={inputStyle}
-                        value={mediaAssetForm.priority}
-                        onChange={(event) =>
-                          setMediaAssetForm((prev) => ({ ...prev, priority: Number(event.target.value) }))
-                        }
-                      />
-                    </Field>
-                    <Field label="Cooldown days">
-                      <input
-                        type="number"
-                        style={inputStyle}
-                        value={mediaAssetForm.cooldown_days}
-                        onChange={(event) =>
-                          setMediaAssetForm((prev) => ({ ...prev, cooldown_days: Number(event.target.value) }))
-                        }
-                      />
-                    </Field>
-                    <Field label="Notes">
-                      <input
-                        style={inputStyle}
-                        value={mediaAssetForm.notes}
-                        onChange={(event) =>
-                          setMediaAssetForm((prev) => ({ ...prev, notes: event.target.value }))
-                        }
-                      />
-                    </Field>
-                    <label style={checkboxRowStyle}>
-                      <input
-                        type="checkbox"
-                        checked={mediaAssetForm.active}
-                        onChange={(event) =>
-                          setMediaAssetForm((prev) => ({ ...prev, active: event.target.checked }))
-                        }
-                      />
-                      active
-                    </label>
+                        {auditReport.failed_access_checks.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
+                </div>
 
-                  <div style={{ border: '1px solid #e6e6f1', borderRadius: 8, padding: 8, background: '#f8f9ff' }}>
-                    <strong style={{ fontSize: 12 }}>Podpowiedzi</strong>
-                    <div style={{ fontSize: 12, marginTop: 6 }}>
-                      confidence: {selectedMediaFile.suggestion.confidence}
-                    </div>
-                    <div style={{ fontSize: 12, marginTop: 6 }}>
-                      mapping source: {selectedMediaFile.mapping?.mapping_source ?? 'new suggestion'}
-                    </div>
-                    <div style={{ fontSize: 12, marginTop: 6 }}>
-                      {selectedMediaFile.suggestion.reasons.join(' • ')}
-                    </div>
-                    <button
-                      type="button"
-                      style={{ ...secondaryButtonStyle, marginTop: 8 }}
-                      onClick={applySuggestionToForm}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div
+                    style={{
+                      border: '1px solid #fecaca',
+                      borderRadius: 10,
+                      padding: 12,
+                      background: '#fff7f7',
+                    }}
+                  >
+                    <div
+                      style={{ fontSize: 12, fontWeight: 700, color: '#991b1b', marginBottom: 8 }}
                     >
-                      Zastosuj podpowiedzi
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      style={primaryButtonStyle}
-                      disabled={saving}
-                      onClick={() => {
-                        void saveMediaAsset();
-                      }}
-                    >
-                      {selectedMediaFile.mapping ? 'Update mapping' : 'Create mapping'}
-                    </button>
-                    <button type="button" style={secondaryButtonStyle} onClick={resetMediaAssetForm}>
-                      Reset form
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, color: '#666', marginTop: 10 }}>
-                  Wybierz kafelek po lewej stronie.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={{ border: '1px solid #e6e6f1', borderRadius: 10, padding: 10, marginTop: 12 }}>
-            <strong style={{ fontSize: 13 }}>Bulk mapowanie</strong>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                style={secondaryButtonStyle}
-                disabled={saving}
-                onClick={() => {
-                  void previewBulkMapping();
-                }}
-              >
-                Preview bulk
-              </button>
-              <button
-                type="button"
-                style={primaryButtonStyle}
-                disabled={saving}
-                onClick={() => {
-                  void applyBulkMapping();
-                }}
-              >
-                Apply bulk
-              </button>
-            </div>
-            {bulkPreview ? (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>
-                  total: {bulkPreview.summary.total} • create: {bulkPreview.summary.previewCreate} • update:{' '}
-                  {bulkPreview.summary.previewUpdate} • applied create: {bulkPreview.summary.appliedCreate} • applied update:{' '}
-                  {bulkPreview.summary.appliedUpdate} • errors: {bulkPreview.summary.errors}
-                </div>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
-                    <thead>
-                      <tr>
-                        <Th>File ID</Th>
-                        <Th>Status</Th>
-                        <Th>Action</Th>
-                        <Th>Asset key</Th>
-                        <Th>Error</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bulkPreview.items.map((row, index) => {
-                        const payload = (row.payload as Record<string, unknown> | undefined) ?? undefined;
-                        return (
-                          <tr key={`${String(row.fileId ?? 'x')}-${index}`}>
-                            <Td>{String(row.fileId ?? '-')}</Td>
-                            <Td>{String(row.status ?? '-')}</Td>
-                            <Td>{String(row.action ?? '-')}</Td>
-                            <Td>{String(row.asset_key ?? payload?.asset_key ?? '-')}</Td>
-                            <Td>{String(row.error ?? '-')}</Td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <h3 style={{ ...SECTION_TITLE_STYLE, marginTop: 18 }}>Media Usage (latest)</h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
-              <thead>
-                <tr>
-                  <Th>ID</Th>
-                  <Th>Media asset</Th>
-                  <Th>Workflow</Th>
-                  <Th>Content UID</Th>
-                  <Th>Entry ID</Th>
-                  <Th>Context</Th>
-                  <Th>Used at</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {mediaUsage.map((item) => (
-                  <tr key={item.id}>
-                    <Td>{item.id}</Td>
-                    <Td>{item.media_asset ?? '-'}</Td>
-                    <Td>{item.workflow ?? '-'}</Td>
-                    <Td>{item.content_uid}</Td>
-                    <Td>{item.content_entry_id}</Td>
-                    <Td>{item.context_key}</Td>
-                    <Td>{item.used_at}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'runs' && (
-        <section style={CARD_STYLE}>
-          <h2 style={SECTION_TITLE_STYLE}>Workflow Monitoring</h2>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 12 }}>
-            <StatTile label="Live runs" value={liveRunCount} />
-            <StatTile label="Visible runs" value={filteredRuns.length} />
-            <StatTile label="Failed total" value={summary?.runs.failed ?? 0} />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 14 }}>
-            <Field label="Status">
-              <select
-                style={inputStyle}
-                value={runFilters.status}
-                onChange={(event) =>
-                  setRunFilters((prev) => ({ ...prev, status: event.target.value as RunFiltersState['status'] }))
-                }
-              >
-                <option value="all">all</option>
-                <option value="running">running</option>
-                <option value="success">success</option>
-                <option value="failed">failed</option>
-                <option value="blocked_budget">blocked_budget</option>
-              </select>
-            </Field>
-            <Field label="Workflow name">
-              <input
-                style={inputStyle}
-                value={runFilters.workflowName}
-                onChange={(event) => setRunFilters((prev) => ({ ...prev, workflowName: event.target.value }))}
-              />
-            </Field>
-            <Field label="From">
-              <input
-                type="date"
-                style={inputStyle}
-                value={runFilters.fromDate}
-                onChange={(event) => setRunFilters((prev) => ({ ...prev, fromDate: event.target.value }))}
-              />
-            </Field>
-            <Field label="To">
-              <input
-                type="date"
-                style={inputStyle}
-                value={runFilters.toDate}
-                onChange={(event) => setRunFilters((prev) => ({ ...prev, toDate: event.target.value }))}
-              />
-            </Field>
-            <div style={{ display: 'flex', alignItems: 'end', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                style={secondaryButtonStyle}
-                onClick={() => setRunFilters(initialRunFilters())}
-              >
-                Clear
-              </button>
-              <button
-                type="button"
-                style={primaryButtonStyle}
-                onClick={() => {
-                  void refreshMonitoringData(true);
-                }}
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 980 }}>
-              <thead>
-                <tr>
-                  <Th />
-                  <Th>ID</Th>
-                  <Th>Workflow</Th>
-                  <Th>Type</Th>
-                  <Th>Status</Th>
-                  <Th>Started</Th>
-                  <Th>Duration</Th>
-                  <Th>Result</Th>
-                  <Th>Action</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRuns.map((run) => {
-                  const isExpanded = expandedRunIds.includes(run.id);
-                  const steps = getRunSteps(run);
-                  const llmTraces = getRunLlmTraces(run);
-                  return (
-                    <Fragment key={run.id}>
-                      <tr>
-                        <Td>
-                          <button
-                            type="button"
-                            onClick={() => toggleRunDetails(run.id)}
+                      Critical Findings
+                    </div>
+                    {auditReport.critical_findings.length === 0 ? (
+                      <div style={{ fontSize: 12, color: COLORS.textLight }}>
+                        Brak krytycznych findingów.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {auditReport.critical_findings.map((finding) => (
+                          <div
+                            key={finding.id}
                             style={{
-                              ...secondaryButtonStyle,
-                              minWidth: 34,
-                              padding: '4px 8px',
-                            }}
-                            aria-expanded={isExpanded}
-                          >
-                            {isExpanded ? '-' : '+'}
-                          </button>
-                        </Td>
-                        <Td>{run.id}</Td>
-                        <Td>{getRunWorkflowName(run, workflows)}</Td>
-                        <Td>{run.run_type}</Td>
-                        <Td>
-                          <StatusPill status={run.status} />
-                        </Td>
-                        <Td>{formatDateTime(run.started_at)}</Td>
-                        <Td>{formatDuration(run.started_at, run.finished_at)}</Td>
-                        <Td>{getRunResultSummary(run)}</Td>
-                        <Td>
-                          <ActionButton
-                            label="Retry"
-                            disabled={saving || run.status === 'running'}
-                            onClick={() => {
-                              void retryRun(run.id);
-                            }}
-                          />
-                        </Td>
-                      </tr>
-                      {isExpanded ? (
-                        <tr>
-                          <td
-                            colSpan={9}
-                            style={{
-                              padding: 12,
-                              borderBottom: '1px solid #e8eaf3',
-                              background: '#fbfcff',
+                              padding: 10,
+                              border: '1px solid #fecaca',
+                              borderRadius: 8,
+                              background: '#fff',
                             }}
                           >
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
-                              <div style={{ overflowX: 'auto' }}>
-                                <strong style={{ fontSize: 13 }}>Steps</strong>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8, minWidth: 560 }}>
-                                  <thead>
-                                    <tr>
-                                      <Th>Status</Th>
-                                      <Th>Step</Th>
-                                      <Th>Message</Th>
-                                      <Th>Output</Th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {steps.map((step) => (
-                                      <tr key={step.id}>
-                                        <Td>
-                                          <StatusPill status={step.status} />
-                                        </Td>
-                                        <Td>{step.label}</Td>
-                                        <Td>{step.message || '-'}</Td>
-                                        <Td>
-                                          <code style={{ whiteSpace: 'pre-wrap', fontSize: 11 }}>
-                                            {formatDetailValue(step.output)}
-                                          </code>
-                                        </Td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                              <div>
-                                <strong style={{ fontSize: 13 }}>Details</strong>
-                                <div
-                                  style={{
-                                    display: 'grid',
-                                    gap: 6,
-                                    fontSize: 12,
-                                    color: '#3a3d4f',
-                                    marginTop: 8,
-                                    marginBottom: 8,
-                                  }}
-                                >
-                                  <span>Started: {formatDateTime(run.started_at)}</span>
-                                  <span>Finished: {formatDateTime(run.finished_at)}</span>
-                                  <span>Prompt tokens: {run.usage_prompt_tokens ?? 0}</span>
-                                  <span>Completion tokens: {run.usage_completion_tokens ?? 0}</span>
-                                </div>
-                                <strong style={{ fontSize: 13 }}>LLM trace</strong>
-                                {llmTraces.length === 0 ? (
-                                  <div style={{ marginTop: 8, marginBottom: 10, color: '#606477', fontSize: 12 }}>
-                                    Brak zapisanego promptu/odpowiedzi dla tego runa.
-                                  </div>
-                                ) : (
-                                  <div style={{ display: 'grid', gap: 10, marginTop: 8, marginBottom: 10 }}>
-                                    {llmTraces.map((trace) => (
-                                      <details
-                                        key={trace.id}
-                                        open={llmTraces.length === 1}
-                                        style={{
-                                          border: '1px solid #dfe3ef',
-                                          borderRadius: 8,
-                                          background: '#fff',
-                                          padding: 10,
-                                        }}
-                                      >
-                                        <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                          {trace.label} • {trace.request.model} • {formatDateTime(trace.createdAt)}
-                                        </summary>
-                                        <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-                                          <div style={{ fontSize: 12, color: '#4c5265' }}>
-                                            temp {trace.request.temperature} • max {trace.request.maxCompletionTokens} • tokens{' '}
-                                            {trace.response.usage.total_tokens}
-                                          </div>
-                                          <Field label="Prompt">
-                                            <textarea
-                                              readOnly
-                                              style={{ ...inputStyle, minHeight: 140, fontFamily: 'monospace', fontSize: 12 }}
-                                              value={trace.request.prompt}
-                                            />
-                                          </Field>
-                                          <Field label="Messages sent to OpenRouter">
-                                            <textarea
-                                              readOnly
-                                              style={{ ...inputStyle, minHeight: 180, fontFamily: 'monospace', fontSize: 12 }}
-                                              value={JSON.stringify(trace.request.messages, null, 2)}
-                                            />
-                                          </Field>
-                                          <Field label="Raw response content">
-                                            <textarea
-                                              readOnly
-                                              style={{ ...inputStyle, minHeight: 160, fontFamily: 'monospace', fontSize: 12 }}
-                                              value={trace.response.content}
-                                            />
-                                          </Field>
-                                          <Field label="Parsed response JSON">
-                                            <textarea
-                                              readOnly
-                                              style={{ ...inputStyle, minHeight: 160, fontFamily: 'monospace', fontSize: 12 }}
-                                              value={formatDetailValue(trace.response.payload)}
-                                            />
-                                          </Field>
-                                        </div>
-                                      </details>
-                                    ))}
-                                  </div>
-                                )}
-                                <strong style={{ fontSize: 13 }}>Raw details</strong>
-                                <pre
-                                  style={{
-                                    background: '#f3f5fb',
-                                    border: '1px solid #e0e4ef',
-                                    borderRadius: 8,
-                                    padding: 10,
-                                    fontSize: 11,
-                                    overflowX: 'auto',
-                                    maxHeight: 260,
-                                  }}
-                                >
-                                  {JSON.stringify(run.details ?? {}, null, 2)}
-                                </pre>
-                              </div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#7f1d1d' }}>
+                              {finding.area} · {finding.id}
                             </div>
-                          </td>
-                        </tr>
-                      ) : null}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-            {filteredRuns.length === 0 ? (
-              <div style={{ padding: 14, color: '#606477', fontSize: 13 }}>Brak uruchomień dla wybranych filtrów.</div>
-            ) : null}
-          </div>
-        </section>
-      )}
+                            <div style={{ fontSize: 12, marginTop: 4 }}>{finding.message}</div>
+                            <div style={{ fontSize: 12, color: '#9f1239', marginTop: 6 }}>
+                              Remediation: {finding.remediation}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-      {activeTab === 'settings' && (
-        <section style={CARD_STYLE}>
-          <h2 style={SECTION_TITLE_STYLE}>Settings</h2>
-          <div style={{ display: 'grid', gap: 8, maxWidth: 500 }}>
-            <Field label="Timezone">
-              <input
-                style={inputStyle}
-                value={settings.timezone}
-                onChange={(event) => setSettings((prev) => ({ ...prev, timezone: event.target.value }))}
-              />
-            </Field>
-            <Field label="Locale">
-              <input
-                style={inputStyle}
-                value={settings.locale}
-                onChange={(event) => setSettings((prev) => ({ ...prev, locale: event.target.value }))}
-              />
-            </Field>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <button
-              type="button"
-              disabled={saving}
-              style={primaryButtonStyle}
-              onClick={() => {
-                void saveSettings();
+                  <div
+                    style={{
+                      border: '1px solid #fde68a',
+                      borderRadius: 10,
+                      padding: 12,
+                      background: '#fffbeb',
+                    }}
+                  >
+                    <div
+                      style={{ fontSize: 12, fontWeight: 700, color: '#92400e', marginBottom: 8 }}
+                    >
+                      Non-Critical Findings
+                    </div>
+                    {auditReport.non_critical_findings.length === 0 ? (
+                      <div style={{ fontSize: 12, color: COLORS.textLight }}>Brak warningów.</div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {auditReport.non_critical_findings.map((finding) => (
+                          <div
+                            key={finding.id}
+                            style={{
+                              padding: 10,
+                              border: '1px solid #fde68a',
+                              borderRadius: 8,
+                              background: '#fff',
+                            }}
+                          >
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#78350f' }}>
+                              {finding.area} · {finding.id}
+                            </div>
+                            <div style={{ fontSize: 12, marginTop: 4 }}>{finding.message}</div>
+                            <div style={{ fontSize: 12, color: '#92400e', marginTop: 6 }}>
+                              Remediation: {finding.remediation}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ color: COLORS.textLight, fontSize: 13 }}>
+                Brak raportu audytu. Uruchom preflight, aby otrzymać decyzję GO/NO-GO.
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === 'settings' && (
+          <section style={CARD_STYLE}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 24,
+                paddingBottom: 16,
+                borderBottom: `1px solid ${COLORS.border}`,
               }}
             >
-              Save settings
-            </button>
-          </div>
-        </section>
-      )}
+              <h2 style={{ ...SECTION_TITLE_STYLE, marginBottom: 0 }}>Ustawienia Systemowe</h2>
+              <button
+                type="button"
+                disabled={saving}
+                style={{ ...primaryButtonStyle, padding: '10px 24px' }}
+                onClick={() => {
+                  void saveSettings();
+                }}
+              >
+                {saving ? 'Zapisywanie...' : 'Zapisz zmiany'}
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40 }}>
+              <div style={{ display: 'grid', gap: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>
+                  Konfiguracja Regionalna
+                </h3>
+                <Field label="Strefa czasowa (Timezone)">
+                  <input
+                    style={inputStyle}
+                    value={settings.timezone}
+                    onChange={(event) =>
+                      setSettings((prev) => ({ ...prev, timezone: event.target.value }))
+                    }
+                    placeholder="UTC / Europe/Warsaw"
+                  />
+                </Field>
+                <Field label="Lokalizacja (Locale)">
+                  <input
+                    style={inputStyle}
+                    value={settings.locale}
+                    onChange={(event) =>
+                      setSettings((prev) => ({ ...prev, locale: event.target.value }))
+                    }
+                    placeholder="pl / en"
+                  />
+                </Field>
+              </div>
+
+              <div style={{ display: 'grid', gap: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, margin: 0 }}>
+                    Integracja Media Gen
+                  </h3>
+                  {settings.has_image_gen_token && settings.image_gen_model ? (
+                    <span
+                      style={{
+                        background: '#ecfdf5',
+                        color: '#059669',
+                        fontSize: 10,
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        border: '1px solid #10b981',
+                        fontWeight: 800,
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      GOTOWY DO PRACY
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        background: '#fff1f2',
+                        color: '#e11d48',
+                        fontSize: 10,
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        border: '1px solid #f43f5e',
+                        fontWeight: 800,
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      WYMAGA KONFIGURACJI
+                    </span>
+                  )}
+                </div>
+
+                <Field label="Model AI do generowania grafik">
+                  <input
+                    style={inputStyle}
+                    value={settings.image_gen_model}
+                    onChange={(event) =>
+                      setSettings((prev) => ({ ...prev, image_gen_model: event.target.value }))
+                    }
+                    placeholder="openai/gpt-image-2"
+                  />
+                </Field>
+
+                <Field
+                  label={
+                    settings.has_image_gen_token
+                      ? 'Image API Token (zmień jeśli chcesz)'
+                      : 'Image API Token'
+                  }
+                >
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="password"
+                      style={{ ...inputStyle, paddingRight: 40 }}
+                      value={settings.imageGenApiToken}
+                      placeholder={
+                        settings.has_image_gen_token ? '••••••••••••••••' : 'Wklej swój klucz...'
+                      }
+                      onChange={(event) =>
+                        setSettings((prev) => ({ ...prev, imageGenApiToken: event.target.value }))
+                      }
+                    />
+                    {settings.has_image_gen_token && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: 12,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#10b981',
+                        }}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </Field>
+
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    background: '#f1f5f9',
+                    borderRadius: 12,
+                    fontSize: 12,
+                    color: '#475569',
+                    lineHeight: 1.5,
+                    borderLeft: `4px solid ${COLORS.primary}`,
+                  }}
+                >
+                  <strong>Wskazówka:</strong> Ten model zostanie użyty przez agenta do
+                  autonomicznego tworzenia grafik, gdy nie zostanie znalezione dopasowanie w
+                  bibliotece Media Catalog.
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+        {renderWorkflowModal()}
+        {renderTopicModal()}
+        {renderRunDetailsModal()}
       </div>
     </Page.Main>
   );
@@ -2956,15 +5203,16 @@ const StatusPill = ({ status }: { status: string }) => {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: 24,
-        padding: '3px 8px',
-        borderRadius: 999,
-        border: `1px solid ${colors.border}`,
+        padding: '4px 12px',
+        borderRadius: 20,
         background: colors.bg,
         color: colors.color,
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
         whiteSpace: 'nowrap',
+        border: `1px solid ${colors.border}`,
       }}
     >
       {status}
@@ -2972,50 +5220,101 @@ const StatusPill = ({ status }: { status: string }) => {
   );
 };
 
-const StatTile = ({ label, value }: { label: string; value: number }) => (
-  <div
-    style={{
-      borderRadius: 10,
-      border: '1px solid #e3e3ef',
-      padding: 12,
-      background: '#fafafe',
-      display: 'grid',
-      gap: 4,
-    }}
-  >
-    <span style={{ fontSize: 12, color: '#67677b' }}>{label}</span>
-    <strong style={{ fontSize: 24, color: '#1f1f29' }}>{value}</strong>
+const StatTile = ({
+  label,
+  value,
+  subValue,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  subValue?: string;
+  color?: string;
+}) => (
+  <div style={STAT_CARD_STYLE}>
+    <span
+      style={{
+        fontSize: 12,
+        color: COLORS.textLight,
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+      }}
+    >
+      {label}
+    </span>
+    <strong
+      style={{
+        fontSize: 24,
+        color: color || COLORS.primary,
+        marginTop: 4,
+        letterSpacing: '-0.02em',
+      }}
+    >
+      {value}
+    </strong>
+    {subValue && (
+      <span style={{ fontSize: 11, color: COLORS.textLight, marginTop: 2, fontWeight: 500 }}>
+        {subValue}
+      </span>
+    )}
   </div>
 );
 
-const Th = ({ children }: { children?: React.ReactNode }) => (
+const Th = ({ children, style }: { children?: React.ReactNode; style?: React.CSSProperties }) => (
   <th
     style={{
       textAlign: 'left',
-      padding: '8px 8px',
+      padding: '12px 16px',
       fontSize: 12,
-      color: '#646477',
-      borderBottom: '1px solid #e3e3ef',
-      whiteSpace: 'nowrap',
+      fontWeight: 700,
+      color: COLORS.textLight,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+      borderBottom: `2px solid ${COLORS.border}`,
+      background: '#fcfcfd',
+      ...style,
     }}
   >
     {children}
   </th>
 );
 
-const Td = ({ children }: { children: React.ReactNode }) => (
+const Td = ({
+  children,
+  style,
+  colSpan,
+}: {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  colSpan?: number;
+}) => (
   <td
+    colSpan={colSpan}
     style={{
-      padding: '8px 8px',
-      fontSize: 13,
-      color: '#20202d',
-      borderBottom: '1px solid #f0f0f6',
-      verticalAlign: 'top',
+      padding: '16px 16px',
+      fontSize: 14,
+      color: COLORS.text,
+      borderBottom: `1px solid ${COLORS.border}`,
+      verticalAlign: 'middle',
+      ...style,
     }}
   >
     {children}
   </td>
 );
+
+const dangerButtonStyle: React.CSSProperties = {
+  background: '#fff',
+  color: COLORS.danger,
+  border: `1px solid ${COLORS.danger}`,
+  borderRadius: 10,
+  padding: '8px 16px',
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+  transition: 'all 0.2s',
+};
 
 const ActionButton = ({
   label,
@@ -3028,39 +5327,118 @@ const ActionButton = ({
   disabled?: boolean;
   tone?: 'default' | 'danger';
 }) => (
-  <button type="button" disabled={disabled} onClick={onClick} style={tone === 'danger' ? dangerButtonStyle : secondaryButtonStyle}>
+  <button
+    type="button"
+    disabled={disabled}
+    onClick={onClick}
+    style={{
+      ...(tone === 'danger' ? dangerButtonStyle : secondaryButtonStyle),
+      padding: '6px 12px',
+      fontSize: 13,
+      opacity: disabled ? 0.5 : 1,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+    }}
+  >
     {label}
   </button>
 );
 
-const primaryButtonStyle: React.CSSProperties = {
-  border: '1px solid #2350c4',
-  background: '#2b5bd7',
-  color: '#fff',
-  borderRadius: 8,
-  padding: '8px 12px',
-  cursor: 'pointer',
-  fontWeight: 600,
-};
+const Modal = ({
+  title,
+  isOpen,
+  onClose,
+  children,
+  maxWidth = 800,
+  footer,
+}: {
+  title: string;
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  maxWidth?: number;
+  footer?: React.ReactNode;
+}) => {
+  if (!isOpen) return null;
 
-const secondaryButtonStyle: React.CSSProperties = {
-  border: '1px solid #d0d0db',
-  background: '#fff',
-  color: '#1f1f29',
-  borderRadius: 8,
-  padding: '6px 10px',
-  cursor: 'pointer',
-  fontWeight: 600,
-};
-
-const dangerButtonStyle: React.CSSProperties = {
-  border: '1px solid #e3a2a2',
-  background: '#fff7f7',
-  color: '#9a1b1b',
-  borderRadius: 8,
-  padding: '6px 10px',
-  cursor: 'pointer',
-  fontWeight: 600,
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(15, 23, 42, 0.6)',
+        backdropFilter: 'blur(6px)',
+        padding: 24,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 20,
+          width: '100%',
+          maxWidth,
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            padding: '20px 28px',
+            borderBottom: `1px solid ${COLORS.border}`,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: '#fcfcfd',
+          }}
+        >
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, margin: 0 }}>{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              border: 'none',
+              background: '#f1f5f9',
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: COLORS.textLight,
+              transition: 'all 0.2s',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        <div style={{ padding: 28, overflowY: 'auto', flex: 1 }}>{children}</div>
+        {footer && (
+          <div
+            style={{
+              padding: '20px 28px',
+              borderTop: `1px solid ${COLORS.border}`,
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 12,
+              background: '#fcfcfd',
+            }}
+          >
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export { HomePage };

@@ -38,6 +38,12 @@ import {
   toMinuteSlot,
 } from '../utils/date-time';
 import { getOptionalString, getString, isRecord, toSafeErrorMessage } from '../utils/json';
+import {
+  assertPremiumContentQuality,
+  PREMIUM_CONTENT_RETRY_MAX,
+  type PremiumContentKind,
+} from '../utils/premium-quality';
+import { getAicoPromptTemplate, renderAicoPromptTemplate } from '../utils/aico-contract';
 import { getPluginService } from '../utils/plugin';
 import { slugify } from '../utils/slug';
 
@@ -47,7 +53,12 @@ type WorkflowService = {
   list: () => Promise<Array<Record<string, unknown>>>;
   normalizeRuntime: (record: WorkflowRecord) => NormalizedWorkflowConfig;
   decryptTokenForRuntime: (record: WorkflowRecord) => Promise<string>;
-  setStatus: (id: number, status: WorkflowRecord['status'], lastError?: string | null) => Promise<void>;
+  decryptImageTokenForRuntime: (record: WorkflowRecord) => Promise<string | null>;
+  setStatus: (
+    id: number,
+    status: WorkflowRecord['status'],
+    lastError?: string | null
+  ) => Promise<void>;
   markGenerationSlot: (id: number, slot: string, generatedAt: Date) => Promise<void>;
   markPublishSlot: (id: number, slot: string, publishedAt: Date) => Promise<void>;
 };
@@ -100,7 +111,10 @@ type OpenRouterService = {
   }) => Promise<{ payload: unknown; usage: OpenRouterUsage; trace: OpenRouterTrace }>;
 };
 
-type LlmTraceLogger = (trace: OpenRouterTrace, meta: { label: string; workflowType: WorkflowRecord['workflow_type'] }) => Promise<void>;
+type LlmTraceLogger = (
+  trace: OpenRouterTrace,
+  meta: { label: string; workflowType: WorkflowRecord['workflow_type'] }
+) => Promise<void>;
 
 type MediaSelectorService = {
   resolveForArticle: (input: {
@@ -110,7 +124,24 @@ type MediaSelectorService = {
     contextKey: string;
     now: Date;
     targetDate?: string;
+    title?: string;
+    content?: string;
+    categoryName?: string;
+    apiToken?: string;
+    llmModel?: string;
+    imageGenModel?: string;
+    imageGenToken?: string;
+    workflowId?: number;
+    onStep?: (
+      stepId: string,
+      status: RunStepStatus,
+      message?: string,
+      output?: any
+    ) => Promise<void>;
   }) => Promise<{ mediaAssetId: number; mediaAssetKey: string; uploadFileId: number }>;
+  resolveForZodiacSign: (input: {
+    signSlug: string;
+  }) => Promise<{ mediaAssetId: number; mediaAssetKey?: string; uploadFileId: number } | null>;
   registerUsage: (input: {
     mediaAssetId: number;
     workflowId?: number;
@@ -195,7 +226,12 @@ const resolveId = (value: unknown): number | null => {
     return value;
   }
 
-  if (value && typeof value === 'object' && 'id' in value && typeof (value as { id: unknown }).id === 'number') {
+  if (
+    value &&
+    typeof value === 'object' &&
+    'id' in value &&
+    typeof (value as { id: unknown }).id === 'number'
+  ) {
     return (value as { id: number }).id;
   }
 
@@ -213,13 +249,16 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
   const abortControllers = new Map<number, AbortController>();
   const entityService = strapi.entityService as any;
 
-  const workflowsService = (): WorkflowService => getPluginService<WorkflowService>(strapi, 'workflows');
+  const workflowsService = (): WorkflowService =>
+    getPluginService<WorkflowService>(strapi, 'workflows');
   const runsService = (): RunsService => getPluginService<RunsService>(strapi, 'runs');
   const topicsService = (): TopicsService => getPluginService<TopicsService>(strapi, 'topics');
   const usageService = (): UsageService => getPluginService<UsageService>(strapi, 'usage');
-  const llmService = (): OpenRouterService => getPluginService<OpenRouterService>(strapi, 'open-router');
+  const llmService = (): OpenRouterService =>
+    getPluginService<OpenRouterService>(strapi, 'open-router');
   const mediaSelectorService = (): MediaSelectorService =>
     getPluginService<MediaSelectorService>(strapi, 'media-selector');
+  const socialPublisherService = (): any => getPluginService<any>(strapi, 'social-publisher');
 
   const api = {
     async tick(): Promise<void> {
@@ -227,6 +266,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
 
       await this.processGenerationTick(now);
       await this.processPublicationTick(now);
+      await socialPublisherService().publishPending(now);
     },
 
     async runNow(workflowId: number, reason = 'manual'): Promise<Record<string, unknown>> {
@@ -261,9 +301,12 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
       };
     },
 
-    async backfill(workflowId: number, payload: { startDate: string; endDate: string; dryRun?: boolean }): Promise<Record<string, unknown>> {
+    async backfill(
+      workflowId: number,
+      payload: { startDate: string; endDate: string; dryRun?: boolean }
+    ): Promise<Record<string, unknown>> {
       const workflow = await workflowsService().getByIdOrThrow(workflowId);
-      const normalized = workflowsService().normalizeRuntime(workflow);
+      const normalized = await workflowsService().normalizeRuntime(workflow);
 
       const start = payload.startDate;
       const end = payload.endDate;
@@ -292,7 +335,11 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
       let cursor = start;
 
       for (let i = 0; i <= rangeDays; i += 1) {
-        const publishDate = this.getPublishDateForLocalDay(normalized.publishCron, cursor, normalized.timezone);
+        const publishDate = this.getPublishDateForLocalDay(
+          normalized.publishCron,
+          cursor,
+          normalized.timezone
+        );
 
         if (payload.dryRun) {
           summary.processed += 1;
@@ -332,7 +379,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
 
       for (const workflow of workflows) {
         try {
-          const config = workflowsService().normalizeRuntime(workflow);
+          const config = await workflowsService().normalizeRuntime(workflow);
 
           const due = isCronDue(
             config.generateCron,
@@ -352,7 +399,9 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
             generationSlotKey: due.slotKey,
           });
         } catch (error) {
-          strapi.log.error(`[aico] generation tick failed for workflow #${workflow.id}: ${toSafeErrorMessage(error)}`);
+          strapi.log.error(
+            `[aico] generation tick failed for workflow #${workflow.id}: ${toSafeErrorMessage(error)}`
+          );
         }
       }
     },
@@ -398,7 +447,9 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
           }
         } catch (error) {
           failedCount += 1;
-          strapi.log.error(`[aico] publish ticket #${ticket.id} failed: ${toSafeErrorMessage(error)}`);
+          strapi.log.error(
+            `[aico] publish ticket #${ticket.id} failed: ${toSafeErrorMessage(error)}`
+          );
         }
       }
 
@@ -420,11 +471,17 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
       });
     },
 
-    async publishTicket(ticket: PublicationTicketRecord, now: Date): Promise<'published' | 'rescheduled' | 'failed'> {
+    async publishTicket(
+      ticket: PublicationTicketRecord,
+      now: Date
+    ): Promise<'published' | 'rescheduled' | 'failed'> {
       const workflowId = resolveId(ticket.workflow);
       const workflow = workflowId ? await workflowsService().getById(workflowId) : null;
       const retryMax = Math.max(1, Math.min(10, Number(workflow?.retry_max ?? DEFAULT_RETRY_MAX)));
-      const backoff = Math.max(15, Math.min(3600, Number(workflow?.retry_backoff_seconds ?? DEFAULT_RETRY_BACKOFF_SECONDS)));
+      const backoff = Math.max(
+        15,
+        Math.min(3600, Number(workflow?.retry_backoff_seconds ?? DEFAULT_RETRY_BACKOFF_SECONDS))
+      );
 
       try {
         const entry = await entityService.findOne(ticket.content_uid, ticket.content_entry_id);
@@ -538,6 +595,8 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         },
       });
 
+      const runId = run.id;
+
       const setRunStep = async (
         stepId: string,
         status: RunStepStatus,
@@ -572,7 +631,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
       try {
         assertNotAborted(abortController.signal);
         await setRunStep('config', 'running', 'Loading workflow runtime');
-        const config = workflowsService().normalizeRuntime(workflow);
+        const config = await workflowsService().normalizeRuntime(workflow);
         await setRunStep('config', 'success', `Runtime ready for ${config.workflowType}`, {
           timezone: config.timezone,
           locale: config.locale,
@@ -593,7 +652,11 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
 
         assertNotAborted(abortController.signal);
         if (budgetState.blocked) {
-          await workflowsService().setStatus(workflowId, WORKFLOW_STATUS.blockedBudget, 'Przekroczony budżet dzienny');
+          await workflowsService().setStatus(
+            workflowId,
+            WORKFLOW_STATUS.blockedBudget,
+            'Przekroczony budżet dzienny'
+          );
           await setRunStep('budget', 'failed', 'Daily request/token budget exceeded', {
             localDay,
             requestCount: budgetState.usage.request_count,
@@ -633,19 +696,27 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         await setRunStep('token', 'success', 'Model API token ready');
 
         const publishAt =
-          options.forcedPublishAt ?? getNextOccurrence(config.publishCron, new Date(options.now.getTime() + 1_000), config.timezone);
+          options.forcedPublishAt ??
+          getNextOccurrence(
+            config.publishCron,
+            new Date(options.now.getTime() + 1_000),
+            config.timezone
+          );
 
         await setRunStep('generate', 'running', `Generating ${config.workflowType} content`, {
           publishAt: publishAt.toISOString(),
         });
         const runResult = await this.generateWithRetries({
+          runId,
           workflow,
           config,
           apiToken,
           publishAt,
+          targetDate: localDay,
           now: options.now,
           onLlmTrace: logLlmTrace,
           abortSignal: abortController.signal,
+          onStep: setRunStep,
         });
         assertNotAborted(abortController.signal);
         await setRunStep('generate', 'success', 'Content generated', {
@@ -656,7 +727,11 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         });
 
         if (!options.skipSlotMutation && options.generationSlotKey) {
-          await workflowsService().markGenerationSlot(workflowId, options.generationSlotKey, options.now);
+          await workflowsService().markGenerationSlot(
+            workflowId,
+            options.generationSlotKey,
+            options.now
+          );
         }
 
         await setRunStep('usage', 'running', 'Registering token usage');
@@ -691,9 +766,18 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         const wasStopped = abortController.signal.aborted;
         const message = wasStopped ? 'Workflow zatrzymany ręcznie.' : toSafeErrorMessage(error);
 
-        await workflowsService().setStatus(workflowId, wasStopped ? WORKFLOW_STATUS.idle : WORKFLOW_STATUS.failed, message);
+        await workflowsService().setStatus(
+          workflowId,
+          wasStopped ? WORKFLOW_STATUS.idle : WORKFLOW_STATUS.failed,
+          message
+        );
         steps = updateStep(steps, activeStepId, 'failed', message);
-        steps = updateStep(steps, 'finalize', 'failed', wasStopped ? 'Workflow stopped manually' : 'Workflow failed');
+        steps = updateStep(
+          steps,
+          'finalize',
+          'failed',
+          wasStopped ? 'Workflow stopped manually' : 'Workflow failed'
+        );
         await runsService().updateDetails(run.id, {
           ...runDetailsBase,
           steps,
@@ -720,49 +804,64 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
     },
 
     async generateWithRetries(input: {
+      runId: number;
       workflow: WorkflowRecord;
       config: NormalizedWorkflowConfig;
       apiToken: string;
       publishAt: Date;
+      targetDate: string;
       now: Date;
       onLlmTrace?: LlmTraceLogger;
       abortSignal?: AbortSignal;
+      onStep?: (
+        stepId: string,
+        status: 'running' | 'success' | 'failed',
+        message?: string,
+        output?: any
+      ) => Promise<void>;
     }): Promise<{ created: number; updated: number; skipped: number; usage: OpenRouterUsage }> {
       let lastError: Error | null = null;
+      const maxAttempts = PREMIUM_CONTENT_RETRY_MAX;
 
-      for (let attempt = 1; attempt <= input.config.retryMax; attempt += 1) {
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
           assertNotAborted(input.abortSignal);
           if (input.config.workflowType === 'horoscope') {
             return await this.generateHoroscopeBatch(
+              input.runId,
               input.workflow,
               input.config,
               input.apiToken,
               input.publishAt,
               input.onLlmTrace,
+              input.onStep,
               input.abortSignal
             );
           }
 
           if (input.config.workflowType === 'daily_card') {
             return await this.generateDailyCard(
+              input.runId,
               input.workflow,
               input.config,
               input.apiToken,
               input.publishAt,
               input.onLlmTrace,
+              input.onStep,
               input.abortSignal
             );
           }
 
           if (input.config.workflowType === 'article') {
             return await this.generateArticleFromQueue(
+              input.runId,
               input.workflow,
               input.config,
               input.apiToken,
               input.publishAt,
               input.now,
               input.onLlmTrace,
+              input.onStep,
               input.abortSignal
             );
           }
@@ -775,7 +874,11 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
 
           lastError = error instanceof Error ? error : new Error(String(error));
 
-          if (attempt >= input.config.retryMax) {
+          if (lastError.message.includes('quality_failed_final')) {
+            break;
+          }
+
+          if (attempt >= maxAttempts) {
             break;
           }
 
@@ -789,11 +892,18 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
     },
 
     async generateHoroscopeBatch(
+      runId: number,
       workflow: WorkflowRecord,
       config: NormalizedWorkflowConfig,
       apiToken: string,
       publishAt: Date,
       onLlmTrace?: LlmTraceLogger,
+      onStep?: (
+        stepId: string,
+        status: RunStepStatus,
+        message?: string,
+        output?: any
+      ) => Promise<void>,
       abortSignal?: AbortSignal
     ): Promise<{ created: number; updated: number; skipped: number; usage: OpenRouterUsage }> {
       const signs = await this.fetchZodiacSigns();
@@ -802,7 +912,11 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         throw new Error('Brak znaków zodiaku w bazie.');
       }
 
-      const targetDate = this.resolveHoroscopeDateAnchor(config.horoscopePeriod, publishAt, config.timezone);
+      const targetDate = this.resolveHoroscopeDateAnchor(
+        config.horoscopePeriod,
+        publishAt,
+        config.timezone
+      );
       const usageAcc = {
         prompt_tokens: 0,
         completion_tokens: 0,
@@ -827,7 +941,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         const prompt = this.renderPrompt(config.promptTemplate, context);
 
         const schema =
-          '{"items":[{"sign":"string","content":"string","type":"string opcjonalny"}]}';
+          '{"items":[{"sign":"string","content":"string","premiumContent":"string wymagany","type":"string opcjonalny"}]}';
 
         const llmResponse = await llmService().requestJson({
           model: config.llmModel,
@@ -850,6 +964,17 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         });
 
         const payload = this.validateHoroscopePayload(llmResponse.payload, horoscopeType);
+        const premiumKind: PremiumContentKind =
+          config.horoscopePeriod === 'Dzienny' ? 'horoscope-daily' : 'horoscope-periodic';
+
+        for (const item of payload.items) {
+          assertPremiumContentQuality({
+            label: `Horoscope ${config.horoscopePeriod} / ${horoscopeType} / ${item.sign}`,
+            content: item.content,
+            premiumContent: item.premiumContent,
+            kind: premiumKind,
+          });
+        }
 
         for (const item of payload.items) {
           const normalizedSign = normalizeName(item.sign);
@@ -867,6 +992,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
             config,
             signId: sign.id,
             content: item.content,
+            premiumContent: item.premiumContent ?? null,
             targetDate,
             horoscopeType,
             businessKey,
@@ -879,6 +1005,19 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         }
       }
 
+      if (created > 0 || updated > 0) {
+        await socialPublisherService().generateTeaser({
+          workflowId: workflow.id,
+          runId,
+          contentUid: CONTENT_UIDS.horoscope,
+          contentId: workflow.id,
+          contentTitle: `Nowe horoskopy ${config.horoscopePeriod.toLowerCase()}e są już dostępne! ✦`,
+          contentExcerpt: `Zajrzyj w gwiazdy i dowiedz się, co przyniesie najbliższy czas. Horoskopy ${config.horoscopePeriod.toLowerCase()}e dla wszystkich znaków zodiaku już na Star Sign.`,
+          targetUrl: `https://star-sign.app/horoskopy`,
+          publishAt,
+        });
+      }
+
       return {
         created,
         updated,
@@ -888,11 +1027,18 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
     },
 
     async generateDailyCard(
+      runId: number,
       workflow: WorkflowRecord,
       config: NormalizedWorkflowConfig,
       apiToken: string,
       publishAt: Date,
       onLlmTrace?: LlmTraceLogger,
+      onStep?: (
+        stepId: string,
+        status: RunStepStatus,
+        message?: string,
+        output?: any
+      ) => Promise<void>,
       abortSignal?: AbortSignal
     ): Promise<{ created: number; updated: number; skipped: number; usage: OpenRouterUsage }> {
       const cards = await this.fetchTarotCards();
@@ -920,7 +1066,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
 
       const prompt = this.renderPrompt(config.promptTemplate, context);
       const schema =
-        '{"title":"string","excerpt":"string","content":"string","draw_message":"string","slug":"string opcjonalny"}';
+        '{"title":"string","excerpt":"string","content":"string","premiumContent":"string","isPremium":true,"draw_message":"string","slug":"string opcjonalny"}';
 
       const llmResponse = await llmService().requestJson({
         model: config.llmModel,
@@ -939,10 +1085,34 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
       });
 
       const payload = this.validateDailyCardPayload(llmResponse.payload);
+      assertPremiumContentQuality({
+        label: `Daily card / ${targetDate}`,
+        content: payload.content,
+        premiumContent: payload.premiumContent,
+        kind: 'tarot',
+      });
 
       await this.upsertDailyDraw(targetDate, card.id, payload.draw_message);
 
       const articleBusinessKey = `daily-card:article:${targetDate}`;
+
+      // KROK 3: Dobór obrazu z pełnym kontekstem Karty Dnia
+      const selectionResult = await mediaSelectorService().resolveForArticle({
+        workflowType: 'daily_card',
+        contextKey: `daily-card:${targetDate}`,
+        now: new Date(),
+        targetDate,
+        title: payload.title,
+        content: payload.content,
+        categoryName: 'Karta Dnia',
+        apiToken,
+        llmModel: config.llmModel,
+        imageGenModel: config.imageGenModel,
+        imageGenToken: await workflowsService().decryptImageTokenForRuntime(workflow),
+        workflowId: workflow.id,
+        onStep: onStep,
+      });
+
       const upsertResult = await this.upsertArticleDraft({
         workflow,
         config,
@@ -952,9 +1122,24 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         businessKey: articleBusinessKey,
         explicitSlug: payload.slug || `karta-dnia-${targetDate}`,
         categoryId: config.articleCategoryId,
+        imageAssetKey: selectionResult.mediaAssetKey,
         imageContextKey: `daily-card:${workflow.id}`,
         targetDate,
+        onStep: onStep,
       });
+
+      if (upsertResult.articleId) {
+        await socialPublisherService().generateTeaser({
+          workflowId: workflow.id,
+          runId,
+          contentUid: CONTENT_UIDS.article,
+          contentId: upsertResult.articleId,
+          contentTitle: payload.title,
+          contentExcerpt: payload.excerpt,
+          targetUrl: `https://star-sign.app/artykuly/${payload.slug || `karta-dnia-${targetDate}`}`,
+          publishAt,
+        });
+      }
 
       return {
         created: upsertResult.created,
@@ -965,12 +1150,19 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
     },
 
     async generateArticleFromQueue(
+      runId: number,
       workflow: WorkflowRecord,
       config: NormalizedWorkflowConfig,
       apiToken: string,
       publishAt: Date,
       now: Date,
       onLlmTrace?: LlmTraceLogger,
+      onStep?: (
+        stepId: string,
+        status: RunStepStatus,
+        message?: string,
+        output?: any
+      ) => Promise<void>,
       abortSignal?: AbortSignal
     ): Promise<{ created: number; updated: number; skipped: number; usage: OpenRouterUsage }> {
       const topic = await topicsService().takeNextForWorkflow(workflow.id, now);
@@ -996,10 +1188,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
           throw new Error('Workflow article wymaga kategorii (workflow lub topic item).');
         }
 
-        const imageAssetKey = topic.image_asset_key?.trim();
-        if (!imageAssetKey) {
-          throw new Error('Topic queue dla workflow article wymaga image_asset_key.');
-        }
+        const imageAssetKey = getOptionalString(topic.image_asset_key);
 
         const context = {
           targetDate,
@@ -1013,31 +1202,160 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         };
 
         const prompt = this.renderPrompt(config.promptTemplate, context);
-
         const schema =
-          '{"title":"string","excerpt":"string","content":"string","author":"string opcjonalny","read_time_minutes":"number opcjonalny","slug":"string opcjonalny"}';
+          '{"title":"string","excerpt":"string","content":"string","premiumContent":"string wymagany","isPremium":true,"author":"string opcjonalny","read_time_minutes":"number opcjonalny","slug":"string opcjonalny"}';
 
-        const llmResponse = await llmService().requestJson({
-          model: config.llmModel,
-          apiToken,
-          prompt,
-          schemaDescription: schema,
-          temperature: config.temperature,
-          maxCompletionTokens: config.maxCompletionTokens,
-          signal: abortSignal,
-        });
-        assertNotAborted(abortSignal);
+        const workflowService = () => getPluginService<any>(strapi, 'workflows');
+        const apiToken = await workflowService().decryptTokenForRuntime(workflow);
+        const imageGenToken = await workflowService().decryptImageTokenForRuntime(workflow);
 
-        await onLlmTrace?.(llmResponse.trace, {
-          label: `Article topic #${topic.id} / ${topic.title}`,
-          workflowType: config.workflowType,
-        });
+        const finalUsage = {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
+        };
+        let payload: ArticlePayload | null = null;
+        let lastQualityError: Error | null = null;
 
-        const payload = this.validateArticlePayload(llmResponse.payload);
+        for (let attempt = 1; attempt <= PREMIUM_CONTENT_RETRY_MAX; attempt += 1) {
+          try {
+            // KROK 1: Inicjowanie wizji redakcyjnej (Writer)
+            await onStep?.(
+              'article_draft',
+              'running',
+              `Inicjowanie wizji redakcyjnej i generowanie szkicu treści (${attempt}/${PREMIUM_CONTENT_RETRY_MAX})...`
+            );
+            const llmResponse = await llmService().requestJson({
+              model: config.llmModel,
+              apiToken,
+              prompt,
+              schemaDescription: schema,
+              temperature: config.temperature,
+              maxCompletionTokens: config.maxCompletionTokens,
+              signal: abortSignal,
+            });
+            assertNotAborted(abortSignal);
+
+            const draftPayload = this.validateArticlePayload(llmResponse.payload);
+            finalUsage.prompt_tokens += llmResponse.usage.prompt_tokens;
+            finalUsage.completion_tokens += llmResponse.usage.completion_tokens;
+            finalUsage.total_tokens += llmResponse.usage.total_tokens;
+            await onStep?.('article_draft', 'success', `Wygenerowano szkic: ${draftPayload.title}`);
+
+            // KROK 2: Redakcja i optymalizacja (Editor)
+            await onStep?.(
+              'article_review',
+              'running',
+              'Analiza redakcyjna, optymalizacja stylu i korekta SEO...'
+            );
+
+            const editorPrompt = renderAicoPromptTemplate(
+              getAicoPromptTemplate('articleQualityRepair'),
+              {
+                title: draftPayload.title,
+                excerpt: draftPayload.excerpt,
+                content: draftPayload.content,
+                premiumContent: draftPayload.premiumContent ?? '',
+                qualityIssues: lastQualityError?.message ?? 'initial_editor_pass',
+              }
+            );
+
+            const editorResponse = await llmService().requestJson({
+              model: config.llmModel,
+              apiToken,
+              prompt: editorPrompt,
+              schemaDescription: schema,
+              temperature: 0.5,
+              signal: abortSignal,
+            });
+            assertNotAborted(abortSignal);
+
+            const candidatePayload = this.validateArticlePayload(editorResponse.payload);
+            finalUsage.prompt_tokens += editorResponse.usage.prompt_tokens;
+            finalUsage.completion_tokens += editorResponse.usage.completion_tokens;
+            finalUsage.total_tokens += editorResponse.usage.total_tokens;
+
+            await onLlmTrace?.(editorResponse.trace, {
+              label: `Article Polish #${topic.id} / ${topic.title}`,
+              workflowType: config.workflowType,
+            });
+
+            assertPremiumContentQuality({
+              label: `Article topic #${topic.id} / ${topic.title}`,
+              content: candidatePayload.content,
+              premiumContent: candidatePayload.premiumContent,
+              kind: 'article',
+            });
+
+            candidatePayload.isPremium = true;
+            payload = candidatePayload;
+            lastQualityError = null;
+            await onStep?.(
+              'article_review',
+              'success',
+              'Treść została pomyślnie zredagowana, zoptymalizowana i przeszła kontrolę Premium.'
+            );
+            break;
+          } catch (error) {
+            if (abortSignal?.aborted) {
+              throw error;
+            }
+
+            lastQualityError = error instanceof Error ? error : new Error(String(error));
+            await onStep?.(
+              'premium_quality',
+              attempt >= PREMIUM_CONTENT_RETRY_MAX ? 'failed' : 'running',
+              `Kontrola Premium nie przeszła próby ${attempt}/${PREMIUM_CONTENT_RETRY_MAX}: ${lastQualityError.message}`
+            );
+          }
+        }
+
+        if (!payload) {
+          throw new Error(
+            `quality_failed_final premiumContent after ${PREMIUM_CONTENT_RETRY_MAX} attempts: ${
+              lastQualityError?.message ?? 'unknown quality error'
+            }`
+          );
+        }
 
         const businessKey = `article:topic:${topic.id}:${targetDate}`;
 
-        const result = await this.upsertArticleDraft({
+        // KROK 3: Strategia wizualna i dobór mediów
+        await onStep?.(
+          'image_selection',
+          'running',
+          'Analiza kontekstowa treści i dobór idealnej oprawy wizualnej...'
+        );
+        const selectionResult = await mediaSelectorService().resolveForArticle({
+          workflowType: 'article',
+          contextKey: `topic-queue:${topic.id}`,
+          now: new Date(),
+          targetDate,
+          title: payload.title,
+          content: payload.content,
+          categoryName: isRecord(topic.article_category)
+            ? (topic.article_category as any).name
+            : undefined,
+          apiToken,
+          llmModel: config.llmModel,
+          imageGenModel: config.imageGenModel,
+          imageGenToken,
+          workflowId: workflow.id,
+          onStep: onStep,
+        });
+        await onStep?.(
+          'image_selection',
+          'success',
+          `Dopasowano asset: ${selectionResult.mediaAssetKey}`
+        );
+
+        // KROK 4: Finalizacja i rejestracja publikacji
+        await onStep?.(
+          'persistence',
+          'running',
+          'Finalizacja artykułu i planowanie publikacji w kalendarzu...'
+        );
+        const upsertResult = await this.upsertArticleDraft({
           workflow,
           config,
           payload,
@@ -1046,20 +1364,48 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
           businessKey,
           explicitSlug: payload.slug,
           categoryId,
-          imageAssetKey,
+          imageAssetKey: selectionResult.mediaAssetKey,
           imageContextKey: `article:${workflow.id}:category:${categoryId}`,
           targetDate,
+          title: payload.title,
+          categoryName: isRecord(topic.article_category)
+            ? (topic.article_category as any).name
+            : undefined,
+          onStep: onStep,
         });
 
-        if (result.articleId) {
-          await topicsService().markDone(topic.id, result.articleId);
+        if (upsertResult.articleId) {
+          await topicsService().markDone(topic.id, upsertResult.articleId);
+
+          await onStep?.(
+            'social_teaser',
+            'running',
+            'Generowanie zapowiedzi do mediów społecznościowych...'
+          );
+          await socialPublisherService().generateTeaser({
+            workflowId: workflow.id,
+            runId,
+            contentUid: CONTENT_UIDS.article,
+            contentId: upsertResult.articleId,
+            contentTitle: payload.title,
+            contentExcerpt: payload.excerpt,
+            targetUrl: `https://star-sign.app/artykuly/${payload.slug}`,
+            publishAt,
+          });
+          await onStep?.('social_teaser', 'success', 'Zapowiedź social media gotowa.');
         }
 
+        await onStep?.(
+          'persistence',
+          'success',
+          `Artykuł gotowy do publikacji (${publishAt.toLocaleString()})`
+        );
+
         return {
-          created: result.created,
-          updated: result.updated,
-          skipped: result.skipped,
-          usage: llmResponse.usage,
+          created: upsertResult.created,
+          updated: upsertResult.updated,
+          skipped: upsertResult.skipped,
+          usage: finalUsage,
         };
       } catch (error) {
         await topicsService().markFailed(topic.id, toSafeErrorMessage(error));
@@ -1072,6 +1418,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
       config: NormalizedWorkflowConfig;
       signId: number;
       content: string;
+      premiumContent?: string | null;
       targetDate: string;
       horoscopeType: string;
       businessKey: string;
@@ -1112,6 +1459,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
               type: input.horoscopeType,
               date: input.targetDate,
               content: input.content,
+              premiumContent: input.premiumContent ?? null,
               zodiac_sign: input.signId,
             },
           });
@@ -1136,6 +1484,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
           type: input.horoscopeType,
           date: input.targetDate,
           content: input.content,
+          premiumContent: input.premiumContent ?? null,
           zodiac_sign: input.signId,
         },
       })) as { id: number };
@@ -1153,6 +1502,70 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
       return { created: 1, updated: 0, skipped: 0 };
     },
 
+    async reconcileArticleImages(): Promise<{ updated: number }> {
+      const articles = (await entityService.findMany(CONTENT_UIDS.article, {
+        filters: {
+          image: { $null: true },
+        },
+        populate: ['category'],
+        limit: 50,
+      })) as any[];
+
+      if (articles.length === 0) return { updated: 0 };
+
+      // Pobieramy token z dowolnego aktywnego workflow, aby mieć "paliwo" do generacji
+      const workflows = await entityService.findMany(WORKFLOW_UID, {
+        filters: { enabled: true },
+        limit: 1,
+      });
+      const workflow = workflows[0];
+      const apiToken = workflow ? await workflowsService().decryptTokenForRuntime(workflow) : null;
+      const imageGenToken = workflow
+        ? await workflowsService().decryptImageTokenForRuntime(workflow)
+        : null;
+      const config = workflow ? await workflowsService().normalizeRuntime(workflow) : null;
+
+      let updatedCount = 0;
+
+      for (const article of articles) {
+        try {
+          const selection = await mediaSelectorService().resolveForArticle({
+            workflowType: 'article',
+            contextKey: 'reconciliation',
+            now: new Date(),
+            title: article.title,
+            categoryName: article.category?.name,
+            apiToken,
+            llmModel: config?.llmModel,
+            imageGenModel: config?.imageGenModel,
+            imageGenToken,
+            workflowId: workflow?.id,
+          });
+
+          if (selection.uploadFileId) {
+            await entityService.update(CONTENT_UIDS.article, article.id, {
+              data: {
+                image: selection.uploadFileId,
+              },
+            });
+
+            await mediaSelectorService().registerUsage({
+              mediaAssetId: selection.mediaAssetId,
+              contentUid: CONTENT_UIDS.article,
+              contentEntryId: article.id,
+              contextKey: 'reconciliation',
+            });
+
+            updatedCount++;
+          }
+        } catch (e) {
+          // ignore failures
+        }
+      }
+
+      return { updated: updatedCount };
+    },
+
     async upsertArticleDraft(input: {
       workflow: WorkflowRecord;
       config: NormalizedWorkflowConfig;
@@ -1166,6 +1579,14 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
       imageContextKey: string;
       targetDate: string;
       requiredSignSlug?: string | null;
+      title?: string;
+      categoryName?: string;
+      onStep?: (
+        stepId: string,
+        status: 'running' | 'success' | 'failed',
+        message?: string,
+        output?: any
+      ) => Promise<void>;
     }): Promise<{ created: number; updated: number; skipped: number; articleId?: number }> {
       if (!input.categoryId) {
         throw new Error('Brak kategorii artykułu.');
@@ -1196,6 +1617,10 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         } else if (existing.publishedAt && !input.config.forceRegenerate) {
           return { created: 0, updated: 0, skipped: 1, articleId: existing.id };
         } else {
+          const workflowService = () => getPluginService<any>(strapi, 'workflows');
+          const apiToken = await workflowService().decryptTokenForRuntime(input.workflow);
+          const imageGenToken = await workflowService().decryptImageTokenForRuntime(input.workflow);
+
           const imageSelection = await mediaSelectorService().resolveForArticle({
             workflowType: input.workflowType,
             imageAssetKey: input.imageAssetKey,
@@ -1203,6 +1628,14 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
             contextKey: input.imageContextKey,
             now: new Date(),
             targetDate: input.targetDate,
+            title: input.title,
+            categoryName: input.categoryName,
+            apiToken,
+            llmModel: input.config.llmModel,
+            imageGenModel: input.config.imageGenModel,
+            imageGenToken,
+            workflowId: input.workflow.id,
+            onStep: input.onStep,
           });
 
           const slug = await this.ensureUniqueArticleSlug(
@@ -1215,10 +1648,16 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
               title: input.payload.title,
               excerpt: input.payload.excerpt,
               content: input.payload.content,
+              premiumContent:
+                'premiumContent' in input.payload ? (input.payload.premiumContent ?? null) : null,
+              isPremium:
+                'isPremium' in input.payload
+                  ? Boolean(input.payload.isPremium)
+                  : Boolean('premiumContent' in input.payload && input.payload.premiumContent),
               slug,
               category: input.categoryId,
               image: imageSelection.uploadFileId,
-              author: input.payload.author ?? 'AI Orchestrator',
+              author: input.payload.author ?? 'Zespół Star Sign',
               read_time_minutes:
                 typeof input.payload.read_time_minutes === 'number'
                   ? Math.max(1, Math.min(60, Math.floor(input.payload.read_time_minutes)))
@@ -1249,7 +1688,13 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         }
       }
 
-      const slug = await this.ensureUniqueArticleSlug(input.explicitSlug || input.payload.slug || slugify(input.payload.title));
+      const slug = await this.ensureUniqueArticleSlug(
+        input.explicitSlug || input.payload.slug || slugify(input.payload.title)
+      );
+      const workflowService = () => getPluginService<any>(strapi, 'workflows');
+      const apiToken = await workflowService().decryptTokenForRuntime(input.workflow);
+      const imageGenToken = await workflowService().decryptImageTokenForRuntime(input.workflow);
+
       const imageSelection = await mediaSelectorService().resolveForArticle({
         workflowType: input.workflowType,
         imageAssetKey: input.imageAssetKey,
@@ -1257,6 +1702,14 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         contextKey: input.imageContextKey,
         now: new Date(),
         targetDate: input.targetDate,
+        title: input.title,
+        categoryName: input.categoryName,
+        apiToken,
+        llmModel: input.config.llmModel,
+        imageGenModel: input.config.imageGenModel,
+        imageGenToken,
+        workflowId: input.workflow.id,
+        onStep: input.onStep,
       });
 
       const created = (await entityService.create(CONTENT_UIDS.article, {
@@ -1264,10 +1717,16 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
           title: input.payload.title,
           excerpt: input.payload.excerpt,
           content: input.payload.content,
+          premiumContent:
+            'premiumContent' in input.payload ? (input.payload.premiumContent ?? null) : null,
+          isPremium:
+            'isPremium' in input.payload
+              ? Boolean(input.payload.isPremium)
+              : Boolean('premiumContent' in input.payload && input.payload.premiumContent),
           slug,
           category: input.categoryId,
           image: imageSelection.uploadFileId,
-          author: input.payload.author ?? 'AI Orchestrator',
+          author: input.payload.author ?? 'Zespół Star Sign',
           read_time_minutes:
             typeof input.payload.read_time_minutes === 'number'
               ? Math.max(1, Math.min(60, Math.floor(input.payload.read_time_minutes)))
@@ -1404,7 +1863,11 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
       return rows[0] ?? null;
     },
 
-    resolveHoroscopeDateAnchor(period: NormalizedWorkflowConfig['horoscopePeriod'], publishAt: Date, timezone: string): string {
+    resolveHoroscopeDateAnchor(
+      period: NormalizedWorkflowConfig['horoscopePeriod'],
+      publishAt: Date,
+      timezone: string
+    ): string {
       if (period === 'Dzienny') {
         return formatDateInZone(publishAt, timezone);
       }
@@ -1435,15 +1898,26 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
 
           const sign = getString(item.sign, 'items[].sign');
           const content = getString(item.content, 'items[].content');
+          const premiumContent = getString(item.premiumContent, 'items[].premiumContent');
           const type = getOptionalString(item.type) ?? fallbackType;
 
           return {
             sign,
             content,
+            premiumContent,
             type,
           };
         })
-        .filter((item): item is { sign: string; content: string; type: string } => item !== null);
+        .filter(
+          (
+            item
+          ): item is {
+            sign: string;
+            content: string;
+            premiumContent: string;
+            type: string;
+          } => item !== null
+        );
 
       if (items.length === 0) {
         throw new Error('Horoscope payload nie zawiera elementów.');
@@ -1461,6 +1935,8 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         title: getString(payload.title, 'title'),
         excerpt: getString(payload.excerpt, 'excerpt'),
         content: getString(payload.content, 'content'),
+        premiumContent: getString(payload.premiumContent, 'premiumContent'),
+        isPremium: payload.isPremium === true || payload.isPremium === 'true',
         slug: getOptionalString(payload.slug),
         author: getOptionalString(payload.author),
         read_time_minutes:
@@ -1479,19 +1955,47 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         title: getString(payload.title, 'title'),
         excerpt: getString(payload.excerpt, 'excerpt'),
         content: getString(payload.content, 'content'),
+        premiumContent: getString(payload.premiumContent, 'premiumContent'),
+        isPremium: payload.isPremium === true || payload.isPremium === 'true',
         draw_message: getString(payload.draw_message, 'draw_message'),
         slug: getOptionalString(payload.slug),
       };
     },
 
-    async fetchZodiacSigns(): Promise<Array<{ id: number; name: string }>> {
+    async fetchZodiacSigns(): Promise<
+      Array<{ id: number; name: string; slug: string; image?: any }>
+    > {
       const rows = (await entityService.findMany(CONTENT_UIDS.zodiacSign, {
-        fields: ['id', 'name'],
+        fields: ['id', 'name', 'slug'],
+        populate: ['image'],
         sort: { id: 'asc' },
         limit: 100,
-      })) as Array<{ id: number; name: string }>;
+      })) as Array<{ id: number; name: string; slug: string; image?: any }>;
+
+      await this.reconcileZodiacSignImages(rows);
 
       return rows;
+    },
+
+    async reconcileZodiacSignImages(
+      signs: Array<{ id: number; slug: string; image?: any }>
+    ): Promise<void> {
+      for (const sign of signs) {
+        if (!sign.image) {
+          const selection = await mediaSelectorService().resolveForZodiacSign({
+            signSlug: sign.slug,
+          });
+          if (selection) {
+            await entityService.update(CONTENT_UIDS.zodiacSign, sign.id, {
+              data: {
+                image: selection.uploadFileId,
+              },
+            });
+            // Update local object to reflect change in current run
+            sign.image = { id: selection.uploadFileId };
+          }
+        }
+      }
     },
 
     async fetchTarotCards(): Promise<
@@ -1543,7 +2047,9 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         // Fall through to the clearer domain error below.
       }
 
-      throw new Error(`Cron publish nie ma wystąpienia dla lokalnej daty ${localDate} (${timezone}).`);
+      throw new Error(
+        `Cron publish nie ma wystąpienia dla lokalnej daty ${localDate} (${timezone}).`
+      );
     },
   };
 

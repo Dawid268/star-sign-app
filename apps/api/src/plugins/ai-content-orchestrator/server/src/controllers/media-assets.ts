@@ -20,7 +20,10 @@ const mediaAssetsController = ({ strapi }: { strapi: Strapi }) => ({
         .service('media-assets')
         .create((ctx.request.body ?? {}) as Record<string, unknown>);
 
-      const serialized = strapi.plugin('ai-content-orchestrator').service('media-assets').serialize(created);
+      const serialized = strapi
+        .plugin('ai-content-orchestrator')
+        .service('media-assets')
+        .serialize(created);
       ctx.body = { data: serialized };
     } catch (error) {
       ctx.badRequest(toSafeErrorMessage(error));
@@ -41,7 +44,10 @@ const mediaAssetsController = ({ strapi }: { strapi: Strapi }) => ({
         .service('media-assets')
         .update(id, (ctx.request.body ?? {}) as Record<string, unknown>);
 
-      const serialized = strapi.plugin('ai-content-orchestrator').service('media-assets').serialize(updated);
+      const serialized = strapi
+        .plugin('ai-content-orchestrator')
+        .service('media-assets')
+        .serialize(updated);
       ctx.body = { data: serialized };
     } catch (error) {
       ctx.badRequest(toSafeErrorMessage(error));
@@ -74,7 +80,8 @@ const mediaAssetsController = ({ strapi }: { strapi: Strapi }) => ({
   async previewIdentity(ctx: Context): Promise<void> {
     try {
       const body = (ctx.request.body ?? {}) as Record<string, unknown>;
-      const purpose = typeof body.purpose === 'string' ? (body.purpose as MediaPurpose) : 'blog_article';
+      const purpose =
+        typeof body.purpose === 'string' ? (body.purpose as MediaPurpose) : 'blog_article';
       const periodScope =
         typeof body.period_scope === 'string' ? (body.period_scope as MediaPeriodScope) : 'any';
       const result = await strapi

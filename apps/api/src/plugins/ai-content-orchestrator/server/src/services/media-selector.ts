@@ -1,12 +1,19 @@
 import { MEDIA_ASSET_UID, MEDIA_USAGE_LOG_UID } from '../constants';
 import type { MediaAssetRecord, Strapi } from '../types';
+import { toTokens } from '../utils/media-mapping';
+import { getPluginService } from '../utils/plugin';
 
 const getId = (value: unknown): number | null => {
   if (typeof value === 'number') {
     return value;
   }
 
-  if (value && typeof value === 'object' && 'id' in value && typeof (value as { id: unknown }).id === 'number') {
+  if (
+    value &&
+    typeof value === 'object' &&
+    'id' in value &&
+    typeof (value as { id: unknown }).id === 'number'
+  ) {
     return (value as { id: number }).id;
   }
 
@@ -24,44 +31,88 @@ const mediaSelector = ({ strapi }: { strapi: Strapi }) => {
       contextKey: string;
       now: Date;
       targetDate?: string;
+      title?: string;
+      content?: string;
+      categoryName?: string;
+      apiToken?: string;
+      llmModel?: string;
+      imageGenModel?: string;
+      imageGenToken?: string;
+      workflowId?: number;
+      onStep?: (
+        stepId: string,
+        status: 'running' | 'success' | 'failed',
+        message?: string,
+        output?: any
+      ) => Promise<void>;
     }): Promise<{ mediaAssetId: number; mediaAssetKey: string; uploadFileId: number }> {
-      const candidates = (await entityService.findMany(MEDIA_ASSET_UID, {
-        filters: {
-          active: true,
-          ...(input.imageAssetKey ? { asset_key: input.imageAssetKey.trim() } : {}),
-          ...(!input.imageAssetKey && input.workflowType === 'daily_card'
-            ? { purpose: { $in: ['daily_card', 'fallback_general'] } }
-            : {}),
-        },
+      const filters: any = { active: true };
+
+      if (input.imageAssetKey?.trim()) {
+        filters.asset_key = input.imageAssetKey.trim();
+      } else if (input.workflowType === 'article') {
+        filters.purpose = 'blog_article';
+      } else {
+        filters.purpose = { $in: ['daily_card', 'fallback_general'] };
+      }
+
+      if (input.requiredSignSlug?.trim()) {
+        filters.sign_slug = input.requiredSignSlug.trim();
+      }
+
+      let candidates = (await entityService.findMany(MEDIA_ASSET_UID, {
+        filters,
         sort: [{ priority: 'desc' }, { use_count: 'asc' }, { last_used_at: 'asc' }, { id: 'asc' }],
         populate: ['asset'],
         limit: 200,
       })) as MediaAssetRecord[];
 
-      if (candidates.length === 0) {
-        if (input.workflowType === 'article') {
-          throw new Error(`Nie znaleziono media-asset dla klucza "${input.imageAssetKey ?? ''}".`);
-        }
-        throw new Error('Brak aktywnych media-asset dla workflow daily_card.');
+      if (candidates.length === 0 && input.imageAssetKey) {
+        throw new Error(`Nie znaleziono media-asset dla klucza "${input.imageAssetKey}".`);
       }
 
-      if (input.workflowType === 'article' && !input.imageAssetKey?.trim()) {
-        throw new Error('Workflow article wymaga ustawionego image_asset_key w topic queue.');
+      // Jeśli nie mamy ścisłego klucza, a mamy tytuł/kategorię, stosujemy scoring
+      if (!input.imageAssetKey && (input.title || input.categoryName)) {
+        const titleTokens = input.title ? toTokens(input.title) : [];
+        const categoryTokens = input.categoryName ? toTokens(input.categoryName) : [];
+
+        const scored = candidates.map((c) => {
+          let score = 0;
+          const assetKeywords = Array.isArray(c.keywords) ? (c.keywords as string[]) : [];
+
+          // Punktacja za kategorię (wysoki priorytet)
+          if (categoryTokens.length > 0) {
+            const catMatch = categoryTokens.some(
+              (t) => assetKeywords.includes(t) || c.label.toLowerCase().includes(t)
+            );
+            if (catMatch) score += 10;
+          }
+
+          // Punktacja za słowa kluczowe z tytułu
+          for (const token of titleTokens) {
+            if (assetKeywords.includes(token)) score += 2;
+            if (c.label.toLowerCase().includes(token)) score += 1;
+          }
+
+          return { candidate: c, score };
+        });
+
+        // Sortujemy po wyniku, potem po domyślnych kryteriach
+        scored.sort((a, b) => b.score - a.score);
+        candidates = scored.map((s) => s.candidate);
       }
 
-      const strictSignSlug = input.requiredSignSlug?.trim() || null;
-      const filteredBySign = strictSignSlug
-        ? candidates.filter((item) => (item.sign_slug?.trim() || null) === strictSignSlug)
-        : candidates;
+      const usable = candidates.filter((item) => Boolean(getId(item.asset)));
 
-      if (strictSignSlug && filteredBySign.length === 0) {
-        throw new Error(`Brak media-asset ze znakiem "${strictSignSlug}" (lock sign_slug).`);
-      }
-
-      const usable = filteredBySign.filter((item) => Boolean(getId(item.asset)));
-
+      // --- AUTONOMOUS FALLBACK ---
       if (usable.length === 0) {
-        throw new Error('Znalezione media-asset nie mają podpiętego pliku w Media Library.');
+        if (input.apiToken && input.llmModel && input.title) {
+          strapi.log.info(
+            `[aico] Brak dopasowanych mediów dla "${input.title}". Uruchamiam generację on-demand...`
+          );
+          return await this.triggerAutonomousGeneration(input);
+        }
+        throw new Error('Brak dostępnych media-asset z plikiem dla zadanych kryteriów.');
       }
 
       for (const candidate of usable) {
@@ -102,7 +153,107 @@ const mediaSelector = ({ strapi }: { strapi: Strapi }) => {
         };
       }
 
-      throw new Error('Brak dostępnych media-asset po uwzględnieniu cooldown i reguł doboru.');
+      // Jeśli wszystko w cooldown, też próbujemy generować nowe zamiast rzucać błąd
+      if (input.apiToken && input.llmModel && input.title) {
+        strapi.log.info(`[aico] Wszystkie media w cooldown. Generuję nowe on-demand...`);
+        return await this.triggerAutonomousGeneration(input);
+      }
+
+      throw new Error('Wszystkie dopasowane media-asset są w okresie cooldown.');
+    },
+
+    async triggerAutonomousGeneration(
+      input: any
+    ): Promise<{ mediaAssetId: number; mediaAssetKey: string; uploadFileId: number }> {
+      const designer = getPluginService<any>(strapi, 'image-designer');
+      const generator = getPluginService<any>(strapi, 'media-generator');
+
+      try {
+        // 1. Projektowanie wizualne
+        await input.onStep?.(
+          'image_design',
+          'running',
+          'Projektowanie promptu wizualnego przez LLM...'
+        );
+        const { design } = await designer.designForContent({
+          title: input.title,
+          content: input.content,
+          categoryName: input.categoryName,
+          workflowType: input.workflowType,
+          apiToken: input.apiToken,
+          model: input.llmModel,
+        });
+
+        const fullPrompt = designer.buildFullPrompt(design);
+        await input.onStep?.('image_design', 'success', `Zaprojektowano: ${design.label}`, {
+          design,
+          fullPrompt,
+        });
+
+        // 2. Fizyczna generacja i upload
+        await input.onStep?.(
+          'image_generation',
+          'running',
+          `Generowanie obrazu (${input.imageGenModel || 'default'}) i upload...`
+        );
+        const result = await generator.generateAndUpload({
+          prompt: fullPrompt,
+          label: design.label,
+          purpose: input.workflowType === 'article' ? 'blog_article' : 'daily_card',
+          signSlug: input.requiredSignSlug,
+          workflowId: input.workflowId,
+          model: input.imageGenModel,
+          apiToken: input.imageGenToken,
+        });
+
+        const mediaAsset = await entityService.findOne(MEDIA_ASSET_UID, result.mediaAssetId);
+        await input.onStep?.('image_generation', 'success', 'Obraz wygenerowany i zmapowany.', {
+          mediaAssetId: result.mediaAssetId,
+          uploadFileId: result.uploadFileId,
+        });
+
+        return {
+          mediaAssetId: result.mediaAssetId,
+          mediaAssetKey: mediaAsset.asset_key,
+          uploadFileId: result.uploadFileId,
+        };
+      } catch (error) {
+        await input.onStep?.(
+          'image_generation',
+          'failed',
+          `Błąd autonomicznej generacji: ${error.message}`
+        );
+        throw error;
+      }
+    },
+
+    async resolveForZodiacSign(input: {
+      signSlug: string;
+    }): Promise<{ mediaAssetId: number; uploadFileId: number } | null> {
+      const candidates = (await entityService.findMany(MEDIA_ASSET_UID, {
+        filters: {
+          active: true,
+          purpose: 'zodiac_profile',
+          sign_slug: input.signSlug,
+        },
+        sort: [{ priority: 'desc' }, { id: 'asc' }],
+        populate: ['asset'],
+        limit: 1,
+      })) as MediaAssetRecord[];
+
+      if (candidates.length === 0) {
+        return null;
+      }
+
+      const uploadFileId = getId(candidates[0].asset);
+      if (!uploadFileId) {
+        return null;
+      }
+
+      return {
+        mediaAssetId: candidates[0].id,
+        uploadFileId,
+      };
     },
 
     async registerUsage(input: {
@@ -127,7 +278,10 @@ const mediaSelector = ({ strapi }: { strapi: Strapi }) => {
         },
       });
 
-      const current = (await entityService.findOne(MEDIA_ASSET_UID, input.mediaAssetId)) as MediaAssetRecord | null;
+      const current = (await entityService.findOne(
+        MEDIA_ASSET_UID,
+        input.mediaAssetId
+      )) as MediaAssetRecord | null;
 
       if (!current) {
         return;

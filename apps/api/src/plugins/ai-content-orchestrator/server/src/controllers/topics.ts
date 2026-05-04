@@ -25,17 +25,23 @@ const topicsController = ({ strapi }: { strapi: Strapi }) => ({
         metadata?: Record<string, unknown>;
       };
 
-      const created = await strapi.plugin('ai-content-orchestrator').service('topics').create({
-        title: body.title ?? '',
-        brief: body.brief,
-        image_asset_key: body.image_asset_key,
-        scheduled_for: body.scheduled_for,
-        workflow: body.workflow,
-        article_category: body.article_category,
-        metadata: body.metadata,
-      });
+      const created = await strapi
+        .plugin('ai-content-orchestrator')
+        .service('topics')
+        .create({
+          title: body.title ?? '',
+          brief: body.brief,
+          image_asset_key: body.image_asset_key,
+          scheduled_for: body.scheduled_for,
+          workflow: body.workflow,
+          article_category: body.article_category,
+          metadata: body.metadata,
+        });
 
-      const serialized = strapi.plugin('ai-content-orchestrator').service('topics').serialize(created);
+      const serialized = strapi
+        .plugin('ai-content-orchestrator')
+        .service('topics')
+        .serialize(created);
       ctx.body = { data: serialized };
     } catch (error) {
       ctx.badRequest(toSafeErrorMessage(error));
@@ -56,7 +62,10 @@ const topicsController = ({ strapi }: { strapi: Strapi }) => ({
         .service('topics')
         .update(id, ctx.request.body ?? {});
 
-      const serialized = strapi.plugin('ai-content-orchestrator').service('topics').serialize(updated);
+      const serialized = strapi
+        .plugin('ai-content-orchestrator')
+        .service('topics')
+        .serialize(updated);
       ctx.body = { data: serialized };
     } catch (error) {
       ctx.badRequest(toSafeErrorMessage(error));

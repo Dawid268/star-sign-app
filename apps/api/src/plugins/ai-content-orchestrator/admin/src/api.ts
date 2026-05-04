@@ -11,6 +11,10 @@ import type {
   MediaLibraryListResult,
   MediaUsage,
   Run,
+  SocialConnectionResult,
+  SocialDryRunResult,
+  SocialTicket,
+  AuditReport,
   SettingsPayload,
   Topic,
   Workflow,
@@ -35,11 +39,18 @@ export const api = {
   },
 
   async createWorkflow(client: FetchClient, payload: Record<string, unknown>): Promise<Workflow> {
-    const { data } = await client.post<ApiEnvelope<Workflow>, Record<string, unknown>>(`${BASE}/workflows`, payload);
+    const { data } = await client.post<ApiEnvelope<Workflow>, Record<string, unknown>>(
+      `${BASE}/workflows`,
+      payload
+    );
     return data.data;
   },
 
-  async updateWorkflow(client: FetchClient, id: number, payload: Record<string, unknown>): Promise<Workflow> {
+  async updateWorkflow(
+    client: FetchClient,
+    id: number,
+    payload: Record<string, unknown>
+  ): Promise<Workflow> {
     const { data } = await client.put<ApiEnvelope<Workflow>, Record<string, unknown>>(
       `${BASE}/workflows/${id}`,
       payload
@@ -48,12 +59,16 @@ export const api = {
   },
 
   async runNow(client: FetchClient, id: number): Promise<Record<string, unknown>> {
-    const { data } = await client.post<ApiEnvelope<Record<string, unknown>>>(`${BASE}/workflows/${id}/run-now`);
+    const { data } = await client.post<ApiEnvelope<Record<string, unknown>>>(
+      `${BASE}/workflows/${id}/run-now`
+    );
     return data.data;
   },
 
   async stopWorkflow(client: FetchClient, id: number): Promise<Record<string, unknown>> {
-    const { data } = await client.post<ApiEnvelope<Record<string, unknown>>>(`${BASE}/workflows/${id}/stop`);
+    const { data } = await client.post<ApiEnvelope<Record<string, unknown>>>(
+      `${BASE}/workflows/${id}/stop`
+    );
     return data.data;
   },
 
@@ -80,12 +95,22 @@ export const api = {
   },
 
   async createTopic(client: FetchClient, payload: Record<string, unknown>): Promise<Topic> {
-    const { data } = await client.post<ApiEnvelope<Topic>, Record<string, unknown>>(`${BASE}/topics`, payload);
+    const { data } = await client.post<ApiEnvelope<Topic>, Record<string, unknown>>(
+      `${BASE}/topics`,
+      payload
+    );
     return data.data;
   },
 
-  async updateTopic(client: FetchClient, id: number, payload: Record<string, unknown>): Promise<Topic> {
-    const { data } = await client.put<ApiEnvelope<Topic>, Record<string, unknown>>(`${BASE}/topics/${id}`, payload);
+  async updateTopic(
+    client: FetchClient,
+    id: number,
+    payload: Record<string, unknown>
+  ): Promise<Topic> {
+    const { data } = await client.put<ApiEnvelope<Topic>, Record<string, unknown>>(
+      `${BASE}/topics/${id}`,
+      payload
+    );
     return data.data;
   },
 
@@ -96,12 +121,97 @@ export const api = {
     }
 
     const queryString = query.toString();
-    const { data } = await client.get<ApiEnvelope<Run[]>>(`${BASE}/runs${queryString ? `?${queryString}` : ''}`);
+    const { data } = await client.get<ApiEnvelope<Run[]>>(
+      `${BASE}/runs${queryString ? `?${queryString}` : ''}`
+    );
     return data.data;
   },
 
   async retryRun(client: FetchClient, id: number): Promise<Record<string, unknown>> {
-    const { data } = await client.post<ApiEnvelope<Record<string, unknown>>>(`${BASE}/runs/${id}/retry`);
+    const { data } = await client.post<ApiEnvelope<Record<string, unknown>>>(
+      `${BASE}/runs/${id}/retry`
+    );
+    return data.data;
+  },
+
+  async getSocialTickets(
+    client: FetchClient,
+    params?: {
+      platform?: string;
+      status?: string;
+      workflowId?: number;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<SocialTicket[]> {
+    const query = new URLSearchParams();
+    if (params?.platform) query.set('platform', params.platform);
+    if (params?.status) query.set('status', params.status);
+    if (typeof params?.workflowId === 'number') query.set('workflowId', String(params.workflowId));
+    if (typeof params?.page === 'number') query.set('page', String(params.page));
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit));
+
+    const queryString = query.toString();
+    const { data } = await client.get<ApiEnvelope<SocialTicket[]>>(
+      `${BASE}/social/tickets${queryString ? `?${queryString}` : ''}`
+    );
+    return data.data;
+  },
+
+  async testSocialConnection(
+    client: FetchClient,
+    payload: { workflowId: number; channels?: Array<'facebook' | 'instagram' | 'twitter'> }
+  ): Promise<SocialConnectionResult> {
+    const { data } = await client.post<ApiEnvelope<SocialConnectionResult>, typeof payload>(
+      `${BASE}/social/test-connection`,
+      payload
+    );
+    return data.data;
+  },
+
+  async dryRunSocial(
+    client: FetchClient,
+    payload: {
+      workflowId: number;
+      channels?: Array<'facebook' | 'instagram' | 'twitter'>;
+      caption?: string;
+      mediaUrl?: string;
+      targetUrl?: string;
+    }
+  ): Promise<SocialDryRunResult> {
+    const { data } = await client.post<ApiEnvelope<SocialDryRunResult>, typeof payload>(
+      `${BASE}/social/dry-run`,
+      payload
+    );
+    return data.data;
+  },
+
+  async retrySocialTicket(client: FetchClient, id: number): Promise<SocialTicket> {
+    const { data } = await client.post<ApiEnvelope<SocialTicket>>(
+      `${BASE}/social/tickets/${id}/retry`
+    );
+    return data.data;
+  },
+
+  async cancelSocialTicket(client: FetchClient, id: number): Promise<SocialTicket> {
+    const { data } = await client.post<ApiEnvelope<SocialTicket>>(
+      `${BASE}/social/tickets/${id}/cancel`
+    );
+    return data.data;
+  },
+
+  async getAuditPreflight(client: FetchClient): Promise<AuditReport> {
+    const { data } = await client.get<ApiEnvelope<AuditReport>>(`${BASE}/audit/preflight`);
+    return data.data;
+  },
+
+  async runAuditPreflight(client: FetchClient, strict = true): Promise<AuditReport> {
+    const { data } = await client.post<ApiEnvelope<AuditReport>, { strict: boolean }>(
+      `${BASE}/audit/preflight`,
+      {
+        strict,
+      }
+    );
     return data.data;
   },
 
@@ -111,7 +221,10 @@ export const api = {
   },
 
   async updateSettings(client: FetchClient, payload: SettingsPayload): Promise<SettingsPayload> {
-    const { data } = await client.put<ApiEnvelope<SettingsPayload>, SettingsPayload>(`${BASE}/settings`, payload);
+    const { data } = await client.put<ApiEnvelope<SettingsPayload>, SettingsPayload>(
+      `${BASE}/settings`,
+      payload
+    );
     return data.data;
   },
 
@@ -120,7 +233,10 @@ export const api = {
     return data.data;
   },
 
-  async createMediaAsset(client: FetchClient, payload: Record<string, unknown>): Promise<MediaAsset> {
+  async createMediaAsset(
+    client: FetchClient,
+    payload: Record<string, unknown>
+  ): Promise<MediaAsset> {
     const { data } = await client.post<ApiEnvelope<MediaAsset>, Record<string, unknown>>(
       `${BASE}/media-assets`,
       payload
@@ -128,12 +244,24 @@ export const api = {
     return data.data;
   },
 
-  async updateMediaAsset(client: FetchClient, id: number, payload: Record<string, unknown>): Promise<MediaAsset> {
+  async updateMediaAsset(
+    client: FetchClient,
+    id: number,
+    payload: Record<string, unknown>
+  ): Promise<MediaAsset> {
     const { data } = await client.put<ApiEnvelope<MediaAsset>, Record<string, unknown>>(
       `${BASE}/media-assets/${id}`,
       payload
     );
     return data.data;
+  },
+
+  async deleteMediaAsset(client: FetchClient, id: number): Promise<void> {
+    await client.post(`${BASE}/media-assets/${id}/delete`);
+  },
+
+  async deleteTopic(client: FetchClient, id: number): Promise<void> {
+    await client.post(`${BASE}/topics/${id}/delete`);
   },
 
   async getMediaLibraryFiles(
@@ -208,7 +336,9 @@ export const api = {
   },
 
   async getMediaUsage(client: FetchClient, limit = 200): Promise<MediaUsage[]> {
-    const { data } = await client.get<ApiEnvelope<MediaUsage[]>>(`${BASE}/media-usage?limit=${limit}`);
+    const { data } = await client.get<ApiEnvelope<MediaUsage[]>>(
+      `${BASE}/media-usage?limit=${limit}`
+    );
     return data.data;
   },
 };

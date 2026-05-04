@@ -4,6 +4,7 @@ export const WORKFLOW_UID = `plugin::${PLUGIN_ID}.workflow`;
 export const TOPIC_QUEUE_UID = `plugin::${PLUGIN_ID}.topic-queue-item`;
 export const RUN_LOG_UID = `plugin::${PLUGIN_ID}.run-log`;
 export const PUBLICATION_TICKET_UID = `plugin::${PLUGIN_ID}.publication-ticket`;
+export const SOCIAL_POST_TICKET_UID = `plugin::${PLUGIN_ID}.social-post-ticket`;
 export const USAGE_DAILY_UID = `plugin::${PLUGIN_ID}.usage-daily`;
 export const MEDIA_ASSET_UID = `plugin::${PLUGIN_ID}.media-asset`;
 export const MEDIA_USAGE_LOG_UID = `plugin::${PLUGIN_ID}.media-usage-log`;
@@ -52,12 +53,15 @@ export const ZODIAC_SIGNS_PL = [
 
 export const WORKFLOW_TYPES = ['horoscope', 'daily_card', 'article'] as const;
 export const RUN_TYPES = ['generate', 'publish', 'manual', 'backfill'] as const;
+export const SOCIAL_CHANNELS = ['facebook', 'instagram', 'twitter'] as const;
 
-export const HOROSCOPE_PERIODS = ['Dzienny', 'Tygodniowy', 'Miesięczny'] as const;
+export const HOROSCOPE_PERIODS = ['Dzienny', 'Tygodniowy', 'Miesięczny', 'Roczny'] as const;
 
 export const RBAC_ACTIONS = {
   read: `plugin::${PLUGIN_ID}.read`,
   manageWorkflows: `plugin::${PLUGIN_ID}.manage-workflows`,
+  manageSocial: `plugin::${PLUGIN_ID}.manage-social`,
+  runAudit: `plugin::${PLUGIN_ID}.run-audit`,
   run: `plugin::${PLUGIN_ID}.run`,
   backfill: `plugin::${PLUGIN_ID}.backfill`,
   manageTopics: `plugin::${PLUGIN_ID}.manage-topics`,
