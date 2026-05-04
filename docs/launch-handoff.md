@@ -4,11 +4,11 @@ Ostatnia aktualizacja: 2026-04-28
 
 ## Aktualny zakres
 
-- API: Strapi 5, publiczne RBAC dla contentu, sklep domyślnie ukryty przez `SHOP_ENABLED=false`.
-- Frontend: Angular SSR, sklep ukryty przez `features.shopEnabled=false` i `FRONTEND_SHOP_ENABLED=false`.
+- API: Strapi 5, publiczne RBAC dla contentu, sklep domyślnie ukryty przez `SHOP_ENABLED=false`. Domena produkcyjna: `https://api.star-sign.pl/`.
+- Frontend: Angular SSR, sklep ukryty przez `features.shopEnabled=false` i `FRONTEND_SHOP_ENABLED=false`. Domena produkcyjna: `https://star-sign.pl/`.
 - Dane: seed dev/prod zapewnia znaki zodiaku, tarot, numerologię, artykuły, horoskopy, daily tarot i workflow AICO.
 - AICO: `Run now`, `Stop`, `Delete workflow`, monitoring runów, kroki, prompt, raw response, parsed JSON i błędy.
-- Mail: Brevo jako newsletter i SMTP przez Strapi email provider.
+- Mail: Brevo jako newsletter i SMTP przez Strapi email provider. Skonfigurowane pod `star-sign.pl`.
 - VPS: przygotowany Dockerfile multi-target, `docker-compose.yml`, Caddy, Postgres, smoke script i backup Postgresa.
 
 ## Konta testowe po `npm exec nx run api:seed-dev`
@@ -20,12 +20,12 @@ Ostatnia aktualizacja: 2026-04-28
 
 Start z `.env.example`. Na VPS skopiować do `.env` i uzupełnić realne wartości:
 
-- domeny: `FRONTEND_URL`, `API_PUBLIC_URL`, `FRONTEND_DOMAIN`, `API_DOMAIN`, `CORS_ORIGIN`
+- domeny: `FRONTEND_URL`, `API_PUBLIC_URL`, `SERVER_URL`, `FRONTEND_DOMAIN`, `API_DOMAIN`, `CORS_ORIGIN`
 - sekrety Strapi: `APP_KEYS`, `API_TOKEN_SALT`, `ADMIN_JWT_SECRET`, `TRANSFER_TOKEN_SALT`, `JWT_SECRET`, `ENCRYPTION_KEY`
 - baza: `POSTGRES_*`, `DATABASE_*`
 - media: `R2_*`
 - newsletter/mail: `BREVO_API_KEY`, `BREVO_LIST_ID`, `BREVO_SMTP_*`, `BREVO_WEBHOOK_SECRET`
-- AI: `AICO_OPENROUTER_TOKEN`, `AICO_ENABLE_WORKFLOWS`
+- AI: `AICO_OPENROUTER_TOKEN`, `AICO_ENABLE_WORKFLOWS`, `AICO_BACKUP_ENABLED`
 - observability: `SENTRY_DSN`
 
 Sekrety z lokalnych `.env` należy rotować przed produkcją.
@@ -50,6 +50,12 @@ Smoke VPS po deployu:
 
 ```bash
 API_BASE_URL=https://api.example.com/api FRONTEND_BASE_URL=https://example.com ./ops/smoke.sh
+```
+
+Audit gate przed promocją deploya:
+
+```bash
+gh workflow run "AICO Predeploy Audit" -f audit_url=https://api.star-sign.pl
 ```
 
 ## Smoke checklist frontendu przed launchem
@@ -90,10 +96,9 @@ Backup Postgresa:
 POSTGRES_DB=star_sign POSTGRES_USER=star_sign ./ops/backup-postgres.sh
 ```
 
-## Otwarte decyzje przed publikacją
-
-- Uzupełnić realne dane administratora w polityce prywatności i regulaminie.
+- [x] Uzupełnić realne dane administratora w polityce prywatności i regulaminie. (Uzupełnione danymi star-sign.pl)
+- [x] Infinite Scroll dla listy artykułów (bloga).
 - Dodać docelową domenę, DNS, SPF, DKIM i DMARC dla Brevo.
 - Zdecydować, czy przed launch przenosimy auth z JWT w `localStorage` do cookie `Secure HttpOnly`.
 - Ustawić docelowe limity AICO i dodać realny token OpenRouter.
-- Po pierwszym buildzie admina sprawdzić ręcznie plugin SEO w Strapi Admin i dodać komponent `seo` do content type, jeśli ma być zarządzany edytorsko.
+- [x] Po pierwszym buildzie admina sprawdzić ręcznie plugin SEO w Strapi Admin i dodać komponent `seo` do content type, jeśli ma być zarządzany edytorsko. (Komponent shared.seo dodany do Article, ZodiacSign, Horoscope, NumerologyProfile)
