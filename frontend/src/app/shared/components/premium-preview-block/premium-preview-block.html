@@ -1,0 +1,33 @@
+@if (shouldRender()) {
+<section
+  class="premium-preview"
+  [attr.data-test]="testId()"
+  [attr.data-variant]="variant()"
+>
+  @if (isPremium() && premiumContent()) {
+  <div class="premium-preview__eyebrow">Premium odblokowane</div>
+  <h3 class="premium-preview__title">{{ title() }}</h3>
+  @if (intro()) {
+  <p class="premium-preview__intro">{{ intro() }}</p>
+  }
+  <p class="premium-preview__content">{{ premiumContent() }}</p>
+  } @else {
+  <div class="premium-preview__eyebrow">Magiczny Krąg</div>
+  <h3 class="premium-preview__title">{{ title() }}</h3>
+  <p class="premium-preview__intro">
+    {{ intro() || 'Darmowa część zostaje widoczna. Premium dodaje pełniejszy
+    kontekst, rytuał i konkretne pytania do pracy z energią dnia.' }}
+  </p>
+  @if (resolvedPreviewItems().length > 0) {
+  <ul class="premium-preview__list">
+    @for (item of resolvedPreviewItems(); track item) {
+    <li>{{ item }}</li>
+    }
+  </ul>
+  }
+  <a [routerLink]="ctaLink()" class="premium-preview__cta">
+    {{ ctaLabel() }}
+  </a>
+  }
+</section>
+}

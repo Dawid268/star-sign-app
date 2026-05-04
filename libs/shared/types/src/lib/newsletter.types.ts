@@ -2,6 +2,7 @@ export interface NewsletterSubscribeRequest {
   email: string;
   marketingConsent: boolean;
   source?: string;
+  turnstileToken?: string;
 }
 
 export interface NewsletterSubscribeResponse {

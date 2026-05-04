@@ -1,6 +1,11 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  inject,
+  signal,
+} from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
 
@@ -15,6 +20,7 @@ export class Register {
   private readonly authService = inject(AuthService);
   private readonly formBuilder = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   public readonly loading = signal(false);
   public readonly error = signal<string | null>(null);
@@ -27,18 +33,23 @@ export class Register {
   });
 
   public submit(): void {
-    if (this.loading() || this.form.invalid) {
+    if (this.loading()) {
+      return;
+    }
+
+    if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    const { username, email, password, confirmPassword } = this.form.getRawValue();
+    const { username, email, password, confirmPassword } =
+      this.form.getRawValue();
     if (password !== confirmPassword) {
       this.error.set('Hasła muszą być identyczne.');
       return;
     }
 
-    this.loading.set(true);
+    this.setFormDisabled(true);
     this.error.set(null);
 
     this.authService
@@ -49,11 +60,11 @@ export class Register {
       })
       .subscribe({
         next: () => {
-          this.loading.set(false);
-          this.router.navigateByUrl('/panel');
+          this.setFormDisabled(false);
+          this.router.navigateByUrl(this.resolveReturnUrl());
         },
         error: (error: unknown) => {
-          this.loading.set(false);
+          this.setFormDisabled(false);
           this.error.set(this.toMessage(error));
         },
       });
@@ -94,6 +105,30 @@ export class Register {
     if (normalized.includes('too many requests')) {
       return 'Zbyt wiele prób rejestracji. Spróbuj ponownie za chwilę.';
     }
-    return message;
+    return 'Wystąpił błąd podczas tworzenia konta.';
+  }
+
+  private setFormDisabled(disabled: boolean): void {
+    this.loading.set(disabled);
+    if (disabled) {
+      this.form.disable({ emitEvent: false });
+      return;
+    }
+
+    this.form.enable({ emitEvent: false });
+  }
+
+  private resolveReturnUrl(): string {
+    const raw = this.route.snapshot.queryParamMap.get('returnUrl');
+    if (!raw) {
+      return '/panel';
+    }
+
+    const normalized = raw.trim();
+    if (!normalized.startsWith('/') || normalized.startsWith('//')) {
+      return '/panel';
+    }
+
+    return normalized;
   }
 }

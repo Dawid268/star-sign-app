@@ -1,136 +1,202 @@
-<div class="min-h-screen bg-[#FFFBFB] pt-32 pb-20">
+<div class="min-h-screen bg-[#FFFBFB] pt-24 pb-16 sm:pt-32 sm:pb-20">
   <div class="section-container">
-    
     <!-- Back Button -->
-    <a routerLink="/sklep" class="inline-flex items-center gap-2 text-mystic-rose hover:text-mystic-cocoa transition-colors mb-10 font-medium text-sm tracking-wide group">
-      <ng-icon name="heroChevronLeft" class="group-hover:-translate-x-1 transition-transform" />
+    <a
+      routerLink="/sklep"
+      class="inline-flex items-center gap-2 text-mystic-rose hover:text-mystic-cocoa transition-colors mb-10 font-medium text-sm tracking-wide group"
+    >
+      <ng-icon
+        name="heroChevronLeft"
+        class="group-hover:-translate-x-1 transition-transform"
+      />
       Powrót do sklepu
     </a>
 
     @if (isLoading()) {
-      <div class="flex flex-col items-center justify-center py-24 space-y-4">
-        <div class="w-16 h-16 border-4 border-mystic-rose/20 border-t-mystic-rose rounded-full animate-spin"></div>
-        <p class="text-mystic-cocoa/50 font-light italic">Łączenie z energią przedmiotu...</p>
-      </div>
+    <div class="flex flex-col items-center justify-center py-24 space-y-4">
+      <div
+        class="w-16 h-16 border-4 border-mystic-rose/20 border-t-mystic-rose rounded-full animate-spin"
+      ></div>
+      <p class="text-mystic-cocoa font-light italic">
+        Łączenie z energią przedmiotu...
+      </p>
+    </div>
     } @else if (product(); as item) {
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
-        
-        <!-- Image Gallery Mock -->
-        <div class="space-y-6">
-          <div class="aspect-square bg-[#FDF4F5] rounded-3xl border border-mystic-rose/10 flex items-center justify-center relative overflow-hidden shadow-sm group">
-            <div class="absolute inset-0 bg-gradient-to-tr from-mystic-rose/5 to-transparent"></div>
-            <span class="text-9xl select-none group-hover:scale-110 transition-transform duration-700 animate-float">{{ item.symbol || '✧' }}</span>
-            
-            @if (item.tag) {
-              <div class="absolute top-6 left-6 bg-mystic-rose text-white px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase shadow-lg">
-                {{ item.tag }}
-              </div>
-            }
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-start">
+      <!-- Image Gallery Mock -->
+      <div class="space-y-6">
+        <div
+          class="aspect-square bg-[#FDF4F5] rounded-3xl border border-mystic-rose/10 flex items-center justify-center relative overflow-hidden shadow-sm group"
+        >
+          <div
+            class="absolute inset-0 bg-gradient-to-tr from-mystic-rose/5 to-transparent"
+          ></div>
+          <span
+            class="text-9xl select-none group-hover:scale-110 transition-transform duration-700 animate-float"
+            >{{ item.symbol || '✧' }}</span
+          >
+
+          @if (item.tag) {
+          <div
+            class="absolute top-6 left-6 bg-mystic-rose text-white px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase shadow-lg"
+          >
+            {{ item.tag }}
           </div>
-          
-          <div class="grid grid-cols-4 gap-4">
-            @for (i of [1,2,3,4]; track i) {
-              <div class="aspect-square bg-[#FDF4F5] rounded-xl border border-mystic-rose/5 flex items-center justify-center cursor-pointer hover:border-mystic-rose/30 transition-colors">
-                <span class="text-2xl opacity-30">{{ item.symbol || '✧' }}</span>
-              </div>
-            }
+          }
+        </div>
+
+        <div class="grid grid-cols-4 gap-4">
+          @for (i of [1,2,3,4]; track i) {
+          <div
+            class="aspect-square bg-[#FDF4F5] rounded-xl border border-mystic-rose/5 flex items-center justify-center"
+          >
+            <span class="text-2xl opacity-30">{{ item.symbol || '✧' }}</span>
+          </div>
+          }
+        </div>
+      </div>
+
+      <!-- Product Info -->
+      <div class="space-y-8 animate-fade-in">
+        <div>
+          <p
+            class="text-mystic-rose font-medium uppercase tracking-[0.2em] text-xs mb-3"
+          >
+            {{ item.category }}
+          </p>
+          <h1 class="serif-display text-3xl sm:text-4xl md:text-5xl text-mystic-cocoa mb-4 leading-tight break-words">
+            {{ item.name }}
+          </h1>
+
+          <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+            <div class="flex text-mystic-gold">
+              @for (s of [1,2,3,4,5]; track s) {
+              <ng-icon name="heroStar" />
+              }
+            </div>
+            <span class="text-mystic-cocoa text-sm">(24 opinii)</span>
           </div>
         </div>
 
-        <!-- Product Info -->
-        <div class="space-y-8 animate-fade-in">
-          <div>
-            <p class="text-mystic-rose font-medium uppercase tracking-[0.2em] text-xs mb-3">{{ item.category }}</p>
-            <h1 class="serif-display text-4xl md:text-5xl text-mystic-cocoa mb-4">{{ item.name }}</h1>
-            
-            <div class="flex items-center gap-4">
-              <div class="flex text-mystic-gold">
-                @for (s of [1,2,3,4,5]; track s) {
-                  <ng-icon name="heroStar" />
-                }
-              </div>
-              <span class="text-mystic-cocoa/40 text-sm">(24 opinii)</span>
-            </div>
-          </div>
+        <div class="text-3xl font-bold text-mystic-cocoa">
+          {{ item.price }} zł
+        </div>
 
-          <div class="text-3xl font-bold text-mystic-cocoa">
-            {{ item.price }} zł
-          </div>
+        <p class="text-mystic-cocoa leading-relaxed font-light text-lg">
+          {{ item.description }}
+        </p>
 
-          <p class="text-mystic-cocoa/70 leading-relaxed font-light text-lg">
-            {{ item.description }}
-          </p>
+        <ul class="space-y-3">
+          <li class="flex items-center gap-3 text-mystic-cocoa text-sm">
+            <span class="text-mystic-gold">✦</span>
+            Naturalne pochodzenie i wysoka jakość
+          </li>
+          <li class="flex items-center gap-3 text-mystic-cocoa text-sm">
+            <span class="text-mystic-gold">✦</span>
+            Oczyszczony energetycznie szałwią
+          </li>
+          <li class="flex items-center gap-3 text-mystic-cocoa text-sm">
+            <span class="text-mystic-gold">✦</span>
+            Zapakowany w ekologiczny woreczek
+          </li>
+        </ul>
 
-          <ul class="space-y-3">
-             <li class="flex items-center gap-3 text-mystic-cocoa/80 text-sm">
-               <span class="text-mystic-gold">✦</span>
-               Naturalne pochodzenie i wysoka jakość
-             </li>
-             <li class="flex items-center gap-3 text-mystic-cocoa/80 text-sm">
-               <span class="text-mystic-gold">✦</span>
-               Oczyszczony energetycznie szałwią
-             </li>
-             <li class="flex items-center gap-3 text-mystic-cocoa/80 text-sm">
-               <span class="text-mystic-gold">✦</span>
-               Zapakowany w ekologiczny woreczek
-             </li>
-          </ul>
-
-          <!-- Action Row -->
-          <div class="flex flex-col sm:flex-row gap-6 pt-6">
-            <!-- Quantity -->
-            <div class="flex items-center bg-white border border-mystic-rose/20 rounded-full px-4 py-2 w-fit">
-              <button (click)="decrement()" class="w-8 h-8 flex items-center justify-center text-mystic-cocoa hover:text-mystic-rose transition-colors">—</button>
-              <span class="w-12 text-center font-medium text-mystic-cocoa">{{ quantity() }}</span>
-              <button (click)="increment()" class="w-8 h-8 flex items-center justify-center text-mystic-cocoa hover:text-mystic-rose transition-colors">+</button>
-            </div>
-
-            <button (click)="addToCart()" class="btn-primary flex-1 flex items-center justify-center gap-3">
-              <ng-icon name="heroShoppingBag" class="text-xl" />
-              Dodaj do koszyka
+        <!-- Action Row -->
+        <div class="flex flex-col sm:flex-row gap-6 pt-6">
+          <!-- Quantity -->
+          <div
+            class="flex items-center bg-white border border-mystic-rose/20 rounded-full px-4 py-2 w-fit"
+          >
+            <button
+              type="button"
+              (click)="decrement()"
+              aria-label="Zmniejsz ilość"
+              class="w-8 h-8 flex items-center justify-center text-mystic-cocoa hover:text-mystic-rose transition-colors"
+            >
+              —
+            </button>
+            <span class="w-12 text-center font-medium text-mystic-cocoa"
+              >{{ quantity() }}</span
+            >
+            <button
+              type="button"
+              (click)="increment()"
+              aria-label="Zwiększ ilość"
+              class="w-8 h-8 flex items-center justify-center text-mystic-cocoa hover:text-mystic-rose transition-colors"
+            >
+              +
             </button>
           </div>
 
-          <!-- Trust Badges -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-8 border-t border-mystic-rose/10">
-            <div class="flex items-center gap-3 text-mystic-cocoa/60 text-xs">
-              <ng-icon name="heroShieldCheck" class="text-lg text-mystic-rose" />
-              <span>Bezpieczne płatności SSL</span>
-            </div>
-            <div class="flex items-center gap-3 text-mystic-cocoa/60 text-xs">
-              <ng-icon name="heroTruck" class="text-lg text-mystic-rose" />
-              <span>Szybka wysyłka w 24h</span>
-            </div>
-          </div>
+          <button
+            type="button"
+            (click)="addToCart()"
+            class="btn-primary flex-1 flex items-center justify-center gap-3"
+          >
+            <ng-icon name="heroShoppingBag" class="text-xl" />
+            Dodaj do koszyka
+          </button>
+        </div>
 
+        <!-- Trust Badges -->
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-8 border-t border-mystic-rose/10"
+        >
+          <div class="flex items-center gap-3 text-mystic-cocoa text-xs">
+            <ng-icon name="heroShieldCheck" class="text-lg text-mystic-rose" />
+            <span>Bezpieczne płatności SSL</span>
+          </div>
+          <div class="flex items-center gap-3 text-mystic-cocoa text-xs">
+            <ng-icon name="heroTruck" class="text-lg text-mystic-rose" />
+            <span>Szybka wysyłka w 24h</span>
+          </div>
         </div>
       </div>
+    </div>
     } @else {
-      <div class="text-center py-24">
-        <h2 class="serif-display text-3xl text-mystic-cocoa mb-4">Nie odnaleziono przedmiotu</h2>
-        <p class="text-mystic-cocoa/60 mb-8">Ten artefakt mógł zostać przeniesiony w inny wymiar.</p>
-        <a routerLink="/sklep" class="btn-primary">Wróć do sklepu</a>
-      </div>
+    <div class="text-center py-24">
+      <h2 class="serif-display text-3xl text-mystic-cocoa mb-4">
+        Nie odnaleziono przedmiotu
+      </h2>
+      <p class="text-mystic-cocoa mb-8">
+        Ten artefakt mógł zostać przeniesiony w inny wymiar.
+      </p>
+      <a routerLink="/sklep" class="btn-primary">Wróć do sklepu</a>
+    </div>
     }
   </div>
 
   <!-- Related Products Section -->
   <section class="section-container mt-20 border-t border-mystic-rose/10">
-    <h2 class="serif-display text-3xl text-mystic-cocoa mb-12">Inne Magiczne Przedmioty</h2>
+    <h2 class="serif-display text-3xl text-mystic-cocoa mb-12">
+      Inne Magiczne Przedmioty
+    </h2>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
       @for (related of relatedProducts(); track related.documentId) {
-        <a [routerLink]="['/sklep/produkt', related.documentId]" class="group cursor-pointer">
-          <div class="aspect-square bg-[#FDF4F5] rounded-2xl mb-4 border border-mystic-rose/5 group-hover:shadow-lg transition-all flex items-center justify-center">
-             <span class="text-4xl opacity-20 group-hover:scale-110 transition-transform">{{ related.symbol || '✨' }}</span>
-          </div>
-          <h4 class="font-medium text-mystic-cocoa text-sm mb-1 group-hover:text-mystic-rose">{{ related.name }}</h4>
-          <p class="text-mystic-rose font-bold text-sm">{{ related.price }} zł</p>
-        </a>
-      } @empty {
-        @for (i of [1,2,3,4]; track i) {
-          <div class="aspect-square bg-[#FDF4F5] rounded-2xl mb-4 border border-mystic-rose/5 animate-pulse"></div>
-        }
-      }
+      <a
+        [routerLink]="['/sklep/produkt', related.documentId]"
+        class="group cursor-pointer"
+      >
+        <div
+          class="aspect-square bg-[#FDF4F5] rounded-2xl mb-4 border border-mystic-rose/5 group-hover:shadow-lg transition-all flex items-center justify-center"
+        >
+          <span
+            class="text-4xl opacity-20 group-hover:scale-110 transition-transform"
+            >{{ related.symbol || '✨' }}</span
+          >
+        </div>
+        <h4
+          class="font-medium text-mystic-cocoa text-sm mb-1 group-hover:text-mystic-rose"
+        >
+          {{ related.name }}
+        </h4>
+        <p class="text-mystic-rose font-bold text-sm">{{ related.price }} zł</p>
+      </a>
+      } @empty { @for (i of [1,2,3,4]; track i) {
+      <div
+        class="aspect-square bg-[#FDF4F5] rounded-2xl mb-4 border border-mystic-rose/5 animate-pulse"
+      ></div>
+      } }
     </div>
   </section>
 </div>

@@ -10,10 +10,25 @@ import { join } from 'node:path';
 const browserDistFolder = join(import.meta.dirname, '../browser');
 const siteUrl = process.env['FRONTEND_URL'] || 'http://localhost:4200';
 const strapiApiUrl = process.env['API_URL'] || 'http://localhost:1337/api';
-const strapiApiBaseUrl = strapiApiUrl.endsWith('/') ? strapiApiUrl.slice(0, -1) : strapiApiUrl;
+const strapiApiBaseUrl = strapiApiUrl.endsWith('/')
+  ? strapiApiUrl.slice(0, -1)
+  : strapiApiUrl;
 const useE2eMockApi = process.env['E2E_MOCK_API'] === 'true';
 const e2eApiLogEnabled = process.env['E2E_MOCK_API_LOG'] === 'true';
-const shopEnabled = process.env['SHOP_ENABLED'] === 'true' || process.env['FRONTEND_SHOP_ENABLED'] === 'true';
+const shopEnabled =
+  process.env['SHOP_ENABLED'] === 'true' ||
+  process.env['FRONTEND_SHOP_ENABLED'] === 'true';
+const turnstileSiteKey = process.env['TURNSTILE_SITE_KEY'] || '';
+const turnstileEnabled =
+  process.env['TURNSTILE_ENABLED'] === 'true' && turnstileSiteKey.length > 0;
+const ga4MeasurementId = process.env['GA4_MEASUREMENT_ID'] || '';
+const frontendSentryDsn = process.env['FRONTEND_SENTRY_DSN'] || '';
+const sentryEnvironment =
+  process.env['SENTRY_ENVIRONMENT'] || process.env['NODE_ENV'] || 'production';
+const sentryRelease = process.env['SENTRY_RELEASE'] || '';
+const sentryTracesSampleRate = Number(
+  process.env['SENTRY_TRACES_SAMPLE_RATE'] || '0',
+);
 
 const app = express();
 const angularApp = new AngularNodeAppEngine();
@@ -94,7 +109,12 @@ let mockProfile = {
   birthTime: null as string | null,
   birthPlace: null as string | null,
   marketingConsent: false,
-  zodiacSign: null as { id: number; name: string; slug: string; documentId: string } | null,
+  zodiacSign: null as {
+    id: number;
+    name: string;
+    slug: string;
+    documentId: string;
+  } | null,
 };
 
 let mockSubscription = {
@@ -130,10 +150,34 @@ if (useE2eMockApi) {
     }
 
     const signs = [
-      { id: 1, name: 'Baran', slug: 'baran', date_range: '21.03 - 19.04', element: 'Ogień' },
-      { id: 2, name: 'Byk', slug: 'byk', date_range: '20.04 - 20.05', element: 'Ziemia' },
-      { id: 3, name: 'Bliźnięta', slug: 'bliznieta', date_range: '21.05 - 20.06', element: 'Powietrze' },
-      { id: 4, name: 'Rak', slug: 'rak', date_range: '21.06 - 22.07', element: 'Woda' },
+      {
+        id: 1,
+        name: 'Baran',
+        slug: 'baran',
+        date_range: '21.03 - 19.04',
+        element: 'Ogień',
+      },
+      {
+        id: 2,
+        name: 'Byk',
+        slug: 'byk',
+        date_range: '20.04 - 20.05',
+        element: 'Ziemia',
+      },
+      {
+        id: 3,
+        name: 'Bliźnięta',
+        slug: 'bliznieta',
+        date_range: '21.05 - 20.06',
+        element: 'Powietrze',
+      },
+      {
+        id: 4,
+        name: 'Rak',
+        slug: 'rak',
+        date_range: '21.06 - 22.07',
+        element: 'Woda',
+      },
     ];
 
     const articles = [
@@ -142,6 +186,9 @@ if (useE2eMockApi) {
         slug: 'energia-wiosny',
         title: 'Energia Wiosny i Twój Znak',
         excerpt: 'Sprawdź, jak nowy sezon wpływa na Twoją energię i decyzje.',
+        content:
+          'Publiczny fragment artykułu o energii wiosny jest dostępny bez konta.',
+        hasPremiumContent: true,
         publishedAt: new Date().toISOString(),
         read_time_minutes: 4,
         category: { id: 1, name: 'Astrologia' },
@@ -150,7 +197,9 @@ if (useE2eMockApi) {
         id: 2,
         slug: 'retrogradacja-merkurego',
         title: 'Retrogradacja Merkurego bez chaosu',
-        excerpt: 'Praktyczne wskazówki, jak przejść przez retrogradację spokojniej.',
+        excerpt:
+          'Praktyczne wskazówki, jak przejść przez retrogradację spokojniej.',
+        content: 'Publiczny przewodnik po retrogradacji Merkurego.',
         publishedAt: new Date().toISOString(),
         read_time_minutes: 6,
         category: { id: 2, name: 'Poradnik' },
@@ -257,8 +306,13 @@ if (useE2eMockApi) {
     }
 
     if (req.method === 'GET' && normalizedPath === '/articles') {
-      const slug = typeof req.query['filters[slug][$eq]'] === 'string' ? req.query['filters[slug][$eq]'] : undefined;
-      const payload = slug ? articles.filter((article) => article.slug === slug) : articles;
+      const slug =
+        typeof req.query['filters[slug][$eq]'] === 'string'
+          ? req.query['filters[slug][$eq]']
+          : undefined;
+      const payload = slug
+        ? articles.filter((article) => article.slug === slug)
+        : articles;
       res.json(createCollection(payload));
       return;
     }
@@ -269,11 +323,19 @@ if (useE2eMockApi) {
         return;
       }
 
-      const documentId = typeof req.query['filters[documentId][$eq]'] === 'string' ? req.query['filters[documentId][$eq]'] : undefined;
-      const category = typeof req.query['filters[category][$eq]'] === 'string' ? req.query['filters[category][$eq]'] : undefined;
+      const documentId =
+        typeof req.query['filters[documentId][$eq]'] === 'string'
+          ? req.query['filters[documentId][$eq]']
+          : undefined;
+      const category =
+        typeof req.query['filters[category][$eq]'] === 'string'
+          ? req.query['filters[category][$eq]']
+          : undefined;
       let payload = products;
       if (documentId) {
-        payload = payload.filter((product) => product.documentId === documentId);
+        payload = payload.filter(
+          (product) => product.documentId === documentId,
+        );
       }
       if (category) {
         payload = payload.filter((product) => product.category === category);
@@ -301,7 +363,11 @@ if (useE2eMockApi) {
           id: 1,
           name: 'The Star',
           slug: 'the-star',
-          upright_meaning: 'Nadzieja, spokój i odnowa energii.',
+          arcana: 'Wielkie Arkana',
+          symbol: '✦',
+          meaning_upright: 'Nadzieja, spokój i odnowa energii.',
+          description:
+            'Darmowe przesłanie karty dnia pokazuje kierunek bez blokady kontem.',
         },
         message: 'To dobry dzień na spokojne decyzje.',
       });
@@ -313,6 +379,14 @@ if (useE2eMockApi) {
       return;
     }
 
+    if (req.method === 'POST' && normalizedPath === '/contact') {
+      res.status(202).json({
+        success: true,
+        message: 'Wiadomość wysłana',
+      });
+      return;
+    }
+
     if (req.method === 'POST' && normalizedPath === '/checkout/session') {
       if (!shopEnabled) {
         res.status(404).json({ error: 'Shop disabled' });
@@ -320,8 +394,32 @@ if (useE2eMockApi) {
       }
 
       res.json({
-        checkoutUrl: 'https://example.com/checkout/mock-session',
+        checkoutUrl: 'https://star-sign.pl/checkout/mock-session',
         sessionId: 'cs_test_mock',
+      });
+      return;
+    }
+
+    if (
+      req.method === 'GET' &&
+      normalizedPath === '/checkout/session/cs_test_mock/analytics-summary'
+    ) {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({
+        sessionId: 'cs_test_mock',
+        orderDocumentId: 'order-mock',
+        status: 'paid',
+        currency: 'PLN',
+        total: 79,
+        items: [
+          {
+            productDocumentId: 'mock-product',
+            productName: 'Mock Produkt Star Sign',
+            quantity: 1,
+            unitPrice: 79,
+            lineTotal: 79,
+          },
+        ],
       });
       return;
     }
@@ -353,7 +451,9 @@ if (useE2eMockApi) {
         zodiacSignSlug?: string | null;
         marketingConsent?: boolean;
       };
-      const matchedSign = payload.zodiacSignSlug ? signs.find((sign) => sign.slug === payload.zodiacSignSlug) : null;
+      const matchedSign = payload.zodiacSignSlug
+        ? signs.find((sign) => sign.slug === payload.zodiacSignSlug)
+        : null;
       mockProfile = {
         ...mockProfile,
         birthDate: payload.birthDate || null,
@@ -390,10 +490,19 @@ if (useE2eMockApi) {
       return;
     }
 
-    if (req.method === 'POST' && normalizedPath === '/account/readings/save-today') {
-      const payload = (req.body || {}) as { readingType?: 'horoscope' | 'tarot' };
-      const readingType: 'horoscope' | 'tarot' = payload.readingType === 'tarot' ? 'tarot' : 'horoscope';
-      const existing = mockReadings.find((item) => item.readingType === readingType && item.readingDate === today);
+    if (
+      req.method === 'POST' &&
+      normalizedPath === '/account/readings/save-today'
+    ) {
+      const payload = (req.body || {}) as {
+        readingType?: 'horoscope' | 'tarot';
+      };
+      const readingType: 'horoscope' | 'tarot' =
+        payload.readingType === 'tarot' ? 'tarot' : 'horoscope';
+      const existing = mockReadings.find(
+        (item) =>
+          item.readingType === readingType && item.readingDate === today,
+      );
 
       if (existing) {
         res.json({ saved: false, reading: existing });
@@ -405,11 +514,16 @@ if (useE2eMockApi) {
         documentId: `reading-${readingIdSeed}`,
         readingType,
         title: readingType === 'tarot' ? 'Karta dnia' : 'Horoskop dnia',
-        summary: readingType === 'tarot' ? dailyPayload.tarot.teaserMessage : dailyPayload.horoscope.teaser,
+        summary:
+          readingType === 'tarot'
+            ? dailyPayload.tarot.teaserMessage
+            : dailyPayload.horoscope.teaser,
         content:
           readingType === 'tarot'
-            ? (dailyPayload.tarot.premiumMessage || dailyPayload.tarot.teaserMessage)
-            : (dailyPayload.horoscope.premiumContent || dailyPayload.horoscope.teaser),
+            ? dailyPayload.tarot.premiumMessage ||
+              dailyPayload.tarot.teaserMessage
+            : dailyPayload.horoscope.premiumContent ||
+              dailyPayload.horoscope.teaser,
         period: readingType === 'horoscope' ? 'dzienny' : null,
         signSlug: dailyPayload.sign?.slug || null,
         readingDate: today,
@@ -423,25 +537,35 @@ if (useE2eMockApi) {
       return;
     }
 
-    if (req.method === 'POST' && normalizedPath === '/account/subscription/checkout') {
+    if (
+      req.method === 'POST' &&
+      normalizedPath === '/account/subscription/checkout'
+    ) {
       const payload = (req.body || {}) as { plan?: 'monthly' | 'annual' };
       const plan = payload.plan === 'annual' ? 'annual' : 'monthly';
       mockSubscription = {
         status: 'trialing',
         plan,
         isPremium: true,
-        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        currentPeriodEnd: new Date(Date.now() + (plan === 'annual' ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString(),
+        trialEndsAt: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
+        currentPeriodEnd: new Date(
+          Date.now() + (plan === 'annual' ? 365 : 30) * 24 * 60 * 60 * 1000,
+        ).toISOString(),
         cancelAtPeriodEnd: false,
       };
       res.json({
-        checkoutUrl: 'https://example.com/checkout/mock-premium',
+        checkoutUrl: 'https://star-sign.pl/checkout/mock-premium',
         sessionId: 'cs_test_mock_premium',
       });
       return;
     }
 
-    if (req.method === 'POST' && normalizedPath === '/account/subscription/portal') {
+    if (
+      req.method === 'POST' &&
+      normalizedPath === '/account/subscription/portal'
+    ) {
       res.json({
         url: 'https://billing.stripe.com/mock-portal',
       });
@@ -476,7 +600,9 @@ if (useE2eMockApi) {
       }
 
       const shouldForwardBody = method !== 'GET' && method !== 'HEAD';
-      const requestBody = shouldForwardBody ? await readRequestBody(req) : undefined;
+      const requestBody = shouldForwardBody
+        ? await readRequestBody(req)
+        : undefined;
       const requestInit: RequestInit = {
         method,
         headers,
@@ -510,6 +636,27 @@ if (useE2eMockApi) {
   });
 }
 
+app.get('/runtime-config.json', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    turnstile: {
+      enabled: turnstileEnabled,
+      siteKey: turnstileSiteKey,
+    },
+    analytics: {
+      ga4MeasurementId,
+    },
+    sentry: {
+      dsn: frontendSentryDsn,
+      environment: sentryEnvironment,
+      release: sentryRelease,
+      tracesSampleRate: Number.isFinite(sentryTracesSampleRate)
+        ? sentryTracesSampleRate
+        : 0,
+    },
+  });
+});
+
 app.get('/healthz', (_req, res) => {
   res.json({
     status: 'ok',
@@ -535,58 +682,92 @@ app.get('/sitemap.xml', async (_req, res) => {
     '/polityka-prywatnosci',
     '/cookies',
     '/disclaimer',
+    '/o-nas',
+    '/kontakt',
     ...(shopEnabled ? ['/sklep'] : []),
   ];
 
   try {
     const [articles, signs, products] = await Promise.all([
-      fetchAll<{ slug?: string }>('articles?fields[0]=slug'),
-      fetchAll<{ slug?: string }>('zodiac-signs?fields[0]=slug'),
-      shopEnabled ? fetchAll<{ documentId?: string }>('products?fields[0]=documentId') : Promise.resolve([]),
+      fetchAll<{ slug?: string; updatedAt?: string; publishedAt?: string }>(
+        'articles?fields[0]=slug&fields[1]=updatedAt&fields[2]=publishedAt',
+      ),
+      fetchAll<{ slug?: string; updatedAt?: string; publishedAt?: string }>(
+        'zodiac-signs?fields[0]=slug&fields[1]=updatedAt&fields[2]=publishedAt',
+      ),
+      shopEnabled
+        ? fetchAll<{
+            documentId?: string;
+            updatedAt?: string;
+            publishedAt?: string;
+          }>(
+            'products?fields[0]=documentId&fields[1]=updatedAt&fields[2]=publishedAt',
+          )
+        : Promise.resolve([]),
     ]);
 
     const articlePaths = articles
-      .map((article) => article.slug)
-      .filter((slug): slug is string => Boolean(slug))
-      .map((slug) => `/artykuly/${slug}`);
+      .filter((article) => Boolean(article.slug))
+      .map((article) => ({
+        path: `/artykuly/${article.slug}`,
+        lastmod: article.updatedAt || article.publishedAt,
+      }));
 
     const signPaths = signs
-      .map((sign) => sign.slug)
-      .filter((slug): slug is string => Boolean(slug))
-      .flatMap((slug) => [
-        `/znaki/${slug}`,
-        `/horoskopy/dzienny/${slug}`,
-        `/horoskopy/tygodniowy/${slug}`,
-        `/horoskopy/miesieczny/${slug}`,
-        `/horoskopy/roczny/${slug}`,
-      ]);
+      .filter((sign) => Boolean(sign.slug))
+      .flatMap((sign) =>
+        [
+          `/znaki/${sign.slug}`,
+          `/horoskopy/dzienny/${sign.slug}`,
+          `/horoskopy/tygodniowy/${sign.slug}`,
+          `/horoskopy/miesieczny/${sign.slug}`,
+          `/horoskopy/roczny/${sign.slug}`,
+        ].map((path) => ({
+          path,
+          lastmod: sign.updatedAt || sign.publishedAt,
+        })),
+      );
 
     const productPaths = products
-      .map((product) => product.documentId)
-      .filter((documentId): documentId is string => Boolean(documentId))
-      .map((documentId) => `/sklep/produkt/${documentId}`);
+      .filter((product) => Boolean(product.documentId))
+      .map((product) => ({
+        path: `/sklep/produkt/${product.documentId}`,
+        lastmod: product.updatedAt || product.publishedAt,
+      }));
 
-    const allPaths = [...new Set([...staticPaths, ...articlePaths, ...signPaths, ...productPaths])];
-    const now = new Date().toISOString();
+    const sitemapEntries = new Map<
+      string,
+      { path: string; lastmod?: string }
+    >();
+    staticPaths.forEach((path) => sitemapEntries.set(path, { path }));
+    [...articlePaths, ...signPaths, ...productPaths].forEach((entry) =>
+      sitemapEntries.set(entry.path, entry),
+    );
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${allPaths
+${Array.from(sitemapEntries.values())
   .map(
     (path) => `  <url>
-    <loc>${escapeXml(`${siteUrl}${path}`)}</loc>
-    <lastmod>${now}</lastmod>
-  </url>`
+    <loc>${escapeXml(`${siteUrl}${path.path}`)}</loc>${path.lastmod ? `\n    <lastmod>${escapeXml(path.lastmod)}</lastmod>` : ''}
+  </url>`,
   )
   .join('\n')}
 </urlset>`;
 
     res.type('application/xml');
+    res.setHeader(
+      'Cache-Control',
+      'public, max-age=60, s-maxage=300, stale-while-revalidate=86400',
+    );
     res.send(xml);
   } catch (error) {
-    res.status(500).type('application/xml').send(
-      `<?xml version="1.0" encoding="UTF-8"?><error>${escapeXml(String(error))}</error>`
-    );
+    res
+      .status(500)
+      .type('application/xml')
+      .send(
+        `<?xml version="1.0" encoding="UTF-8"?><error>${escapeXml(String(error))}</error>`,
+      );
   }
 });
 
@@ -605,6 +786,10 @@ ${allPaths
 /**
  * Serve static files from /browser
  */
+app.use(/\.map$/, (_req, res) => {
+  res.sendStatus(404);
+});
+
 app.use(
   express.static(browserDistFolder, {
     maxAge: '1y',

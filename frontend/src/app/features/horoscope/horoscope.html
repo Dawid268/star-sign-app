@@ -1,53 +1,85 @@
-<div class="min-h-screen bg-[#FFFBFB] flex flex-col pt-32 pb-24 relative overflow-hidden">
-  
-  <div class="mystic-orb top-[-10%] right-[-5%] w-[40rem] h-[40rem] bg-mystic-rose/5"></div>
-  <div class="mystic-orb bottom-10 left-[-10%] w-[30rem] h-[30rem] bg-mystic-gold/5 animation-delay-2000"></div>
+<div
+    class="min-h-screen bg-[#FFFBFB] flex flex-col pt-24 pb-16 sm:pt-32 sm:pb-24 relative overflow-hidden"
+>
+  <div
+    class="mystic-orb top-[-10%] right-[-5%] w-[40rem] h-[40rem] bg-mystic-rose/5"
+  ></div>
+  <div
+    class="mystic-orb bottom-10 left-[-10%] w-[30rem] h-[30rem] bg-mystic-gold/5 animation-delay-2000"
+  ></div>
 
   <div class="section-container relative z-10 text-center max-w-6xl mx-auto">
     <div class="flex flex-col items-center mb-16">
-      <div class="text-5xl text-mystic-gold mb-6 opacity-60 animate-[float_4s_ease-in-out_infinite]">✧</div>
-      <h1 class="serif-display text-4xl md:text-5xl lg:text-6xl text-mystic-cocoa mb-6">
+      <div
+        class="text-5xl text-mystic-gold mb-6 opacity-60 animate-[float_4s_ease-in-out_infinite]"
+      >
+        ✧
+      </div>
+      <h1
+        class="serif-display text-4xl md:text-5xl lg:text-6xl text-mystic-cocoa mb-6 leading-tight break-words"
+      >
         Astrologia i Horoskopy
       </h1>
-      <p class="text-mystic-cocoa/70 text-lg font-light max-w-2xl mx-auto leading-relaxed">
-        Wybierz swój znak zodiaku, by poznać osobisty horoskop oraz zgłębić tajemnice swojego kosmicznego profilu. Gwiazdy mają dla Ciebie wyjątkową wiadomość.
+      <p
+        class="text-mystic-cocoa text-lg font-light max-w-2xl mx-auto leading-relaxed"
+      >
+        Wybierz swój znak zodiaku, by poznać osobisty horoskop oraz zgłębić
+        tajemnice swojego kosmicznego profilu. Gwiazdy mają dla Ciebie wyjątkową
+        wiadomość.
       </p>
     </div>
 
     <!-- Zodiac Grid -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 md:gap-8">
       @for (sign of signs(); track sign.id) {
-        <a [routerLink]="['/znaki', sign.slug]" 
-           class="group glass-panel rounded-3xl p-8 border border-mystic-rose/10 flex flex-col items-center text-center hover:-translate-y-2 hover:shadow-2xl transition-all duration-500 relative overflow-hidden bg-white/40 cursor-pointer">
-          
-          <div class="absolute inset-0 bg-gradient-to-br from-mystic-rose/0 to-mystic-gold/0 group-hover:from-mystic-rose/5 group-hover:to-mystic-gold/5 transition-colors duration-500"></div>
+      <a
+        [routerLink]="['/znaki', sign.slug]"
+        class="group glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-mystic-rose/10 flex flex-col items-center text-center hover:-translate-y-2 hover:shadow-2xl transition-all duration-500 relative overflow-hidden bg-white/40 cursor-pointer"
+      >
+        <div
+          class="absolute inset-0 bg-gradient-to-br from-mystic-rose/0 to-mystic-gold/0 group-hover:from-mystic-rose/5 group-hover:to-mystic-gold/5 transition-colors duration-500"
+        ></div>
 
-          <div class="text-6xl text-mystic-gold/40 group-hover:text-mystic-gold group-hover:scale-110 transition-all duration-500 mb-6 drop-shadow-sm select-none">
-            {{ sign.symbol || '✧' }}
-          </div>
-          
-          <h3 class="serif-display text-2xl text-mystic-cocoa mb-2 relative z-10">{{ sign.name }}</h3>
-          <span class="text-xs uppercase tracking-widest text-mystic-rose/70 font-medium relative z-10">{{ sign.date_range }}</span>
-          
-          <!-- Decorative element -->
-          <div class="w-8 h-[1px] bg-mystic-gold/30 mt-6 group-hover:w-16 transition-all duration-500"></div>
+        <div
+          class="text-4xl sm:text-6xl text-mystic-gold/40 group-hover:text-mystic-gold group-hover:scale-110 transition-all duration-500 mb-4 sm:mb-6 drop-shadow-sm select-none"
+        >
+          {{ sign.symbol || '✧' }}
+        </div>
+
+        <h3 class="serif-display text-xl sm:text-2xl text-mystic-cocoa mb-2 relative z-10">
+          {{ sign.name }}
+        </h3>
+        <span
+          class="text-xs uppercase tracking-widest text-mystic-rose font-medium relative z-10"
+          >{{ sign.date_range }}</span
+        >
+
+        <!-- Decorative element -->
+        <div
+          class="w-8 h-[1px] bg-mystic-gold/30 mt-6 group-hover:w-16 transition-all duration-500"
+        ></div>
+      </a>
+      } @empty { @if (loading()) { @for (i of [1,2,3,4,5,6,7,8]; track i) {
+      <div
+        class="h-[220px] bg-white rounded-3xl animate-pulse border border-mystic-rose/10"
+      ></div>
+      } } @else {
+      <div
+        class="col-span-full rounded-3xl border border-mystic-rose/15 bg-white/70 p-10 text-center"
+      >
+        <p class="text-mystic-gold text-4xl mb-4">✧</p>
+        <h3 class="serif-display text-2xl text-mystic-cocoa mb-3">
+          Horoskopy są prawie gotowe
+        </h3>
+        <p class="text-mystic-cocoa max-w-xl mx-auto mb-6">
+          {{ error() || 'Treści są chwilowo niedostępne. Wróć za moment albo
+          wybierz Kartę Dnia.' }}
+        </p>
+        <a routerLink="/tarot/karta-dnia" class="btn-outline">
+          Wybierz Kartę Dnia
         </a>
-      } @empty {
-        @if (loading()) {
-          @for (i of [1,2,3,4,5,6,7,8]; track i) {
-            <div class="h-[220px] bg-white rounded-3xl animate-pulse border border-mystic-rose/10"></div>
-          }
-        } @else {
-          <div class="col-span-full rounded-3xl border border-mystic-rose/15 bg-white/70 p-10 text-center">
-            <p class="text-mystic-gold text-4xl mb-4">✧</p>
-            <h3 class="serif-display text-2xl text-mystic-cocoa mb-3">Horoskopy są prawie gotowe</h3>
-            <p class="text-mystic-cocoa/65">
-              {{ error() || 'Brakuje opublikowanych znaków zodiaku. Uruchom seed danych i odśwież stronę.' }}
-            </p>
-          </div>
-        }
-      }
+      </div>
+      } }
     </div>
-    
   </div>
 </div>

@@ -1,0 +1,130 @@
+@if (isVisible()) {
+<div
+  class="fixed inset-x-0 bottom-0 z-[60] animate-slide-up px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:bottom-6 sm:left-6 sm:right-auto sm:px-0 sm:pb-0"
+  data-test="cookie-banner"
+>
+  <div
+    class="glass-panel max-h-[min(70vh,34rem)] w-full overflow-y-auto rounded-3xl border border-mystic-rose/20 bg-white/95 p-4 shadow-2xl backdrop-blur-xl sm:max-w-xl sm:p-5 md:max-w-2xl md:p-6"
+  >
+    @if (!showSettings()) {
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
+      <div class="min-w-0 flex-grow text-left">
+        <h3 class="serif-display text-lg sm:text-xl text-mystic-cocoa mb-2">
+          Twoja prywatność w gwiazdach ✦
+        </h3>
+        <p class="text-mystic-cocoa text-sm font-light leading-relaxed">
+          Używamy ciasteczek, aby personalizować horoskopy i analizować ruch na
+          stronie. Zgadzając się, pomagasz nam tworzyć jeszcze lepszy Star Sign.
+        </p>
+      </div>
+      <div class="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-3 sm:shrink-0">
+        <button
+          (click)="toggleSettings()"
+          data-test="cookie-settings-button"
+          class="rounded-full border border-mystic-rose/15 px-4 py-2.5 text-xs font-medium uppercase tracking-widest text-mystic-cocoa transition-colors hover:text-mystic-rose sm:border-0 sm:py-3"
+        >
+          Ustawienia
+        </button>
+        <button
+          (click)="acceptAll()"
+          data-test="cookie-accept-all-button"
+          class="btn-primary w-full !py-2.5 !px-5 text-sm sm:w-auto sm:!py-3 sm:!px-7"
+        >
+          Zgadzam się na wszystko
+        </button>
+      </div>
+    </div>
+    } @else {
+    <div>
+      <div class="flex items-center justify-between gap-4 mb-5">
+        <h3 class="serif-display text-lg sm:text-xl text-mystic-cocoa">
+          Ustawienia Prywatności
+        </h3>
+        <button
+          (click)="toggleSettings()"
+          class="text-mystic-rose text-sm hover:underline"
+        >
+          Powrót
+        </button>
+      </div>
+
+      <div class="space-y-3 mb-6">
+        <div
+          class="flex items-start gap-3 p-3 sm:gap-4 sm:p-4 rounded-2xl bg-mystic-rose/[0.03] border border-mystic-rose/5"
+        >
+          <input
+            type="checkbox"
+            checked
+            disabled
+            class="mt-1 accent-mystic-rose"
+          />
+          <div>
+            <p class="text-sm font-bold text-mystic-cocoa">
+              Niezbędne (Wymagane)
+            </p>
+            <p class="text-xs text-mystic-cocoa font-light">
+              Konieczne do działania podstawowych funkcji serwisu, jak koszyk
+              czy logowanie.
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="flex items-start gap-3 p-3 sm:gap-4 sm:p-4 rounded-2xl border border-mystic-rose/10"
+        >
+          <input
+            type="checkbox"
+            [checked]="consent().analytics"
+            (change)="updateOption('analytics', $event)"
+            class="mt-1 accent-mystic-rose"
+          />
+          <div>
+            <p class="text-sm font-bold text-mystic-cocoa">Analityczne</p>
+            <p class="text-xs text-mystic-cocoa font-light">
+              Pomagają nam zrozumieć, jak użytkownicy korzystają ze strony, co
+              pozwala nam ją ulepszać.
+            </p>
+          </div>
+        </div>
+
+        @if (adsEnabled) {
+        <div
+          class="flex items-start gap-3 p-3 sm:gap-4 sm:p-4 rounded-2xl border border-mystic-rose/10"
+        >
+          <input
+            type="checkbox"
+            [checked]="consent().marketing"
+            (change)="updateOption('marketing', $event)"
+            class="mt-1 accent-mystic-rose"
+          />
+          <div>
+            <p class="text-sm font-bold text-mystic-cocoa">Marketingowe</p>
+            <p class="text-xs text-mystic-cocoa font-light">
+              Służą do wyświetlania reklam dopasowanych do Twoich zainteresowań.
+            </p>
+          </div>
+        </div>
+        }
+      </div>
+
+      <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end sm:gap-3">
+        <button
+          (click)="declineAll()"
+          data-test="cookie-decline-button"
+          class="btn-outline w-full !py-2.5 !px-5 text-sm sm:w-auto sm:!px-6"
+        >
+          Odrzuć opcjonalne
+        </button>
+        <button
+          (click)="acceptSelected()"
+          data-test="cookie-save-button"
+          class="btn-primary w-full !py-2.5 !px-5 text-sm sm:w-auto sm:!px-6"
+        >
+          Zapisz wybrane
+        </button>
+      </div>
+    </div>
+    }
+  </div>
+</div>
+}

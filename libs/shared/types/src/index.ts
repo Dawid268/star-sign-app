@@ -6,3 +6,4 @@ export * from './lib/tarot.types';
 export * from './lib/numerology.types';
 export * from './lib/newsletter.types';
 export * from './lib/user-account.types';
+export * from './lib/analytics.types';

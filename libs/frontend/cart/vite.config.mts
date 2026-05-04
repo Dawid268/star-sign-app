@@ -23,6 +23,12 @@ export default defineConfig(() => ({
     coverage: {
       reportsDirectory: '../../../coverage/libs/frontend/cart',
       provider: 'v8' as const,
+      thresholds: {
+        statements: 95,
+        lines: 95,
+        functions: 95,
+        branches: 85,
+      },
     },
   },
 }));

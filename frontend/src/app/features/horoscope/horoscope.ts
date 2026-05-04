@@ -1,4 +1,9 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { of } from 'rxjs';
@@ -24,10 +29,10 @@ export class Horoscope {
         this.error.set('Nie udało się pobrać znaków zodiaku.');
         return of([] as ZodiacSign[]);
       }),
-      finalize(() => this.loading.set(false))
+      finalize(() => this.loading.set(false)),
     ),
     {
       initialValue: [] as ZodiacSign[],
-    }
+    },
   );
 }

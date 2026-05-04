@@ -1,0 +1,58 @@
+<div class="natal-chart-container">
+  <div class="header">
+    <h1>Twój Kosmogram Urodzeniowy</h1>
+    <p class="subtitle">
+      Odkryj układ gwiazd w momencie Twojego przyjścia na świat.
+    </p>
+  </div>
+
+  @if (chart(); as data) {
+  <div class="chart-results">
+    <div class="chart-grid">
+      <div class="chart-card sun">
+        <div class="icon">☀️</div>
+        <h3>Znak Słoneczny</h3>
+        <div class="sign-name">{{ data.sun }}</div>
+        <p>Twoja podstawowa tożsamość, ego i siła życiowa.</p>
+      </div>
+
+      <div class="chart-card moon">
+        <div class="icon">🌙</div>
+        <h3>Znak Księżycowy</h3>
+        <div class="sign-name">{{ data.moon }}</div>
+        <p>Twoje emocje, instynkty i wewnętrzny świat.</p>
+      </div>
+
+      <div class="chart-card rising">
+        <div class="icon">🌅</div>
+        <h3>Ascendent</h3>
+        @if (data.rising) {
+        <div class="sign-name">{{ data.rising }}</div>
+        <p>Twoja "maska", sposób, w jaki postrzegają Cię inni.</p>
+        } @else {
+        <div class="sign-name">Uzupełnij godzinę</div>
+        <p>Ascendent wymaga godziny urodzenia.</p>
+        }
+      </div>
+    </div>
+
+    @if (!isPremium()) {
+    <app-premium-preview-block
+      variant="natal-chart"
+      [hasPremiumContent]="true"
+      title="Pełna analiza kosmogramu"
+      intro="Darmowy kosmogram pokazuje Słońce, Księżyc i Ascendent. Premium dodaje planety w domach, aspekty, żywioły, relacje i rytm miesięczny."
+      ctaLabel="Odblokuj pełną analizę kosmogramu"
+      testId="natal-chart-premium-preview"
+    />
+    }
+  </div>
+  } @else { @if (me()) {
+  <div class="empty-state">
+    <p>Nie uzupełniłeś jeszcze danych urodzeniowych.</p>
+    <a routerLink="/panel" class="btn-primary">Uzupełnij Profil</a>
+  </div>
+  } @else {
+  <app-skeleton height="300px" count="3" />
+  } }
+</div>

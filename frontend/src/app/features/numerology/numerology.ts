@@ -1,4 +1,9 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -14,30 +19,72 @@ import { featureFlags } from '../../core/feature-flags';
   viewProviders: [provideIcons({ heroSparkles, heroArrowRight })],
   templateUrl: './numerology.html',
   styleUrl: './numerology.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Numerology {
   private readonly numerologyService = inject(NumerologyService);
 
   public readonly birthDate = signal('');
+  public readonly dateError = signal<string | null>(null);
   public readonly result = signal<number | null>(null);
   public readonly isCalculating = signal(false);
   public readonly activeProfile = signal<NumerologyProfile | null>(null);
   public readonly shopEnabled = featureFlags.shopEnabled;
 
-  private readonly fallbackProfiles: Record<number, { title: string; description: string }> = {
-    1: { title: 'Pionier i Lider', description: 'Jesteś urodzonym przywódcą, pełnym ambicji i niezależności.' },
-    2: { title: 'Dyplomata i Partner', description: 'Cechuje Cię wrażliwość, intuicja i umiejętność współpracy.' },
-    3: { title: 'Twórca i Artysta', description: 'Wyrażasz siebie poprzez komunikację i sztukę.' },
-    4: { title: 'Budowniczy i Pracownik', description: 'Twoją siłą jest stabilność, porządek i systematyczność.' },
-    5: { title: 'Podróżnik i Wolny Duch', description: 'Cenisz wolność, zmiany i przygodę.' },
-    6: { title: 'Opiekun i Nauczyciel', description: 'Twoją misją jest służba innym i budowanie harmonii.' },
-    7: { title: 'Mędrzec i Myśliciel', description: 'Szukasz prawdy, wiedzy i duchowego zrozumienia.' },
-    8: { title: 'Strateg i Władca', description: 'Masz talent do zarządzania i osiągania sukcesu materialnego.' },
-    9: { title: 'Humanitarysta i Idealista', description: 'Dążysz do pomocy innym i domykania ważnych cykli.' },
-    11: { title: 'Mistrz Intuicji', description: 'Masz silną intuicję i wyjątkowy potencjał duchowy.' },
-    22: { title: 'Mistrz Budowniczy', description: 'Potrafisz przekuwać wielkie wizje w realny wpływ.' },
-    33: { title: 'Mistrz Nauczyciel', description: 'Niesiesz energię opieki i bezinteresownego przewodnictwa.' },
+  private readonly fallbackProfiles: Record<
+    number,
+    { title: string; description: string }
+  > = {
+    1: {
+      title: 'Pionier i Lider',
+      description:
+        'Jesteś urodzonym przywódcą, pełnym ambicji i niezależności.',
+    },
+    2: {
+      title: 'Dyplomata i Partner',
+      description: 'Cechuje Cię wrażliwość, intuicja i umiejętność współpracy.',
+    },
+    3: {
+      title: 'Twórca i Artysta',
+      description: 'Wyrażasz siebie poprzez komunikację i sztukę.',
+    },
+    4: {
+      title: 'Budowniczy i Pracownik',
+      description: 'Twoją siłą jest stabilność, porządek i systematyczność.',
+    },
+    5: {
+      title: 'Podróżnik i Wolny Duch',
+      description: 'Cenisz wolność, zmiany i przygodę.',
+    },
+    6: {
+      title: 'Opiekun i Nauczyciel',
+      description: 'Twoją misją jest służba innym i budowanie harmonii.',
+    },
+    7: {
+      title: 'Mędrzec i Myśliciel',
+      description: 'Szukasz prawdy, wiedzy i duchowego zrozumienia.',
+    },
+    8: {
+      title: 'Strateg i Władca',
+      description:
+        'Masz talent do zarządzania i osiągania sukcesu materialnego.',
+    },
+    9: {
+      title: 'Humanitarysta i Idealista',
+      description: 'Dążysz do pomocy innym i domykania ważnych cykli.',
+    },
+    11: {
+      title: 'Mistrz Intuicji',
+      description: 'Masz silną intuicję i wyjątkowy potencjał duchowy.',
+    },
+    22: {
+      title: 'Mistrz Budowniczy',
+      description: 'Potrafisz przekuwać wielkie wizje w realny wpływ.',
+    },
+    33: {
+      title: 'Mistrz Nauczyciel',
+      description: 'Niesiesz energię opieki i bezinteresownego przewodnictwa.',
+    },
   };
 
   /**
@@ -47,6 +94,21 @@ export class Numerology {
   public calculateLifePath(): void {
     if (!this.birthDate()) return;
 
+    const selectedDate = new Date(this.birthDate());
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate > today) {
+      this.dateError.set('Data urodzenia nie może być z przyszłości.');
+      return;
+    }
+
+    if (selectedDate.getFullYear() < 1900) {
+      this.dateError.set('Proszę podać realistyczną datę urodzenia.');
+      return;
+    }
+
+    this.dateError.set(null);
     this.isCalculating.set(true);
     const dateStr = this.birthDate().replace(/-/g, '');
     let sum = 0;
@@ -72,7 +134,7 @@ export class Numerology {
                   title: fallback.title,
                   description: fallback.description,
                 }
-              : null
+              : null,
           );
         }
         this.isCalculating.set(false);
@@ -88,7 +150,7 @@ export class Numerology {
                 title: fallback.title,
                 description: fallback.description,
               }
-            : null
+            : null,
         );
         this.isCalculating.set(false);
       },
@@ -105,13 +167,17 @@ export class Numerology {
       return num;
     }
 
-    const nextSum = num.toString().split('').reduce((acc, curr) => acc + parseInt(curr, 10), 0);
+    const nextSum = num
+      .toString()
+      .split('')
+      .reduce((acc, curr) => acc + parseInt(curr, 10), 0);
     return this.reduceNumber(nextSum);
   }
 
   public reset(): void {
     this.result.set(null);
     this.birthDate.set('');
+    this.dateError.set(null);
     this.activeProfile.set(null);
   }
 }

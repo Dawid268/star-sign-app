@@ -1,0 +1,250 @@
+<div
+  class="min-h-screen bg-[#110C10] text-white overflow-hidden relative selection:bg-mystic-rose/30"
+>
+  <div
+    class="absolute inset-0 z-0 bg-[url('/assets/stars-pattern.png')] opacity-15 bg-repeat pointer-events-none"
+  ></div>
+
+  <div class="relative z-10">
+    <header class="section-container pt-24 pb-14 text-center sm:pt-32 sm:pb-20">
+      <div
+        class="inline-flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-full text-mystic-gold text-xs font-bold tracking-widest uppercase mb-8 backdrop-blur-md"
+      >
+        <ng-icon name="heroStar" />
+        Magiczny Krąg
+      </div>
+
+      <h1
+        data-test="premium-title"
+        class="serif-display text-4xl sm:text-5xl md:text-8xl mb-8 leading-tight break-words"
+      >
+        Magiczny Krąg
+      </h1>
+
+      <p
+        class="text-white/65 text-lg md:text-xl max-w-3xl mx-auto font-light leading-relaxed mb-10"
+      >
+        Premium po lekturze, nie zamiast niej. Czytaj darmowe horoskopy,
+        artykuły i Kartę Dnia. Gdy chcesz wejść głębiej, Magiczny Krąg
+        odblokowuje pełne interpretacje, rytuały i pytania refleksyjne.
+      </p>
+
+      <button
+        type="button"
+        (click)="joinMagicCircle()"
+        [disabled]="isLoading()"
+        class="bg-mystic-gold text-black px-9 py-4 rounded-full font-bold hover:bg-white transition-all shadow-[0_10px_30px_rgba(234,179,8,0.2)]"
+      >
+        @if (isLoading()) { Inicjowanie... } @else { Dołącz do Kręgu ✦ }
+      </button>
+    </header>
+
+    <section class="section-container pb-20">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
+        <div
+          class="rounded-3xl md:rounded-[2rem] border border-white/10 bg-white/[0.03] p-6 md:p-10"
+        >
+          <p
+            class="text-mystic-gold text-xs uppercase tracking-[0.24em] font-bold mb-4"
+          >
+            Darmowa ścieżka
+          </p>
+          <h2 class="serif-display text-3xl mb-6">Wartość przed decyzją</h2>
+          <ul class="space-y-4 text-white/75 text-sm leading-relaxed">
+            <li class="flex gap-3">
+              <ng-icon name="heroCheck" class="text-mystic-gold mt-0.5" />
+              Dzienny horoskop i podstawowe wskazówki dla znaku.
+            </li>
+            <li class="flex gap-3">
+              <ng-icon name="heroCheck" class="text-mystic-gold mt-0.5" />
+              Karta Dnia z opisem znaczenia i energii.
+            </li>
+            <li class="flex gap-3">
+              <ng-icon name="heroCheck" class="text-mystic-gold mt-0.5" />
+              Publiczne artykuły, które można przeczytać bez konta.
+            </li>
+          </ul>
+        </div>
+
+        <div
+          class="rounded-3xl md:rounded-[2rem] border border-mystic-gold/30 bg-mystic-gold/[0.07] p-6 md:p-10"
+        >
+          <p
+            class="text-mystic-gold text-xs uppercase tracking-[0.24em] font-bold mb-4"
+          >
+            Premium
+          </p>
+          <h2 class="serif-display text-3xl mb-6">
+            Pełniejsza praca z treścią
+          </h2>
+          <ul class="space-y-4 text-white/85 text-sm leading-relaxed">
+            <li class="flex gap-3">
+              <ng-icon name="heroSparkles" class="text-mystic-gold mt-0.5" />
+              Pełne interpretacje horoskopów: relacje, praca, energia dnia,
+              rytuał i pytanie do dziennika.
+            </li>
+            <li class="flex gap-3">
+              <ng-icon name="heroStar" class="text-mystic-gold mt-0.5" />
+              Rozszerzona analiza Karty Dnia: cień, rada relacyjna i rytuał.
+            </li>
+            <li class="flex gap-3">
+              <ng-icon name="heroBolt" class="text-mystic-gold mt-0.5" />
+              Dodatki Premium do artykułów oraz historia odczytów w panelu.
+            </li>
+            @if (adsEnabled) {
+            <li class="flex gap-3">
+              <ng-icon name="heroCheck" class="text-mystic-gold mt-0.5" />
+              Brak reklam i treści sponsorowanych.
+            </li>
+            }
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-container pb-24">
+      <div class="max-w-6xl mx-auto border-t border-white/10 pt-16">
+        <h2 class="serif-display text-4xl mb-10 text-center">
+          Próbka: free vs Premium
+        </h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div
+            class="rounded-3xl md:rounded-[2rem] border border-white/10 bg-white/[0.03] p-6 sm:p-8"
+          >
+            <p
+              class="text-white/40 text-xs uppercase tracking-[0.24em] font-bold mb-4"
+            >
+              Darmowy horoskop
+            </p>
+            <p class="text-white/75 leading-relaxed">
+              Dziś warto uprościć plan i wybrać jedną decyzję, która przywróci
+              Ci spokój. Zaufaj intuicji, ale sprawdź fakty przed działaniem.
+            </p>
+          </div>
+          <div
+            class="rounded-3xl md:rounded-[2rem] border border-mystic-gold/30 bg-white/[0.06] p-6 sm:p-8"
+          >
+            <p
+              class="text-mystic-gold text-xs uppercase tracking-[0.24em] font-bold mb-4"
+            >
+              Premium
+            </p>
+            <ul class="space-y-3 text-white/85 text-sm leading-relaxed">
+              <li>Relacje: nazwij potrzebę bez szukania winnego.</li>
+              <li>Praca: domknij jedno zadanie przed nowymi pomysłami.</li>
+              <li>
+                Energia dnia: zrób pauzę bez telefonu przed ważną decyzją.
+              </li>
+              <li>Rytuał: zapisz intencję i wróć do niej wieczorem.</li>
+              <li>Pytanie: co wybieram, gdy nie działam z presji?</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-container pb-24">
+      <div class="max-w-5xl mx-auto">
+        <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mb-10">
+          <span
+            [class.text-white]="!isAnnual()"
+            [class.text-white/40]="isAnnual()"
+            class="text-sm font-medium transition-colors"
+            >Miesięcznie</span
+          >
+          <button
+            type="button"
+            (click)="toggleBilling()"
+            data-test="premium-billing-toggle"
+            [attr.aria-pressed]="isAnnual()"
+            [attr.aria-label]="
+              isAnnual()
+                ? 'Przełącz na płatność miesięczną'
+                : 'Przełącz na płatność roczną'
+            "
+            class="relative w-16 h-8 bg-white/10 rounded-full border border-white/10 p-1 transition-all"
+          >
+            <div
+              class="absolute top-1 bottom-1 w-6 bg-mystic-gold rounded-full transition-all"
+              [style.left]="isAnnual() ? 'calc(100% - 28px)' : '4px'"
+            ></div>
+          </button>
+          <span
+            [class.text-white]="isAnnual()"
+            [class.text-white/40]="!isAnnual()"
+            class="text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            Rocznie
+            <span
+              class="bg-mystic-rose/20 text-mystic-rose text-[10px] px-2 py-0.5 rounded-full font-bold uppercase"
+              >-20%</span
+            >
+          </span>
+        </div>
+
+        <div
+          class="rounded-3xl md:rounded-[2.5rem] border border-mystic-gold/30 bg-gradient-to-b from-mystic-gold/[0.08] to-transparent p-6 sm:p-10 md:p-12 text-center"
+        >
+          <p
+            class="text-mystic-gold text-xs uppercase tracking-[0.24em] font-bold mb-4"
+          >
+            Magiczny Krąg
+          </p>
+          <div class="text-5xl serif-display mb-3">
+            {{ isAnnual() ? '199 zł' : '24.99 zł' }}
+            <span class="text-sm text-white/35 font-sans">
+              / {{ isAnnual() ? 'rok' : 'miesiąc' }}
+            </span>
+          </div>
+          @if (isAnnual()) {
+          <p class="text-mystic-rose text-sm font-medium mb-8">
+            Tylko 16,58 zł miesięcznie przy opłacie rocznej.
+          </p>
+          } @else {
+          <p class="text-white/45 text-sm font-medium mb-8">
+            Płatność miesięczna, bez długiego zobowiązania.
+          </p>
+          }
+          <button
+            type="button"
+            (click)="joinMagicCircle()"
+            [disabled]="isLoading()"
+            data-test="premium-join-button"
+            class="w-full sm:w-auto px-10 py-4 bg-mystic-gold text-black rounded-full font-bold hover:bg-white transition-all shadow-[0_10px_30px_rgba(234,179,8,0.2)]"
+          >
+            @if (isLoading()) { Inicjowanie... } @else { Dołącz do Kręgu ✦ }
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-container pb-32">
+      <div class="max-w-4xl mx-auto border-t border-white/10 pt-16">
+        <h2 class="serif-display text-4xl mb-10 text-center">FAQ</h2>
+        <div class="grid gap-4">
+          <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <h3 class="font-semibold mb-2">Czy darmowe treści zostają?</h3>
+            <p class="text-white/65 text-sm leading-relaxed">
+              Tak. Premium rozszerza lekturę, ale nie zabiera podstawowych
+              horoskopów, artykułów ani Karty Dnia.
+            </p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <h3 class="font-semibold mb-2">Czy dostęp działa od razu?</h3>
+            <p class="text-white/65 text-sm leading-relaxed">
+              Po potwierdzeniu płatności odblokowane sekcje są dostępne z konta
+              użytkownika.
+            </p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <h3 class="font-semibold mb-2">Czy mogę anulować?</h3>
+            <p class="text-white/65 text-sm leading-relaxed">
+              Tak. Zarządzanie subskrypcją odbywa się w panelu konta po
+              zalogowaniu.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

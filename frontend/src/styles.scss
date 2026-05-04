@@ -2,17 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-@import "@angular/material/prebuilt-themes/azure-blue.css";
-
-html, body { 
-  height: 100%; 
+html,
+body {
+  height: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
-body { 
-  margin: 0; 
-  font-family: 'Inter', sans-serif; 
-  background-color: #FFFBFB;
-  color: #5D4D50;
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #fffbfb;
+  color: #5d4d50;
 }
 
 @layer components {
@@ -21,11 +22,11 @@ body {
   }
 
   .section-container {
-    @apply py-16 md:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto;
+    @apply max-w-7xl mx-auto px-4 py-12 sm:px-6 md:py-16 lg:px-8 lg:py-24;
   }
-  
+
   .card-mystic {
-    @apply bg-white border border-mystic-rose/10 rounded-2xl p-8 flex flex-col shadow-sm transition-all duration-300;
+    @apply min-w-0 bg-white border border-mystic-rose/10 rounded-2xl p-5 sm:p-8 flex flex-col shadow-sm transition-all duration-300;
   }
 
   .card-mystic:hover {
@@ -33,11 +34,11 @@ body {
   }
 
   .btn-primary {
-    @apply bg-mystic-rose text-white px-8 py-4 rounded-full text-lg font-medium hover:bg-[#c291a1] transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 glow-effect;
+    @apply inline-flex max-w-full min-w-0 items-center justify-center whitespace-normal break-words text-center bg-mystic-rose text-white px-5 py-3 sm:px-8 sm:py-4 rounded-full text-sm sm:text-lg font-medium hover:bg-[#c291a1] transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 glow-effect;
   }
 
   .btn-outline {
-    @apply border border-mystic-rose text-mystic-rose px-6 py-3 rounded-full font-medium hover:bg-mystic-rose/5 transition-colors;
+    @apply inline-flex max-w-full min-w-0 items-center justify-center whitespace-normal break-words text-center border border-mystic-rose text-mystic-rose px-5 py-3 sm:px-6 rounded-full text-sm sm:text-base font-medium hover:bg-mystic-rose/5 transition-colors;
   }
 
   .icon-circle {
@@ -64,7 +65,9 @@ body {
 
   .glow-effect {
     box-shadow: 0 0 20px rgba(209, 167, 180, 0.4);
-    transition: box-shadow 0.3s ease-in-out, transform 0.3s ease;
+    transition:
+      box-shadow 0.3s ease-in-out,
+      transform 0.3s ease;
   }
 
   .glow-effect:hover {
@@ -75,6 +78,7 @@ body {
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.4);
+    min-width: 0;
   }
 
   .mystic-orb {
@@ -82,28 +86,65 @@ body {
     border-radius: 50%;
     filter: blur(40px);
     z-index: 0;
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .card-mystic:hover,
+  .btn-primary:hover,
+  .glow-effect:hover {
+    transform: none;
+  }
+
+  .mystic-orb {
+    max-width: 80vw;
+    max-height: 80vw;
+    opacity: 0.55;
   }
 }
 
 @keyframes float {
-  0% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-15px) rotate(2deg); }
-  100% { transform: translateY(0px) rotate(0deg); }
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-15px) rotate(2deg);
+  }
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .animate-float {

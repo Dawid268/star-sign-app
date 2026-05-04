@@ -1,16 +1,22 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { simpleInstagram, simpleTiktok, simplePinterest } from '@ng-icons/simple-icons';
+import {
+  simpleInstagram,
+  simpleTiktok,
+  simplePinterest,
+} from '@ng-icons/simple-icons';
 import { featureFlags } from '../../feature-flags';
 
 @Component({
   selector: 'app-footer',
   imports: [RouterLink, NgIcon],
-  viewProviders: [provideIcons({ simpleInstagram, simpleTiktok, simplePinterest })],
+  viewProviders: [
+    provideIcons({ simpleInstagram, simpleTiktok, simplePinterest }),
+  ],
   templateUrl: './footer.html',
   styleUrl: './footer.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Footer {
   public readonly currentYear = new Date().getFullYear();
@@ -21,12 +27,8 @@ export class Footer {
     { label: 'Tarot Online', path: '/tarot' },
     { label: 'Blog', path: '/artykuly' },
     ...(this.shopEnabled ? [{ label: 'Sklep Magiczny', path: '/sklep' }] : []),
-    { label: 'Numerologia', path: '/numerologia' }
+    { label: 'Numerologia', path: '/numerologia' },
   ];
 
-  public readonly socials = [
-    { label: 'Instagram', icon: 'simpleInstagram', href: '#' },
-    { label: 'TikTok', icon: 'simpleTiktok', href: '#' },
-    { label: 'Pinterest', icon: 'simplePinterest', href: '#' }
-  ];
+  public readonly socials: { label: string; icon: string; href: string }[] = [];
 }

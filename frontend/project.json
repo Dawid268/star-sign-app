@@ -11,6 +11,7 @@
       "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/frontend",
+        "index": "frontend/src/index.html",
         "browser": "frontend/src/main.ts",
         "server": "frontend/src/main.server.ts",
         "ssr": {
@@ -29,6 +30,18 @@
       },
       "configurations": {
         "production": {
+          "optimization": true,
+          "outputHashing": "all",
+          "serviceWorker": "frontend/ngsw-config.json",
+          "sourceMap": {
+            "scripts": true,
+            "styles": false,
+            "hidden": true,
+            "vendor": false,
+            "sourcesContent": true
+          },
+          "namedChunks": false,
+          "extractLicenses": true,
           "fileReplacements": [
             {
               "replace": "frontend/src/environments/environment.ts",
@@ -46,8 +59,7 @@
               "maximumWarning": "4kb",
               "maximumError": "8kb"
             }
-          ],
-          "outputHashing": "all"
+          ]
         },
         "development": {
           "optimization": false,
@@ -60,6 +72,9 @@
     "serve": {
       "continuous": true,
       "executor": "@angular/build:dev-server",
+      "options": {
+        "proxyConfig": "frontend/proxy.conf.json"
+      },
       "configurations": {
         "production": {
           "buildTarget": "frontend:build:production"
@@ -75,16 +90,30 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "options": {}
+      "options": {},
+      "configurations": {
+        "coverage": {
+          "coverage": true,
+          "coverageExclude": ["libs/frontend/cart/**"],
+          "coverageReporters": ["text", "html", "lcov", "json-summary"],
+          "coverageThresholds": {
+            "statements": 85,
+            "lines": 85,
+            "branches": 75,
+            "functions": 75
+          }
+        }
+      }
     },
     "serve-static": {
-      "continuous": true,
-      "executor": "@nx/web:file-server",
+      "executor": "nx:run-commands",
       "options": {
-        "buildTarget": "frontend:build",
-        "port": 4200,
-        "staticFilePath": "dist/frontend/browser",
-        "spa": true
+        "commands": [
+          "npx nx build frontend",
+          "cp dist/frontend/browser/index.csr.html dist/frontend/browser/index.html",
+          "node proxy-server.mjs"
+        ],
+        "parallel": false
       }
     }
   }

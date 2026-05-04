@@ -1,19 +1,42 @@
 <div class="pt-0 bg-[#FFFBFB] min-h-screen">
-
   <!-- Shop Hero Banner -->
-  <section class="bg-[#FDF4F5] border-b border-mystic-rose/10 overflow-hidden relative">
-    <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
+  <section
+    class="bg-[#FDF4F5] border-b border-mystic-rose/10 overflow-hidden relative"
+  >
+    <div
+      class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"
+    ></div>
     <div class="section-container py-20 md:py-32">
-      <div class="relative w-full rounded-[3rem] overflow-hidden flex items-center justify-center min-h-[320px] md:min-h-[440px] border border-mystic-rose/15 shadow-2xl shadow-mystic-rose/10">
-        <div class="absolute inset-0 bg-gradient-to-br from-mystic-rose/15 via-white/40 to-mystic-gold/15 animate-gradient-slow"></div>
-        <div class="mystic-orb top-1/4 left-1/4 w-64 h-64 bg-mystic-rose/10 animate-float"></div>
-        <div class="mystic-orb bottom-1/4 right-1/4 w-72 h-72 bg-mystic-gold/10 animate-float" style="animation-delay: 3s;"></div>
+      <div
+        class="relative w-full rounded-[3rem] overflow-hidden flex items-center justify-center min-h-[320px] md:min-h-[440px] border border-mystic-rose/15 shadow-2xl shadow-mystic-rose/10"
+      >
+        <div
+          class="absolute inset-0 bg-gradient-to-br from-mystic-rose/15 via-white/40 to-mystic-gold/15 animate-gradient-slow"
+        ></div>
+        <div
+          class="mystic-orb top-1/4 left-1/4 w-64 h-64 bg-mystic-rose/10 animate-float"
+        ></div>
+        <div
+          class="mystic-orb bottom-1/4 right-1/4 w-72 h-72 bg-mystic-gold/10 animate-float"
+          style="animation-delay: 3s"
+        ></div>
 
         <div class="relative z-10 text-center px-8">
-          <div class="text-6xl mb-6 select-none opacity-40 text-mystic-gold animate-pulse">✧</div>
-          <h1 class="serif-display text-5xl md:text-7xl text-mystic-cocoa mb-6 tracking-tight">Magiczne Artefakty</h1>
-          <p class="text-mystic-cocoa/70 text-xl font-light leading-relaxed max-w-2xl mx-auto italic">
-            "Dostrój swoją duszę do rytmu wszechświata dzięki starannie wybranym przedmiotom mocy."
+          <div
+            class="text-6xl mb-6 select-none opacity-40 text-mystic-gold animate-pulse"
+          >
+            ✧
+          </div>
+          <h1
+            class="serif-display text-5xl md:text-7xl text-mystic-cocoa mb-6 tracking-tight"
+          >
+            Magiczne Artefakty
+          </h1>
+          <p
+            class="text-mystic-cocoa text-xl font-light leading-relaxed max-w-2xl mx-auto italic"
+          >
+            "Dostrój swoją duszę do rytmu wszechświata dzięki starannie wybranym
+            przedmiotom mocy."
           </p>
         </div>
       </div>
@@ -21,17 +44,20 @@
   </section>
 
   <!-- Category Filters (Sticky) -->
-  <section class="section-container py-8 border-b border-mystic-rose/10 sticky top-20 bg-[#FFFBFB]/95 backdrop-blur-xl z-30">
-    <div class="flex flex-wrap items-center justify-center gap-4">
+  <section
+    class="section-container sticky top-20 z-30 overflow-x-auto overscroll-x-contain border-b border-mystic-rose/10 bg-[#FFFBFB]/95 py-4 backdrop-blur-xl md:py-6"
+  >
+    <div class="flex w-max min-w-full flex-nowrap items-center justify-start gap-2 sm:justify-center sm:gap-3">
       @for (category of categories(); track category) {
-        <button
-          (click)="setCategory(category)"
-          class="px-8 py-3 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-500 transform hover:scale-105"
-          [class]="activeCategory() === category
+      <button
+        (click)="setCategory(category)"
+        class="shrink-0 px-5 sm:px-8 py-2.5 sm:py-3 rounded-full text-[10px] font-bold uppercase tracking-[0.16em] sm:tracking-[0.2em] transition-all duration-500 transform hover:scale-105"
+        [class]="activeCategory() === category
             ? 'bg-mystic-cocoa text-white shadow-xl shadow-mystic-cocoa/30'
-            : 'bg-white border border-mystic-rose/20 text-mystic-cocoa/60 hover:border-mystic-rose hover:text-mystic-rose'">
-          {{ category }}
-        </button>
+            : 'bg-white border border-mystic-rose/20 text-mystic-cocoa hover:border-mystic-rose hover:text-mystic-rose'"
+      >
+        {{ category }}
+      </button>
       }
     </div>
   </section>
@@ -39,89 +65,151 @@
   <!-- Product Grid Section -->
   <section class="section-container py-16 md:py-24">
     @if (isLoading()) {
-      <div class="flex flex-col items-center justify-center py-32 space-y-8">
-        <div class="relative w-16 h-16">
-           <div class="absolute inset-0 border-4 border-mystic-rose/10 rounded-full"></div>
-           <div class="absolute inset-0 border-4 border-t-mystic-rose rounded-full animate-spin"></div>
-        </div>
-        <p class="text-mystic-cocoa/40 font-medium tracking-widest uppercase text-xs animate-pulse">Przywoływanie magicznych artefaktów...</p>
+    <div class="flex flex-col items-center justify-center py-32 space-y-8">
+      <div class="relative w-16 h-16">
+        <div
+          class="absolute inset-0 border-4 border-mystic-rose/10 rounded-full"
+        ></div>
+        <div
+          class="absolute inset-0 border-4 border-t-mystic-rose rounded-full animate-spin"
+        ></div>
       </div>
+      <p
+        class="text-mystic-cocoa font-medium tracking-widest uppercase text-xs animate-pulse"
+      >
+        Przywoływanie magicznych artefaktów...
+      </p>
+    </div>
     } @else {
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
+    <div
+      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10"
+    >
+      @for (product of filteredProducts; track product.documentId) {
+      <a
+        [routerLink]="['/sklep/produkt', product.documentId]"
+        class="group flex flex-col cursor-pointer animate-fade-in"
+      >
+        <!-- Product Card Image Area -->
+        <div
+          class="relative aspect-square bg-white rounded-[2.5rem] mb-6 flex items-center justify-center overflow-hidden border border-mystic-rose/10 shadow-lg group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500"
+        >
+          <div
+            class="absolute inset-0 bg-[#FDF4F5]/50 group-hover:bg-[#FDF4F5]/30 transition-colors"
+          ></div>
+          <div
+            class="absolute inset-0 bg-gradient-to-tr from-mystic-rose/10 to-transparent"
+          ></div>
 
-        @for (product of filteredProducts; track product.documentId) {
-          <a [routerLink]="['/sklep/produkt', product.documentId]" 
-             class="group flex flex-col cursor-pointer animate-fade-in">
+          <span
+            class="text-7xl select-none transform group-hover:scale-125 transition-transform duration-700 drop-shadow-sm"
+            >{{ product.symbol || '✦' }}</span
+          >
 
-            <!-- Product Card Image Area -->
-            <div class="relative aspect-square bg-white rounded-[2.5rem] mb-6 flex items-center justify-center overflow-hidden border border-mystic-rose/10 shadow-lg group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500">
-              <div class="absolute inset-0 bg-[#FDF4F5]/50 group-hover:bg-[#FDF4F5]/30 transition-colors"></div>
-              <div class="absolute inset-0 bg-gradient-to-tr from-mystic-rose/10 to-transparent"></div>
-              
-              <span class="text-7xl select-none transform group-hover:scale-125 transition-transform duration-700 drop-shadow-sm">{{ product.symbol || '✦' }}</span>
-
-              @if (product.tag) {
-                <div class="absolute top-6 left-6 px-4 py-1.5 rounded-full text-[9px] font-bold tracking-widest uppercase shadow-sm z-10"
-                     [class]="product.tag === 'Bestseller' ? 'bg-mystic-rose text-white'
+          @if (product.tag) {
+          <div
+            class="absolute top-6 left-6 px-4 py-1.5 rounded-full text-[9px] font-bold tracking-widest uppercase shadow-sm z-10"
+            [class]="product.tag === 'Bestseller' ? 'bg-mystic-rose text-white'
                              : product.tag === 'Nowość'    ? 'bg-mystic-gold text-mystic-cocoa'
-                             :                              'bg-mystic-cocoa text-white'">
-                  {{ product.tag }}
-                </div>
-              }
-
-              <!-- View Details Overlay -->
-              <div class="absolute inset-0 bg-mystic-cocoa/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                 <span class="text-white text-xs font-bold tracking-[0.2em] uppercase border-b border-white/40 pb-1">Szczegóły ✦</span>
-              </div>
-            </div>
-
-            <!-- Product Info -->
-            <div class="text-center px-4">
-              <p class="text-[9px] text-mystic-rose font-bold uppercase tracking-[0.2em] mb-2">{{ product.category }}</p>
-              <h3 class="serif-display text-2xl text-mystic-cocoa leading-tight mb-3 group-hover:text-mystic-rose transition-colors">
-                {{ product.name }}
-              </h3>
-              <p class="font-light text-mystic-cocoa/60 text-lg">{{ product.price }} zł</p>
-            </div>
-          </a>
-        } @empty {
-          <div class="col-span-full text-center py-32 bg-[#FDF4F5]/30 rounded-[3rem] border border-dashed border-mystic-rose/20">
-            <div class="text-6xl mb-6 select-none opacity-30 text-mystic-gold">✧</div>
-            <h3 class="serif-display text-2xl text-mystic-cocoa mb-2">Pusta przestrzeń...</h3>
-            <p class="text-mystic-cocoa/50 font-light">Wszechświat milczy w tej kategorii. Spróbuj innej drogi.</p>
+                             :                              'bg-mystic-cocoa text-white'"
+          >
+            {{ product.tag }}
           </div>
-        }
+          }
 
+          <!-- View Details Overlay -->
+          <div
+            class="absolute inset-0 bg-mystic-cocoa/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center"
+          >
+            <span
+              class="text-white text-xs font-bold tracking-[0.2em] uppercase border-b border-white/40 pb-1"
+              >Szczegóły ✦</span
+            >
+          </div>
+        </div>
+
+        <!-- Product Info -->
+        <div class="text-center px-4">
+          <p
+            class="text-[9px] text-mystic-rose font-bold uppercase tracking-[0.2em] mb-2"
+          >
+            {{ product.category }}
+          </p>
+          <h3
+            class="serif-display text-2xl text-mystic-cocoa leading-tight mb-3 group-hover:text-mystic-rose transition-colors"
+          >
+            {{ product.name }}
+          </h3>
+          <p class="font-light text-mystic-cocoa text-lg">
+            {{ product.price }} zł
+          </p>
+        </div>
+      </a>
+      } @empty {
+      <div
+        class="col-span-full text-center py-32 bg-[#FDF4F5]/30 rounded-[3rem] border border-dashed border-mystic-rose/20"
+      >
+        <div class="text-6xl mb-6 select-none opacity-30 text-mystic-gold">
+          ✧
+        </div>
+        <h3 class="serif-display text-2xl text-mystic-cocoa mb-2">
+          Pusta przestrzeń...
+        </h3>
+        <p class="text-mystic-cocoa font-light">
+          Wszechświat milczy w tej kategorii. Spróbuj innej drogi.
+        </p>
       </div>
+      }
+    </div>
     }
   </section>
 
   <!-- Newsletter Teaser -->
   <section class="section-container mb-24">
-    <div class="bg-mystic-cocoa rounded-[4rem] p-12 md:p-24 text-center text-white relative overflow-hidden">
-       <div class="absolute top-0 right-0 p-10 opacity-10 text-9xl">✨</div>
-       <div class="relative z-10 max-w-2xl mx-auto">
-          <h2 class="serif-display text-4xl md:text-6xl mb-6">Zapisz się do Kręgu</h2>
-          <p class="text-white/70 text-lg mb-10 font-light">Otrzymuj cotygodniowe prognozy, limitowane oferty i magiczne wskazówki prosto na swoją skrzynkę.</p>
-          @if (!newsletterSent()) {
-            <form class="flex flex-col sm:flex-row gap-4" (submit)="onNewsletterSubmit($event, emailInput)">
-              <input
-                #emailInput
-                type="email"
-                placeholder="Twoja gwiezdna poczta..."
-                required
-                class="flex-1 px-8 py-5 rounded-full bg-white/10 border border-white/20 focus:outline-none focus:border-white transition-all text-white">
-              <button class="bg-mystic-gold text-mystic-cocoa px-10 py-5 rounded-full font-bold tracking-widest uppercase hover:bg-white transition-all" [disabled]="newsletterLoading()">
-                Dołączam
-              </button>
-            </form>
-          } @else {
-            <p class="text-mystic-gold font-medium">Zapisano do newslettera. Dziękujemy.</p>
-          }
-          @if (newsletterError()) {
-            <p class="mt-5 text-sm text-red-200">{{ newsletterError() }}</p>
-          }
-       </div>
+    <div
+      class="bg-mystic-cocoa rounded-3xl sm:rounded-[4rem] p-6 sm:p-12 md:p-24 text-center text-white relative overflow-hidden"
+    >
+      <div class="absolute top-0 right-0 p-10 opacity-10 text-9xl">✨</div>
+      <div class="relative z-10 max-w-2xl mx-auto">
+        <h2 class="serif-display text-4xl md:text-6xl mb-6">
+          Zapisz się do Kręgu
+        </h2>
+        <p class="text-white/70 text-lg mb-10 font-light">
+          Otrzymuj cotygodniowe prognozy, limitowane oferty i magiczne wskazówki
+          prosto na swoją skrzynkę.
+        </p>
+        @if (!newsletterSent()) {
+        <form
+          class="space-y-4"
+          (submit)="onNewsletterSubmit($event, emailInput)"
+        >
+          <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <input
+              #emailInput
+              type="email"
+              placeholder="Twoja gwiezdna poczta..."
+              required
+              class="min-w-0 flex-1 rounded-full border border-white/20 bg-white/10 px-5 py-4 text-white transition-all focus:border-white focus:outline-none sm:px-8 sm:py-5"
+            />
+            <button
+              class="rounded-full bg-mystic-gold px-6 py-4 font-bold uppercase tracking-widest text-mystic-cocoa transition-all hover:bg-white sm:px-10 sm:py-5"
+              [disabled]="newsletterLoading() || (newsletterTurnstileRequired() && !newsletterTurnstileToken())"
+            >
+              Dołączam
+            </button>
+          </div>
+          <app-turnstile-widget
+            action="shop-newsletter"
+            (tokenChange)="handleNewsletterTurnstileToken($event)"
+          />
+        </form>
+        } @else {
+        <p class="text-mystic-gold font-medium">
+          Zapisano do newslettera. Dziękujemy.
+        </p>
+        } @if (newsletterError()) {
+        <p class="mt-5 text-sm text-red-200">{{ newsletterError() }}</p>
+        }
+      </div>
     </div>
   </section>
 </div>

@@ -1,0 +1,53 @@
+:host {
+  display: block;
+}
+
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  outline: none;
+
+  ng-icon {
+    font-size: 20px;
+    transition: transform 0.3s ease;
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px -4px rgba(var(--mystic-rose-rgb, 197, 168, 161), 0.3);
+
+    ng-icon {
+      transform: scale(1.1);
+    }
+  }
+
+  &:active {
+    transform: scale(0.95) translateY(-2px);
+  }
+}
+
+@media (max-width: 640px) {
+  .share-btn:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.bg-mystic-rose {
+  background-color: var(--mystic-rose, #c5a8a1);
+}
+
+.text-mystic-rose {
+  color: var(--mystic-rose, #c5a8a1);
+}
+
+.bg-mystic-cocoa {
+  background-color: var(--mystic-cocoa, #4a3e3b);
+}

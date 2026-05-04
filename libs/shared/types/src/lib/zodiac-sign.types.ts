@@ -11,6 +11,7 @@ export interface ZodiacSign {
   strengths?: string[];
   challenges?: string[];
   compatibility?: string[];
+  image?: any;
   createdAt?: string;
   updatedAt?: string;
   publishedAt?: string;

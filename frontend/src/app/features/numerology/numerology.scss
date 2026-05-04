@@ -9,7 +9,11 @@
   position: absolute;
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, rgba(194, 145, 161, 0.15) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(194, 145, 161, 0.15) 0%,
+    transparent 70%
+  );
   border-radius: 50%;
   filter: blur(80px);
   pointer-events: none;
@@ -18,8 +22,12 @@
 }
 
 @keyframes float-orb {
-  from { transform: translate(-10%, -10%); }
-  to { transform: translate(10%, 10%); }
+  from {
+    transform: translate(-10%, -10%);
+  }
+  to {
+    transform: translate(10%, 10%);
+  }
 }
 
 .glass-card {
@@ -35,7 +43,7 @@
   border: 1px solid rgba(194, 145, 161, 0.3);
   color: white;
   transition: all 0.3s ease;
-  
+
   &:focus {
     background: rgba(255, 255, 255, 0.08);
     border-color: #c291a1;
@@ -49,8 +57,14 @@
 }
 
 @keyframes reveal {
-  from { opacity: 0; transform: translateY(30px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .number-circle {
@@ -58,7 +72,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   &::before {
     content: '';
     position: absolute;
@@ -67,7 +81,7 @@
     border-radius: 50%;
     animation: rotate-slow 15s linear infinite;
   }
-  
+
   &::after {
     content: '';
     position: absolute;
@@ -79,6 +93,10 @@
 }
 
 @keyframes rotate-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
