@@ -1,0 +1,144 @@
+config:
+  target: '{{ $env.TARGET_FRONTEND }}'
+  phases:
+    - name: 'Ramp to soft-launch traffic'
+      duration: 120
+      arrivalRate: 1
+      rampTo: 20
+    - name: 'Soft-launch sustained traffic'
+      duration: 600
+      arrivalRate: 20
+  plugins:
+    expect:
+      reportFailuresAsErrors: true
+    ensure:
+      maxErrorRate: 1
+      thresholds:
+        - http.response_time.p95: 800
+        - http.response_time.p99: 1500
+        - vusers.failed: 1
+  defaults:
+    headers:
+      accept: 'application/json,text/html;q=0.9,*/*;q=0.8'
+  variables:
+    apiBase: '{{ $env.TARGET_API }}'
+    checkoutExpectedStatus: '{{ $env.TARGET_CHECKOUT_STATUS }}'
+
+scenarios:
+  - name: 'Frontend content browsing'
+    weight: 55
+    flow:
+      - get:
+          url: '/'
+          expect:
+            - statusCode: 200
+            - notStatusCode:
+                - 500
+                - 502
+                - 503
+                - 504
+      - get:
+          url: '/artykuly'
+          expect:
+            - statusCode: 200
+            - notStatusCode:
+                - 500
+                - 502
+                - 503
+                - 504
+      - get:
+          url: '/sitemap.xml'
+          expect:
+            - statusCode: 200
+            - notStatusCode:
+                - 500
+                - 502
+                - 503
+                - 504
+
+  - name: 'API public content'
+    weight: 25
+    flow:
+      - get:
+          url: '{{ apiBase }}/zodiac-signs?sort=id:asc'
+          expect:
+            - statusCode: 200
+            - notStatusCode:
+                - 500
+                - 502
+                - 503
+                - 504
+      - get:
+          url: '{{ apiBase }}/articles?sort=publishedAt:desc&pagination[limit]=20&populate=category'
+          expect:
+            - statusCode: 200
+            - notStatusCode:
+                - 500
+                - 502
+                - 503
+                - 504
+      - get:
+          url: '{{ apiBase }}/horoscopes?pagination[limit]=12'
+          expect:
+            - statusCode: 200
+            - notStatusCode:
+                - 500
+                - 502
+                - 503
+                - 504
+      - get:
+          url: '{{ apiBase }}/daily-tarot/today'
+          expect:
+            - statusCode: 200
+            - notStatusCode:
+                - 500
+                - 502
+                - 503
+                - 504
+
+  - name: 'Public form validation without delivery'
+    weight: 10
+    flow:
+      - post:
+          url: '{{ apiBase }}/newsletter/subscribe'
+          json:
+            email: 'not-an-email'
+            marketingConsent: false
+            source: 'load-test-validation'
+          expect:
+            - statusCode: 400
+            - notStatusCode:
+                - 500
+                - 502
+                - 503
+                - 504
+      - post:
+          url: '{{ apiBase }}/contact'
+          json:
+            name: ''
+            email: 'not-an-email'
+            subject: 'load-test-validation'
+            message: ''
+          expect:
+            - statusCode: 400
+            - notStatusCode:
+                - 500
+                - 502
+                - 503
+                - 504
+
+  - name: 'Checkout guard or validation'
+    weight: 10
+    flow:
+      - post:
+          url: '{{ apiBase }}/checkout/session'
+          json:
+            items: []
+            customerEmail: 'load-test@example.com'
+          expect:
+            - statusCode: '{{ checkoutExpectedStatus }}'
+            - notStatusCode:
+                - 500
+                - 502
+                - 503
+                - 504

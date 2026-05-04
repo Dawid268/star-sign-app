@@ -1,0 +1,39 @@
+name: AICO Predeploy Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      audit_url:
+        description: Public API base URL (e.g. https://api.star-sign.pl)
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  predeploy-audit:
+    runs-on: ubuntu-latest
+    env:
+      AICO_AUDIT_URL: ${{ inputs.audit_url }}
+      AICO_AUDIT_BEARER: ${{ secrets.AICO_AUDIT_BEARER }}
+      AICO_AUDIT_REQUIRE_GO: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm exec nx -- run ai-content-orchestrator:lint --outputStyle=static
+      - run: npm exec nx -- run ai-content-orchestrator:test:ts:back --outputStyle=static
+      - run: npm exec nx -- run ai-content-orchestrator:test:ts:front --outputStyle=static
+      - run: npm exec nx -- run ai-content-orchestrator:test:unit --outputStyle=static
+      - run: npm exec nx -- run ai-content-orchestrator:verify --outputStyle=static
+      - run: npm exec nx -- run ai-content-orchestrator:audit:preflight:ci --outputStyle=static

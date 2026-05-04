@@ -27,4 +27,46 @@ jobs:
 
       - run: npm ci
 
-      - run: npx nx run-many -t build typecheck
+      - run: npm exec nx -- run-many --targets=build,typecheck,lint --projects=api,frontend,cart,@org/types --outputStyle=static
+      - run: npm exec nx -- run-many --targets=typecheck,lint --projects=frontend-e2e --outputStyle=static
+      - run: npm exec nx -- run frontend:test:coverage --outputStyle=static
+      - run: npm exec nx -- run cart:test --coverage --outputStyle=static
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: main
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm exec -- playwright install --with-deps chromium
+      - run: npm exec nx -- run frontend-e2e:e2e --outputStyle=static
+
+  aico-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm exec nx -- run ai-content-orchestrator:lint --outputStyle=static
+      - run: npm exec nx -- run ai-content-orchestrator:test:ts:back --outputStyle=static
+      - run: npm exec nx -- run ai-content-orchestrator:test:ts:front --outputStyle=static
+      - run: npm exec nx -- run ai-content-orchestrator:test:unit --outputStyle=static
+      - run: npm exec nx -- run ai-content-orchestrator:verify --outputStyle=static

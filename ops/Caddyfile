@@ -1,5 +1,5 @@
 {
-	email {$ACME_EMAIL:admin@example.com}
+	email {$ACME_EMAIL:admin@star-sign.pl}
 }
 
 {$FRONTEND_DOMAIN:localhost} {
@@ -11,8 +11,15 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
 
+	@sourceMaps path *.map
+	respond @sourceMaps 404
+
 	handle /api/* {
-		reverse_proxy api:1337
+		reverse_proxy api:1337 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	handle {
@@ -29,5 +36,21 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
 
-	reverse_proxy api:1337
+	reverse_proxy api:1337 {
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+}
+
+{$BUGSINK_DOMAIN:bugsink.localhost} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	reverse_proxy bugsink:8000
 }

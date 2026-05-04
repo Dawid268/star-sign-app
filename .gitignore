@@ -32,6 +32,8 @@ node_modules
 /.sass-cache
 /connect.lock
 /coverage
+/backups
+/artifacts
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log
@@ -57,6 +59,8 @@ Thumbs.db
 .nx/polygraph
 .nx/self-healing
 .angular
+.playwright-mcp/
+.strapi-updater.json
 
 __screenshots__/
 
@@ -65,3 +69,12 @@ test-output
 vitest.config.*.timestamp*
 apps/api/.strapi-updater.json
 apps/api/src/extensions/documentation/documentation/*/full_documentation.json
+
+# Generated reports and transient command output
+coverage_summary*.txt
+cart_coverage_summary*.txt
+final_check_results*.txt
+final_coverage*.txt
+test_output*.txt
+COVERAGE_PLAN.md
+proxy-server.mjs
