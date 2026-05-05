@@ -24,6 +24,11 @@
   - `ops/portainer/README.md`: rozszerzona do 573 linii instrukcji operacyjnej.
   - Sprawdzono obecność sekcji dla GitHub secrets, GitHub variables, zmiennych Portainera, GHCR, Traefika, R2/media, pierwszego deployu, rollbacku i troubleshooting.
   - `rtk rg -n "STAR_SIGN_PRODUCTION_ENV|PORTAINER_WEBHOOK_URL|AICO_AUDIT_BEARER|FRONTEND_BASE_URL|API_BASE_URL|R2_UPLOAD_ENABLED|REDIS_PASSWORD|STRIPE_REQUIRED" ops/portainer/README.md`: PASS.
+- Polityka concurrency CI/CD:
+  - Wszystkie workflowy w `.github/workflows/*.yml` mają blok `concurrency`.
+  - Wszystkie workflowy mają `cancel-in-progress: true`.
+  - `rtk node -e "...YAML.parse..."`: PASS dla wszystkich workflowów.
+  - `rtk rg -n "^concurrency:|group:|cancel-in-progress" .github/workflows -g '*.yml' -g '*.yaml'`: PASS.
 
 ## Ograniczenia
 

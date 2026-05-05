@@ -31,7 +31,11 @@
   - komendy walidacyjne,
   - rollback,
   - troubleshooting.
+- Ujednolicono concurrency w GitHub Actions:
+  - każdy workflow działa w grupie po workflow i branchu/refie,
+  - każdy workflow ma `cancel-in-progress: true`,
+  - nowy push do tej samej gałęzi anuluje starszy run tego samego workflow.
 
 ## Polska konkluzja
 
-Repo ma teraz gotową ścieżkę deployu Nx monorepo na Portainer/Traefik: branch quality gate, main release workflow, dwa obrazy GHCR, stack Swarm dopasowany do małego VPS i szczegółową instrukcję operacyjną dla GitHub Actions oraz Portainera. Do realnego wdrożenia trzeba dodać sekrety w GitHub, credentials GHCR w Portainerze i wykonać pierwszy deploy z monitoringiem.
+Repo ma teraz gotową ścieżkę deployu Nx monorepo na Portainer/Traefik: branch quality gate, main release workflow, dwa obrazy GHCR, stack Swarm dopasowany do małego VPS, szczegółową instrukcję operacyjną oraz politykę anulowania starszych runów CI/CD per branch. Do realnego wdrożenia trzeba dodać sekrety w GitHub, credentials GHCR w Portainerze i wykonać pierwszy deploy z monitoringiem.

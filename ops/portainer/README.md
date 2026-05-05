@@ -98,6 +98,14 @@ To jest gate developerski. Nie publikuje obrazów i nie dotyka produkcji.
 
 `.github/workflows/deploy-production.yml` uruchamia się na push do `main` oraz ręcznie przez `workflow_dispatch`.
 
+Polityka concurrency dla CI/CD:
+
+- każdy workflow ma `cancel-in-progress: true`;
+- dla pushy do feature branchy nowy commit anuluje starszy run tego samego workflow dla tej gałęzi;
+- dla PR używana jest nazwa branch head, więc kolejne zmiany w tym samym PR anulują starszy run;
+- dla `main` nowy push anuluje poprzedni run CI/deploy dla `main`;
+- workflow uruchamiane ręcznie też używają grupy po aktualnym `ref_name`, więc nie dublują aktywnych runów na tej samej referencji.
+
 Kolejność jobów:
 
 1. `release-gate`: zapisuje sekret `STAR_SIGN_PRODUCTION_ENV` do `.env.production` tylko w runnerze i uruchamia predeploy gate.

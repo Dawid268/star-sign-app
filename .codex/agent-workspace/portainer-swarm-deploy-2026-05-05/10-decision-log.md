@@ -60,3 +60,34 @@ Po pierwszym raporcie Trivy trzeba zdecydować, czy zmienić scan na twardy gate
 ### Polish summary
 
 Skan kontenerów jest włączony, ale pierwszy etap nie blokuje deployu automatycznie.
+
+## Decision: Jeden aktywny pipeline per branch i workflow
+
+Date: 2026-05-05
+Agents involved: DevOps, QA
+
+### Context
+
+Po merge do `main` kolejne commity uruchamiały nowe runy GitHub Actions, ale starsze runy nie były konsekwentnie anulowane we wszystkich workflowach. Użytkownik wymaga, żeby po nowym pushu do tego samego brancha starsze pipeline'y były anulowane i zastępowane świeżym runem.
+
+### Decision
+
+Dodać albo ujednolicić `concurrency` we wszystkich workflowach GitHub Actions. Dla `push` i `pull_request` używać grupy opartej o nazwę workflow oraz branch (`github.event.pull_request.head.ref || github.ref_name`). Dla workflowów ręcznych i produkcyjnego deployu używać nazwy workflow oraz `github.ref_name`. Wszędzie ustawić `cancel-in-progress: true`.
+
+### Alternatives considered
+
+- Zostawić concurrency tylko w `CI`.
+- Użyć jednej globalnej grupy per branch dla wszystkich workflowów.
+- Nie anulować produkcyjnego deployu na `main`.
+
+### Rationale
+
+Grupa per workflow i branch anuluje przestarzałe runy danego workflow, ale nie powoduje wzajemnego kasowania niezależnych workflowów, takich jak `CI` i `Secrets Scan`.
+
+### Consequences
+
+Nowy push do feature brancha, PR lub `main` przerwie starszy run tego samego workflow. Jeżeli deployment na `main` jest w toku i pojawi się nowy commit, starszy deployment zostanie anulowany, a aktualny commit przejmie pipeline.
+
+### Polish summary
+
+CI/CD działa w trybie najnowszego commita: dla każdej gałęzi i workflow aktywny zostaje tylko najświeższy run, starsze są anulowane.
