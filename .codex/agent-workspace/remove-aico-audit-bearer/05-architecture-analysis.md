@@ -21,6 +21,10 @@ Na ten etap usunac remote AICO preflight z CI/CD. Nie implementowac polowicznego
 - AICO strict audit trzeba wykonac recznie w panelu Strapi, gdy wlaczamy autonomiczne workflow.
 - Jesli kiedys audit ma znow byc automatyczny, trzeba zrobic poprawny service-token zamiast improwizowanego bearer secret.
 
+## Informacja zwrotna po CI
+
+Po pushu do `main` produkcyjny workflow przeszedl release gate, ale Docker build API obrazu wykazal brak `dist/admin/index.mjs` lokalnego pluginu AICO w kontenerze. Przyczyna: Dockerfile uruchamial `api:build` przed zbudowaniem `ai-content-orchestrator:build`. Naprawa: Dockerfile buduje plugin AICO przed `api:build`.
+
 ## Podsumowanie po polsku
 
 Architektonicznie lepiej usunac wadliwy gate niz udawac, ze dowolny bearer token zabezpiecza adminowy endpoint. Obecna zmiana jest prostsza i bezpieczniejsza dla pierwszego deploya.

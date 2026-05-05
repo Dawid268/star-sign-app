@@ -34,6 +34,14 @@
 - AICO audit nie blokuje deploya. Przed wlaczeniem autonomicznych workflow trzeba wykonac reczny strict audit w panelu Strapi.
 - `PORTAINER_WEBHOOK_URL` nadal jest wymagany do faktycznego kroku deploy.
 
+## Dodatkowa walidacja po pushu
+
+- GitHub CI po commicie `cbd1188`: PASS.
+- GitHub Production Deploy: release gate PASS, Docker build API image FAIL.
+- Przyczyna faila: `api:build` w Dockerfile nie mial zbudowanego `dist/admin/index.mjs` pluginu AICO.
+- Dzialanie korygujace: Dockerfile kopiuje package manifesty workspace przed `npm ci` i uruchamia `RUN npm exec nx run ai-content-orchestrator:build` przed `RUN npm exec nx run api:build`.
+- Lokalny `docker build --target api-runtime -t star-sign-api:codex-aico-dist-fix .`: PASS.
+
 ## Podsumowanie po polsku
 
 Zmiana jest gotowa technicznie: deploy pipeline nie zalezy juz od `AICO_AUDIT_BEARER`, GA4 ID jest wpisany do lokalnego env, a walidacje lokalne przechodza.
