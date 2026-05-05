@@ -12,15 +12,9 @@
 2. Run `Run Strict`.
 3. Confirm `Decision: GO`.
 
-## Environment gate (GitHub Actions)
+## Deployment policy
 
-Use workflow `AICO Predeploy Audit`.
-
-Required:
-
-- Input `audit_url` (public API base URL).
-- Secret `AICO_AUDIT_BEARER` (token with permission to run strict audit).
-- Result must be `decision=GO`.
+Production deploy is not blocked by a remote AICO audit token. Run the strict audit manually from Strapi Admin before enabling autonomous workflows or after changing AICO configuration.
 
 ## API reference
 

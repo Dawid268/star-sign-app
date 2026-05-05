@@ -25,8 +25,8 @@
   - `ai-content-orchestrator:test:ts:front`
   - `ai-content-orchestrator:test:unit`
   - `ai-content-orchestrator:verify`
-- Predeploy environment audit gate passes via workflow `AICO Predeploy Audit`.
-- Default hard gate policy: deploy only on audit `decision=GO`.
+- AICO strict audit is checked manually in Strapi Admin before enabling autonomous workflows.
+- Default deployment policy: AICO audit does not block deploy.
 
 ## Operational readiness
 

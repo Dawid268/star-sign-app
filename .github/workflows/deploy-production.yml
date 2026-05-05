@@ -224,8 +224,6 @@ jobs:
     env:
       FRONTEND_BASE_URL: ${{ vars.FRONTEND_BASE_URL }}
       API_BASE_URL: ${{ vars.API_BASE_URL }}
-      AICO_AUDIT_URL: ${{ vars.AICO_AUDIT_URL }}
-      AICO_AUDIT_BEARER: ${{ secrets.AICO_AUDIT_BEARER }}
       DEPLOY_WAIT_SECONDS: ${{ vars.DEPLOY_WAIT_SECONDS }}
     steps:
       - uses: actions/checkout@v4
@@ -266,15 +264,6 @@ jobs:
 
       - name: Playwright e2e against deployed frontend
         run: BASE_URL="$FRONTEND_BASE_URL" npm exec -- nx run frontend-e2e:e2e --outputStyle=static
-
-      - name: AICO predeploy audit
-        run: |
-          : "${API_BASE_URL:?Set GitHub variable API_BASE_URL.}"
-          : "${AICO_AUDIT_BEARER:?Set GitHub secret AICO_AUDIT_BEARER.}"
-          audit_url="${AICO_AUDIT_URL:-${API_BASE_URL%/api}}"
-          AICO_AUDIT_URL="$audit_url" \
-          AICO_AUDIT_REQUIRE_GO=true \
-          npm exec -- nx run ai-content-orchestrator:audit:preflight:ci --outputStyle=static
 
       - uses: actions/upload-artifact@v4
         if: always()

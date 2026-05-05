@@ -61,15 +61,10 @@ RUN_ENV_GUARD=true \
 RUN_FRONTEND_FULL=true \
 RUN_E2E=true \
 RUN_DOMAIN_AUDITS=true \
-RUN_AICO_PREFLIGHT=true \
 RUN_SECURITY_HEADERS=true \
 FRONTEND_BASE_URL=https://star-sign.pl \
 API_BASE_URL=https://api.star-sign.pl/api \
-AICO_AUDIT_URL=https://api.star-sign.pl \
-AICO_AUDIT_BEARER=*** \
 npm run ops:predeploy:local
-
-gh workflow run "AICO Predeploy Audit" -f audit_url=https://api.star-sign.pl
 ```
 
 Same nagłówki edge można sprawdzić osobno:
@@ -113,7 +108,6 @@ Przed pierwszym deployem ustaw w GitHub:
 
 - secret `STAR_SIGN_PRODUCTION_ENV`
 - secret `PORTAINER_WEBHOOK_URL`
-- secret `AICO_AUDIT_BEARER`
 - variables `FRONTEND_BASE_URL`, `API_BASE_URL`
 
 W Portainerze ustaw realne zmienne środowiskowe i registry credentials dla GHCR.

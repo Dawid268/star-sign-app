@@ -111,7 +111,7 @@ Kolejność jobów:
 1. `release-gate`: zapisuje sekret `STAR_SIGN_PRODUCTION_ENV` do `.env.production` tylko w runnerze i uruchamia predeploy gate.
 2. `build-and-push`: buduje targety Docker `api-runtime` i `frontend-runtime`, publikuje obrazy do GHCR.
 3. `deploy`: wywołuje webhook Portainera.
-4. `post-deploy`: czeka na rollout, uruchamia smoke, headers, Playwright e2e i AICO preflight.
+4. `post-deploy`: czeka na rollout, uruchamia smoke, headers i Playwright e2e.
 
 Publikowane obrazy:
 
@@ -140,7 +140,6 @@ Ustaw w `Settings -> Secrets and variables -> Actions -> Secrets`.
 |---|---:|---|---|
 | `STAR_SIGN_PRODUCTION_ENV` | tak | `release-gate` | Pełny produkcyjny `.env` używany do statycznej walidacji w GitHub Actions |
 | `PORTAINER_WEBHOOK_URL` | tak | `deploy` | Webhook stacka Portainer, który aktualizuje usługi po pushu obrazów |
-| `AICO_AUDIT_BEARER` | tak | `post-deploy` | Token do audytu AICO po deployu |
 
 `STAR_SIGN_PRODUCTION_ENV` to wieloliniowy secret. Powinien zawierać realne wartości produkcyjne w formacie `.env`, na przykład:
 
@@ -188,10 +187,7 @@ Ustaw w `Settings -> Secrets and variables -> Actions -> Variables`.
 |---|---:|---|---|
 | `FRONTEND_BASE_URL` | tak | `https://star-sign.pl` | używany przez smoke, headers i e2e |
 | `API_BASE_URL` | tak | `https://api.star-sign.pl/api` | używany przez smoke i headers |
-| `AICO_AUDIT_URL` | zalecany | `https://api.star-sign.pl` | bazowy URL audytu AICO bez `/api` |
 | `DEPLOY_WAIT_SECONDS` | opcjonalny | `90` | opóźnienie przed post-deploy checks |
-
-Jeżeli `AICO_AUDIT_URL` nie jest ustawione, workflow spróbuje wyliczyć je z `API_BASE_URL`.
 
 ## GHCR i Portainer Registry
 
@@ -375,7 +371,7 @@ Nie używaj Mailpit w production stacku.
 | `AICO_ALLOW_MISSING_TOKEN` | `false` | produkcja nie powinna działać bez tokenu, jeśli AICO jest aktywne |
 | `AICO_BACKUP_ENABLED` | `true` | backup treści AICO |
 
-Po deployu workflow uruchamia AICO preflight z tokenem `AICO_AUDIT_BEARER`.
+AICO audit nie blokuje deploya. Po deployu sprawdź zakładkę `Audit` w panelu Strapi ręcznie, gdy oceniasz gotowość automatyzacji contentu.
 
 ### Observability
 
@@ -460,8 +456,8 @@ Jeżeli Traefik zwraca `404`, zwykle problemem jest DNS, brak `traefik-public`, 
 
 1. Skonfiguruj DNS dla `star-sign.pl`, `api.star-sign.pl` i `cdn.star-sign.pl`.
 2. Potwierdź, że Traefik i sieć `traefik-public` działają.
-3. W GitHub ustaw secrets: `STAR_SIGN_PRODUCTION_ENV`, `PORTAINER_WEBHOOK_URL`, `AICO_AUDIT_BEARER`.
-4. W GitHub ustaw variables: `FRONTEND_BASE_URL`, `API_BASE_URL`, opcjonalnie `AICO_AUDIT_URL`, `DEPLOY_WAIT_SECONDS`.
+3. W GitHub ustaw secrets: `STAR_SIGN_PRODUCTION_ENV`, `PORTAINER_WEBHOOK_URL`.
+4. W GitHub ustaw variables: `FRONTEND_BASE_URL`, `API_BASE_URL`, opcjonalnie `DEPLOY_WAIT_SECONDS`.
 5. W Portainerze dodaj GHCR registry credentials, jeżeli obrazy są prywatne.
 6. Utwórz stack `star_sign_production` z pliku `ops/portainer/star-sign-production-stack.yml`.
 7. W Portainerze wpisz wszystkie wymagane zmienne runtime.
@@ -486,13 +482,10 @@ rtk env \
   PREDEPLOY_SCOPE=staging \
   FRONTEND_BASE_URL=https://star-sign.pl \
   API_BASE_URL=https://api.star-sign.pl/api \
-  AICO_AUDIT_URL=https://api.star-sign.pl \
-  AICO_AUDIT_BEARER='<secure-aico-audit-token>' \
   RUN_ENV_GUARD=true \
   RUN_FRONTEND_FULL=true \
   RUN_E2E=true \
   RUN_DOMAIN_AUDITS=true \
-  RUN_AICO_PREFLIGHT=true \
   RUN_SECURITY_HEADERS=true \
   npm run ops:predeploy:staging
 ```
@@ -522,13 +515,9 @@ E2E:
 rtk env BASE_URL=https://star-sign.pl npm exec -- nx run frontend-e2e:e2e --outputStyle=static
 ```
 
-AICO preflight:
+AICO audit:
 
-```bash
-rtk env AICO_AUDIT_URL=https://api.star-sign.pl AICO_AUDIT_BEARER='<secure-aico-audit-token>' AICO_AUDIT_REQUIRE_GO=true npm exec -- nx run ai-content-orchestrator:audit:preflight:ci --outputStyle=static
-```
-
-W GitHub Actions `AICO_AUDIT_BEARER` jest sekretem. Nie wpisuj tokenu w README, logach ani workspace agentów.
+Uruchamiaj ręcznie w panelu Strapi w zakładce AICO `Audit`. Ten check jest operacyjny, nie blokuje automatycznego deploya.
 
 ## Rollback
 
@@ -575,7 +564,7 @@ Po stabilizacji możesz zostawić konkretny SHA albo wrócić do `STAR_SIGN_IMAG
 - `frontend`, `api`, `postgres`, `redis` są healthy.
 - Smoke i security headers przechodzą na domenach produkcyjnych.
 - Playwright e2e przechodzi przeciw `https://star-sign.pl`.
-- AICO preflight kończy się GO.
+- AICO audit w panelu Strapi został sprawdzony ręcznie przed włączeniem autonomicznych workflow.
 - Strapi Media Library pokazuje URL-e z `https://cdn.star-sign.pl`.
 - `PREMIUM_MODE=open` działa bez paywalla.
 - Paid Premium pozostaje wyłączone, dopóki nie przejdzie osobny test Stripe live.

@@ -11,7 +11,6 @@
 7. Turnstile: `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`.
 8. Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
 9. Bugsink: `BUGSINK_SECRET_KEY`, admin password, project DSNs if compromised.
-10. GitHub Actions secret: `AICO_AUDIT_BEARER`.
 
 ## Pre-Launch Checklist
 

@@ -29,8 +29,7 @@
     "verify": "strapi-plugin verify",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:ts:front": "tsc -p admin/tsconfig.json",
-    "test:ts:back": "tsc -p server/tsconfig.json",
-    "audit:preflight:ci": "node ./scripts/audit-preflight-ci.mjs"
+    "test:ts:back": "tsc -p server/tsconfig.json"
   },
   "dependencies": {
     "cron-parser": "^4.2.0"

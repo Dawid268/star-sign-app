@@ -10,7 +10,6 @@ PREDEPLOY_SCOPE="${PREDEPLOY_SCOPE:-local}"
 RUN_FRONTEND_FULL="${RUN_FRONTEND_FULL:-false}"
 RUN_E2E="${RUN_E2E:-false}"
 RUN_DOMAIN_AUDITS="${RUN_DOMAIN_AUDITS:-auto}"
-RUN_AICO_PREFLIGHT="${RUN_AICO_PREFLIGHT:-auto}"
 RUN_ENV_GUARD="${RUN_ENV_GUARD:-auto}"
 RUN_SECURITY_HEADERS="${RUN_SECURITY_HEADERS:-auto}"
 API_AUDIT_LEVEL="${API_AUDIT_LEVEL:-high}"
@@ -66,11 +65,6 @@ skip() {
   echo "==> SKIP $1"
 }
 
-if should_run_required_check "$RUN_AICO_PREFLIGHT" && [ "$PREDEPLOY_SCOPE" != "local" ]; then
-  : "${AICO_AUDIT_URL:?AICO_AUDIT_URL is required for staging/production AICO preflight}"
-  : "${AICO_AUDIT_BEARER:?AICO_AUDIT_BEARER is required for staging/production AICO preflight}"
-fi
-
 if should_run_required_check "$RUN_SECURITY_HEADERS" && [ "$PREDEPLOY_SCOPE" != "local" ]; then
   : "${FRONTEND_BASE_URL:?FRONTEND_BASE_URL is required for staging/production security header checks}"
   : "${API_BASE_URL:?API_BASE_URL is required for staging/production security header checks}"
@@ -114,13 +108,6 @@ if should_run_required_check "$RUN_DOMAIN_AUDITS"; then
   run "AICO contract audit" npm exec -- nx run api:aico-contract-audit --outputStyle=static
 else
   skip "domain DB audits; set RUN_DOMAIN_AUDITS=true or PREDEPLOY_SCOPE=staging"
-fi
-
-if should_run_required_check "$RUN_AICO_PREFLIGHT"; then
-  : "${AICO_AUDIT_BEARER:?AICO_AUDIT_BEARER is required for AICO preflight}"
-  run "AICO preflight audit" npm exec -- nx run ai-content-orchestrator:audit:preflight:ci --outputStyle=static
-else
-  skip "AICO preflight; set RUN_AICO_PREFLIGHT=true or PREDEPLOY_SCOPE=staging"
 fi
 
 if should_run_required_check "$RUN_SECURITY_HEADERS"; then

@@ -8,7 +8,7 @@ Werdykt po poprawkach: `NO-GO LIVE`, ale techniczne lokalne gate'y release sa zi
 
 Projekt jest znacznie blizej produkcji niz w raporcie z 2026-05-01. Po poprawkach z 2026-05-04 glowna logika, AICO, UI smoke, E2E, coverage, clean install i oba Docker targety przechodza lokalnie. Premium checkout ma walidacje env, GA4 ma standardowe eventy dla `begin_checkout` i konwersji Premium, Stripe webhook weryfikuje podpis, Redis jest obecny w rate limit/cache, a frontend ma Sentry runtime config i service worker.
 
-Nie podpisuje jeszcze pelnego GO produkcyjnego, bo nie wykonano potwierdzen live: Stripe checkout/webhook/subskrypcja/portal, GA4 DebugView i AICO Predeploy Audit z decyzja `GO`. Zostaja tez ryzyka do swiadomej akceptacji lub zaplanowania: placeholdery Bugsink, JWT w `localStorage`, brak pinowania digestow obrazow i 16 low/moderate podatnosci w produkcyjnych zaleznosciach `apps/api`.
+Nie podpisuje jeszcze pelnego GO produkcyjnego, bo nie wykonano potwierdzen live: Stripe checkout/webhook/subskrypcja/portal, GA4 DebugView i reczny AICO strict audit w panelu Strapi. Zostaja tez ryzyka do swiadomej akceptacji lub zaplanowania: placeholdery Bugsink, JWT w `localStorage`, brak pinowania digestow obrazow i 16 low/moderate podatnosci w produkcyjnych zaleznosciach `apps/api`.
 
 ## Aktualizacja Po Poprawkach 2026-05-04
 
@@ -29,7 +29,7 @@ Pozostaje przed publicznym GO:
 
 - live Stripe checkout monthly/annual, podpisany webhook, aktywacja subskrypcji i Customer Portal,
 - GA4 DebugView dla `page_view`, `begin_checkout`, `checkout_redirect`, `purchase`, `premium_subscription_conversion`,
-- live AICO Predeploy Audit z `decision=GO`,
+- reczny AICO strict audit w panelu Strapi z `decision=GO`,
 - realne sekrety produkcyjne bez placeholderow,
 - decyzja w sprawie JWT w `localStorage`,
 - decyzja/plan dla 16 low/moderate podatnosci `apps/api`.
@@ -70,7 +70,7 @@ Kod Premium wyglada poprawnie, ale nie potwierdzono live:
 - aktywacja subskrypcji w profilu uzytkownika,
 - Customer Portal,
 - GA4 DebugView dla `page_view`, `begin_checkout`, `checkout_redirect`, `purchase`, `premium_subscription_conversion`,
-- live AICO Predeploy Audit z decyzja `GO`.
+- reczny AICO strict audit w panelu Strapi z decyzja `GO`.
 
 Bez tych wynikow nie da sie uczciwie powiedziec, ze sprzedaz i analityka sa gotowe.
 
@@ -121,7 +121,7 @@ Minimalna sciezka do `GO`:
 1. Ustawic realne produkcyjne env: Stripe, GA4, Turnstile, Sentry/Bugsink, Brevo, R2, AICO.
 2. Wykonac live Stripe: monthly/annual checkout, podpisany webhook, aktywacja subskrypcji i Customer Portal.
 3. Wykonac GA4 DebugView dla checkoutu i finalnej konwersji Premium.
-4. Wykonac live AICO Predeploy Audit i zapisac `decision=GO`.
+4. Wykonac reczny AICO strict audit w panelu Strapi i zapisac `decision=GO`.
 5. Potwierdzic GitHub Actions po pushu dla CI, E2E, secrets scan i load testu.
 6. Podpisac decyzje w sprawie JWT `localStorage` oraz 16 low/moderate podatnosci `apps/api`.
 
