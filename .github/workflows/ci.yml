@@ -28,8 +28,14 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/api/package-lock.json
 
       - run: npm ci
+
+      - name: Install API dependencies
+        run: npm --prefix apps/api ci
 
       - name: Nx sync check
         run: npm exec -- nx sync:check

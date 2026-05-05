@@ -38,8 +38,14 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/api/package-lock.json
 
       - run: npm ci
+
+      - name: Install API dependencies
+        run: npm --prefix apps/api ci
 
       - name: Write production env file for static validation
         run: |
@@ -162,6 +168,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/api/package-lock.json
 
       - run: npm ci
 
