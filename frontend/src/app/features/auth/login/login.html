@@ -1,51 +1,91 @@
-<section class="section-container !py-28">
+<section class="section-container !py-16 sm:!py-24 lg:!py-28">
   <div class="max-w-xl mx-auto">
-    <div class="glass-panel border border-mystic-rose/15 rounded-3xl p-8 md:p-10 shadow-lg">
-      <p class="text-xs uppercase tracking-[0.2em] text-mystic-rose/70 mb-4">Strefa Użytkownika</p>
-      <h1 class="serif-display text-4xl text-mystic-cocoa mb-3">Zaloguj się do panelu</h1>
-      <p class="text-mystic-cocoa/70 mb-10">
+    <div
+      class="glass-panel border border-mystic-rose/15 rounded-3xl p-5 sm:p-8 md:p-10 shadow-lg"
+    >
+      <p class="text-xs uppercase tracking-[0.2em] text-mystic-rose mb-4">
+        Strefa Użytkownika
+      </p>
+      <h1 class="serif-display text-3xl sm:text-4xl text-mystic-cocoa mb-3 leading-tight">
+        Zaloguj się do panelu
+      </h1>
+      <p class="text-mystic-cocoa mb-10">
         Wróć do swojego rytuału dnia, historii odczytów i ustawień subskrypcji.
       </p>
 
+      @if (demoAccounts.length) {
+      <div
+        class="mb-8 rounded-2xl border border-mystic-rose/15 bg-white/60 p-4"
+      >
+        <p class="text-xs uppercase tracking-[0.18em] text-mystic-rose mb-3">
+          Konta testowe
+        </p>
+        <div class="grid sm:grid-cols-2 gap-3">
+          @for (account of demoAccounts; track account.identifier) {
+          <button
+            type="button"
+            class="rounded-2xl border border-mystic-rose/20 bg-white/70 px-4 py-3 text-left hover:border-mystic-rose hover:bg-white transition-colors"
+            (click)="useDemoAccount(account)"
+          >
+            <span class="block text-sm font-semibold text-mystic-cocoa"
+              >{{ account.label }}</span
+            >
+            <span class="block text-xs text-mystic-cocoa mt-1"
+              >{{ account.description }}</span
+            >
+          </button>
+          }
+        </div>
+      </div>
+      }
+
       <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-5">
         <label class="block">
-          <span class="block text-sm text-mystic-cocoa/80 mb-2">E-mail</span>
+          <span class="block text-sm text-mystic-cocoa mb-2">E-mail</span>
           <input
             formControlName="identifier"
             type="email"
             autocomplete="email"
-            class="w-full rounded-2xl border border-mystic-rose/20 bg-white/80 px-4 py-3 outline-none focus:border-mystic-rose"
+            class="w-full rounded-2xl border border-mystic-rose/20 bg-white/80 px-4 py-3 outline-none focus:border-mystic-rose disabled:opacity-60"
             placeholder="twoj@email.pl"
           />
         </label>
 
         <label class="block">
-          <span class="block text-sm text-mystic-cocoa/80 mb-2">Hasło</span>
+          <span class="block text-sm text-mystic-cocoa mb-2">Hasło</span>
           <input
             formControlName="password"
             type="password"
             autocomplete="current-password"
-            class="w-full rounded-2xl border border-mystic-rose/20 bg-white/80 px-4 py-3 outline-none focus:border-mystic-rose"
+            class="w-full rounded-2xl border border-mystic-rose/20 bg-white/80 px-4 py-3 outline-none focus:border-mystic-rose disabled:opacity-60"
             placeholder="••••••••"
           />
         </label>
 
         @if (error()) {
-          <p class="text-sm text-red-600">{{ error() }}</p>
+        <p
+          class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        >
+          {{ error() }}
+        </p>
         }
 
-        <button type="submit" class="btn-primary w-full !py-3.5" [disabled]="loading()">
-          @if (loading()) {
-            Logowanie...
-          } @else {
-            Zaloguj się
-          }
+        <button
+          type="submit"
+          class="btn-primary w-full !py-3.5"
+          [disabled]="loading()"
+        >
+          @if (loading()) { Logowanie... } @else { Zaloguj się }
         </button>
       </form>
 
-      <p class="text-sm text-mystic-cocoa/65 mt-8">
+      <p class="text-sm text-mystic-cocoa mt-8">
         Nie masz konta?
-        <a routerLink="/rejestracja" class="text-mystic-rose font-medium hover:underline">Utwórz konto</a>
+        <a
+          routerLink="/rejestracja"
+          class="text-mystic-rose font-medium hover:underline"
+          >Utwórz konto</a
+        >
       </p>
     </div>
   </div>

@@ -1,79 +1,163 @@
 <div class="min-h-screen bg-[#0E0B0D] pt-28 pb-20 relative overflow-hidden">
   <!-- Mystical Background -->
-  <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(209,167,180,0.12)_0%,transparent_70%)]"></div>
-  <div class="mystic-orb top-1/4 right-1/4 w-[500px] h-[500px] bg-mystic-rose/5 animate-float opacity-30"></div>
-  <div class="mystic-orb bottom-1/4 left-1/4 w-[500px] h-[500px] bg-mystic-gold/5 animate-float opacity-30" style="animation-delay: 4s;"></div>
+  <div
+    class="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(209,167,180,0.12)_0%,transparent_70%)]"
+  ></div>
+  <div
+    class="mystic-orb top-1/4 right-1/4 w-[500px] h-[500px] bg-mystic-rose/5 animate-float opacity-30"
+  ></div>
+  <div
+    class="mystic-orb bottom-1/4 left-1/4 w-[500px] h-[500px] bg-mystic-gold/5 animate-float opacity-30"
+    style="animation-delay: 4s"
+  ></div>
 
   <div class="section-container relative z-10 flex flex-col items-center">
-
     @if (isLoading()) {
-      <div class="flex flex-col items-center justify-center py-32 space-y-8">
-         <div class="relative w-40 h-64 border-2 border-mystic-gold/30 rounded-2xl flex items-center justify-center bg-[#1A1518] animate-pulse">
-            <div class="text-4xl text-mystic-gold opacity-20">✦</div>
-         </div>
-         <p class="text-mystic-rose tracking-[0.3em] uppercase text-sm font-medium animate-pulse">Przetasowywanie Przeznaczenia...</p>
+    <div class="flex flex-col items-center justify-center py-32 space-y-8">
+      <div
+        class="relative w-40 h-64 border-2 border-mystic-gold/30 rounded-2xl flex items-center justify-center bg-[#1A1518] animate-pulse"
+      >
+        <div class="text-4xl text-mystic-gold opacity-20">✦</div>
       </div>
+      <p
+        class="text-mystic-rose tracking-[0.3em] uppercase text-sm font-medium animate-pulse"
+      >
+        Przetasowywanie Przeznaczenia...
+      </p>
+    </div>
     } @else if (card(); as item) {
-      <!-- Header -->
-      <div class="text-center mb-12 animate-fade-in">
-        <p class="text-mystic-rose tracking-[0.3em] uppercase text-sm mb-4 font-medium">Twoja Karta Dnia</p>
-        <h1 class="serif-display text-5xl md:text-7xl text-white mb-3">{{ item.name }}</h1>
-        <p class="text-white/40 font-light tracking-widest text-sm uppercase">{{ item.arcana }}</p>
-      </div>
+    <!-- Header -->
+    <div class="text-center mb-12 animate-fade-in">
+      <p
+        class="text-mystic-rose tracking-[0.3em] uppercase text-sm mb-4 font-medium"
+      >
+        Twoja Karta Dnia
+      </p>
+      <h1 class="serif-display text-5xl md:text-7xl text-white mb-3">
+        {{ item.name }}
+      </h1>
+      <p class="text-white/40 font-light tracking-widest text-sm uppercase">
+        {{ item.arcana }}
+      </p>
+    </div>
 
-      <!-- The Card (flip on hover) -->
-      <div class="relative w-64 h-[400px] sm:w-80 sm:h-[500px] mb-12 group cursor-pointer perspective">
-        <div class="w-full h-full transition-transform duration-1000 preserve-3d group-hover:rotate-y-180">
-          <!-- Card Back -->
-          <div class="absolute inset-0 backface-hidden bg-[#1A1518] border-2 border-mystic-gold/40 rounded-2xl flex items-center justify-center shadow-[0_0_80px_rgba(234,210,172,0.1)]">
-            <div class="w-[92%] h-[95%] border border-mystic-gold/20 rounded-xl flex items-center justify-center relative overflow-hidden">
-               <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
-               <div class="text-6xl text-mystic-gold opacity-40 select-none group-hover:scale-110 transition-transform duration-500">✦</div>
+    <!-- The Card (flip on hover) -->
+    <div
+      class="relative w-56 h-[350px] sm:w-80 sm:h-[500px] mb-12 group perspective"
+    >
+      <div
+        class="w-full h-full transition-transform duration-1000 preserve-3d group-hover:rotate-y-180"
+      >
+        <!-- Card Back -->
+        <div
+          class="absolute inset-0 backface-hidden bg-[#1A1518] border-2 border-mystic-gold/40 rounded-2xl flex items-center justify-center shadow-[0_0_80px_rgba(234,210,172,0.1)]"
+        >
+          <div
+            class="w-[92%] h-[95%] border border-mystic-gold/20 rounded-xl flex items-center justify-center relative overflow-hidden"
+          >
+            <div
+              class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"
+            ></div>
+            <div
+              class="text-6xl text-mystic-gold opacity-40 select-none group-hover:scale-110 transition-transform duration-500"
+            >
+              ✦
             </div>
           </div>
-          <!-- Card Front -->
-          <div class="absolute inset-0 backface-hidden rotate-y-180 bg-[#FDF4F5] border-4 border-mystic-gold/80 rounded-2xl flex flex-col items-center justify-center shadow-[0_0_80px_rgba(209,167,180,0.3)] overflow-hidden">
-            <div class="absolute inset-0 bg-gradient-to-tr from-mystic-rose/10 to-transparent"></div>
-            <div class="text-9xl mb-8 select-none drop-shadow-lg">{{ item.symbol || '🃏' }}</div>
-            <h3 class="serif-display text-4xl text-mystic-cocoa relative z-10">{{ item.name }}</h3>
-            <div class="mt-4 w-12 h-[2px] bg-mystic-gold/60"></div>
+        </div>
+        <!-- Card Front -->
+        <div
+          class="absolute inset-0 backface-hidden rotate-y-180 bg-[#FDF4F5] border-4 border-mystic-gold/80 rounded-2xl flex flex-col items-center justify-center shadow-[0_0_80px_rgba(209,167,180,0.3)] overflow-hidden"
+        >
+          <div
+            class="absolute inset-0 bg-gradient-to-tr from-mystic-rose/10 to-transparent"
+          ></div>
+          <div
+            class="mb-6 max-w-full overflow-hidden px-4 text-center text-6xl leading-none drop-shadow-lg [overflow-wrap:anywhere] sm:mb-8 sm:text-9xl"
+          >
+            {{ item.symbol || '🃏' }}
           </div>
+          <h3
+            class="serif-display relative z-10 max-w-full px-4 text-center text-2xl text-mystic-cocoa break-words sm:text-4xl"
+          >
+            {{ item.name }}
+          </h3>
+          <div class="mt-4 w-12 h-[2px] bg-mystic-gold/60"></div>
         </div>
       </div>
-      
-      <div class="flex items-center gap-2 text-white/30 text-[10px] tracking-widest uppercase mb-16 animate-pulse">
-        <span>Obróć, aby odkryć przesłanie</span>
+    </div>
+
+    <div
+      class="flex items-center gap-2 text-white/30 text-[10px] tracking-widest uppercase mb-16 animate-pulse"
+    >
+      <span>Obróć, aby odkryć przesłanie</span>
+    </div>
+
+    <!-- Meaning Card -->
+    <div
+      class="max-w-3xl w-full text-center bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-10 sm:p-16 shadow-2xl animate-fade-in"
+    >
+      <h3 class="serif-display text-3xl text-mystic-rose mb-6">Słowa Klucze</h3>
+      <p class="text-white text-2xl font-light mb-8 leading-relaxed italic">
+        "{{ item.meaning_upright }}"
+      </p>
+
+      <div
+        class="w-24 h-[1px] bg-gradient-to-r from-transparent via-mystic-gold/30 to-transparent mx-auto mb-8"
+      ></div>
+
+      <p
+        class="text-white/70 font-light text-lg leading-relaxed mb-12 max-w-xl mx-auto"
+      >
+        {{ item.description }}
+      </p>
+
+      <div class="flex flex-wrap justify-center gap-5">
+        <button
+          type="button"
+          (click)="shareDailyCard(item)"
+          class="px-10 py-4 rounded-full border border-white/20 text-white hover:bg-white/5 transition-all font-medium tracking-wide inline-flex items-center gap-3"
+        >
+          <ng-icon name="heroShare" class="text-lg" />
+          Udostępnij
+        </button>
       </div>
+    </div>
 
-      <!-- Meaning Card -->
-      <div class="max-w-3xl w-full text-center bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-10 sm:p-16 shadow-2xl animate-fade-in">
-        <h3 class="serif-display text-3xl text-mystic-rose mb-6">Słowa Klucze</h3>
-        <p class="text-white text-2xl font-light mb-8 leading-relaxed italic">"{{ item.meaning_upright }}"</p>
-
-        <div class="w-24 h-[1px] bg-gradient-to-r from-transparent via-mystic-gold/30 to-transparent mx-auto mb-8"></div>
-
-        <p class="text-white/70 font-light text-lg leading-relaxed mb-12 max-w-xl mx-auto">{{ item.description }}</p>
-
-        <div class="flex flex-wrap justify-center gap-5">
-          <button class="px-10 py-4 rounded-full border border-white/20 text-white hover:bg-white/5 transition-all font-medium tracking-wide inline-flex items-center gap-3">
-            <ng-icon name="heroShare" class="text-lg" />
-            Udostępnij
-          </button>
-        </div>
-      </div>
+    <div class="max-w-3xl w-full">
+      <app-premium-preview-block
+        variant="tarot"
+        [isPremium]="isPremium()"
+        [premiumContent]="premiumTarotContent(item)"
+        [hasPremiumContent]="true"
+        title="Pełna analiza karty"
+        intro="Darmowe znaczenie daje kierunek. Premium rozwija kartę o cień, relacje, rytuał i pytanie dnia."
+        ctaLabel="Zobacz pełną analizę karty"
+        testId="tarot-premium-preview"
+      />
+    </div>
     } @else {
-      <div class="text-center py-24 max-w-2xl">
-        <h2 class="serif-display text-3xl text-white mb-6">Karta Dnia jest chwilowo niedostępna</h2>
-        <p class="text-white/70 font-light leading-relaxed">
-          Spróbuj ponownie za moment. Wszechświat potrzebuje chwili na odsłonięcie przesłania.
-        </p>
-      </div>
+    <div class="text-center py-24 max-w-2xl">
+      <h2 class="serif-display text-3xl text-white mb-6">
+        Karta Dnia jest chwilowo niedostępna
+      </h2>
+      <p class="text-white/70 font-light leading-relaxed">
+        {{ error() || 'Karta Dnia jest chwilowo niedostępna. Spróbuj ponownie za
+        moment.' }}
+      </p>
+      <a routerLink="/tarot" class="btn-primary inline-flex mt-10"
+        >Wróć do Tarota</a
+      >
+    </div>
     }
 
     <div class="mt-16 text-center">
-       <a routerLink="/" class="text-mystic-gold/60 hover:text-mystic-gold transition-colors font-medium text-xs tracking-[0.2em] uppercase">
-          ✦ Wróć do portalu ✦
-       </a>
+      <a
+        routerLink="/"
+        class="text-mystic-gold/60 hover:text-mystic-gold transition-colors font-medium text-xs tracking-[0.2em] uppercase"
+      >
+        ✦ Wróć do portalu ✦
+      </a>
     </div>
   </div>
 </div>

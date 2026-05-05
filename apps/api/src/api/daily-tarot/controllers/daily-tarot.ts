@@ -30,15 +30,19 @@ export default {
   async today(ctx: any) {
     const today = getWarsawDate();
 
-    let draw = await strapi.db.query('api::daily-tarot-draw.daily-tarot-draw').findOne({
-      where: { draw_date: today },
-      populate: { card: true },
-    });
+    let draw = await strapi.db
+      .query('api::daily-tarot-draw.daily-tarot-draw')
+      .findOne({
+        where: { draw_date: today },
+        populate: { card: true },
+      });
 
     if (!draw) {
-      const cards = await strapi.db.query('api::tarot-card.tarot-card').findMany({
-        where: { publishedAt: { $notNull: true } },
-      });
+      const cards = await strapi.db
+        .query('api::tarot-card.tarot-card')
+        .findMany({
+          where: { publishedAt: { $notNull: true } },
+        });
 
       if (!cards.length) {
         return ctx.notFound('Brak dostępnych kart tarota.');
@@ -48,23 +52,32 @@ export default {
       const selectedCard = cards[randomIndex];
 
       try {
-        draw = await strapi.db.query('api::daily-tarot-draw.daily-tarot-draw').create({
-          data: {
-            draw_date: today,
-            card: selectedCard.id,
-          },
-          populate: { card: true },
-        });
+        draw = await strapi.db
+          .query('api::daily-tarot-draw.daily-tarot-draw')
+          .create({
+            data: {
+              draw_date: today,
+              card: selectedCard.id,
+            },
+            populate: { card: true },
+          });
       } catch (error: any) {
         // Handle race conditions when two requests try to create today's draw.
-        draw = await strapi.db.query('api::daily-tarot-draw.daily-tarot-draw').findOne({
-          where: { draw_date: today },
-          populate: { card: true },
-        });
+        draw = await strapi.db
+          .query('api::daily-tarot-draw.daily-tarot-draw')
+          .findOne({
+            where: { draw_date: today },
+            populate: { card: true },
+          });
 
         if (!draw) {
-          strapi.log.error('Nie udało się utworzyć ani pobrać dzisiejszej karty tarota.', error);
-          return ctx.internalServerError('Nie udało się wygenerować dzisiejszej karty tarota.');
+          strapi.log.error(
+            'Nie udało się utworzyć ani pobrać dzisiejszej karty tarota.',
+            error,
+          );
+          return ctx.internalServerError(
+            'Nie udało się wygenerować dzisiejszej karty tarota.',
+          );
         }
       }
     }

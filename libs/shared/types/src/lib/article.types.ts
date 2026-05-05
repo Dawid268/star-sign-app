@@ -14,4 +14,11 @@ export interface Article {
     name: string;
     slug: string;
   };
+  image?: {
+    url: string;
+    alternativeText?: string;
+  };
+  isPremium?: boolean;
+  premiumContent?: string | null;
+  hasPremiumContent?: boolean;
 }

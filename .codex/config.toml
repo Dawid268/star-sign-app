@@ -1,3 +1,3 @@
-[mcp_servers.nx-mcp]
-command = "npx"
-args = [ "nx-mcp@latest", "--minimal" ]
+# Project-local Codex config intentionally does not define MCP servers.
+# MCP server definitions belong in the global config:
+# /home/dawid/.codex/config.toml

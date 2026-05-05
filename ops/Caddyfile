@@ -1,15 +1,25 @@
 {
-	email {$ACME_EMAIL:admin@example.com}
+	email {$ACME_EMAIL:admin@star-sign.pl}
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+		Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+	}
 }
 
 {$FRONTEND_DOMAIN:localhost} {
 	encode zstd gzip
 
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		X-Content-Type-Options "nosniff"
-		Referrer-Policy "strict-origin-when-cross-origin"
-	}
+	import security_headers
+
+	@sourceMaps path *.map
+	respond @sourceMaps 404
 
 	handle /api/* {
 		reverse_proxy api:1337
@@ -23,11 +33,15 @@
 {$API_DOMAIN:api.localhost} {
 	encode zstd gzip
 
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		X-Content-Type-Options "nosniff"
-		Referrer-Policy "strict-origin-when-cross-origin"
-	}
+	import security_headers
 
 	reverse_proxy api:1337
+}
+
+{$BUGSINK_DOMAIN:bugsink.localhost} {
+	encode zstd gzip
+
+	import security_headers
+
+	reverse_proxy bugsink:8000
 }

@@ -1,21 +1,45 @@
 @let currentData = data();
 
 <div class="min-h-screen bg-[#FFFBFB] flex flex-col">
-  
   <!-- Header / Sign Info -->
-  <section class="bg-[#FDF4F5] pt-32 pb-16 border-b border-mystic-rose/10 relative overflow-hidden">
+  <section
+    class="bg-[#FDF4F5] pt-24 pb-12 sm:pt-32 sm:pb-16 border-b border-mystic-rose/10 relative overflow-hidden"
+  >
     <div class="mystic-orb top-0 right-0 w-80 h-80 bg-mystic-rose/5"></div>
-    
-    <div class="section-container relative z-10 text-center">
-      <a [routerLink]="['/znaki', currentData?.sign]" class="inline-flex items-center gap-2 text-mystic-rose hover:text-mystic-cocoa transition-colors mb-8 font-medium text-sm tracking-widest uppercase group">
-        <ng-icon name="heroArrowLeft" class="group-hover:-translate-x-1 transition-transform" />
+
+    <div
+      class="section-container relative z-10 text-center flex flex-col items-center"
+    >
+      <app-breadcrumbs />
+
+      <a
+        [routerLink]="['/znaki', currentData?.sign]"
+        class="inline-flex items-center gap-2 text-mystic-rose hover:text-mystic-cocoa transition-colors mb-8 font-medium text-sm tracking-widest uppercase group"
+      >
+        <ng-icon
+          name="heroArrowLeft"
+          class="group-hover:-translate-x-1 transition-transform"
+        />
         Profil Znaku: {{ currentData?.sign | titlecase }}
       </a>
-      
+
       <div class="flex flex-col items-center">
-        <div class="text-5xl text-mystic-gold mb-6 opacity-60 animate-[float_4s_ease-in-out_infinite]">✧</div>
-        <h1 class="serif-display text-4xl md:text-5xl text-mystic-cocoa mb-4">
-          Horoskop {{ getTypeLabel(currentData?.type) }}
+        <div
+          class="text-5xl text-mystic-gold mb-6 opacity-60 animate-[float_4s_ease-in-out_infinite]"
+        >
+          ✧
+        </div>
+        <h1
+          class="serif-display flex flex-wrap items-center justify-center gap-3 text-3xl text-mystic-cocoa mb-4 leading-tight sm:text-4xl md:text-5xl"
+        >
+          Horoskop {{ getTypeLabel(currentData?.type) }} @if
+          (hasPremiumExtension(currentData?.horoscope)) {
+          <span
+            class="bg-mystic-gold/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold text-white tracking-[0.2em] shadow-lg"
+          >
+            ✦ PREMIUM
+          </span>
+          }
         </h1>
         <div class="w-24 h-[1px] bg-mystic-gold/40"></div>
       </div>
@@ -25,65 +49,116 @@
   <!-- Content Section -->
   <section class="flex-grow section-container py-16 md:py-24">
     <div class="max-w-4xl mx-auto">
-      
-      @if (currentData?.horoscope) {
-        <div class="glass-panel p-10 md:p-16 rounded-[2rem] border border-mystic-rose/10 shadow-xl relative overflow-hidden bg-white/40">
-          <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-mystic-rose via-mystic-gold to-mystic-rose opacity-30"></div>
-          
-          <div class="flex items-center gap-4 text-mystic-rose mb-10 font-medium tracking-widest uppercase text-xs">
-            <ng-icon name="heroCalendar" class="text-lg" />
-            <span>{{ currentData?.horoscope?.date || 'Wiadomość z gwiazd' }}</span>
+      @if (loading()) {
+      <div
+        class="glass-panel p-6 sm:p-10 md:p-16 rounded-3xl md:rounded-[2rem] border border-mystic-rose/10 shadow-xl bg-white/40"
+      >
+        <div class="space-y-8">
+          <app-skeleton width="120px" height="20px" borderRadius="10px" />
+          <app-skeleton width="200px" height="30px" borderRadius="8px" />
+          <div class="space-y-4">
+            <app-skeleton width="100%" height="20px" />
+            <app-skeleton width="95%" height="20px" />
+            <app-skeleton width="98%" height="20px" />
+            <app-skeleton width="40%" height="20px" />
           </div>
-
-          <div class="prose prose-mystic max-w-none">
-            <h3 class="serif-display text-2xl text-mystic-cocoa mb-8 flex items-center gap-4">
-              <ng-icon name="heroSparkles" class="text-mystic-gold" />
-              Przesłanie Wszechświata
-            </h3>
-            
-            <p class="text-mystic-cocoa/80 text-xl leading-relaxed font-light first-letter:text-4xl first-letter:font-serif first-letter:text-mystic-rose first-letter:mr-2 first-letter:float-left">
-              {{ currentData?.horoscope?.content || 'Gwiazdy milczą w tej chwili, ale Twoja energia pozostaje silna. Zaufaj swojej intuicji i podążaj za głosem serca.' }}
-            </p>
-          </div>
-
-          <!-- Bottom Ad / CTA -->
-          <div class="mt-20 pt-10 border-t border-mystic-rose/10 text-center">
-            <p class="text-mystic-cocoa/50 text-sm mb-6 font-light italic">Chcesz poznać głębsze przesłanie?</p>
-            <div class="flex flex-col sm:flex-row gap-3 justify-center">
-              <a routerLink="/tarot/karta-dnia" class="btn-primary">Wylosuj Kartę Tarota ✦</a>
-              <a routerLink="/panel" class="btn-outline">Odblokuj pełną interpretację</a>
-            </div>
+          <div class="pt-10 flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
+            <app-skeleton width="180px" height="45px" borderRadius="99px" />
+            <app-skeleton width="180px" height="45px" borderRadius="99px" />
           </div>
         </div>
-      } @else {
-        <!-- Mock Content if API returns nothing -->
-        <div class="glass-panel p-10 md:p-16 rounded-[2rem] border border-mystic-rose/10 shadow-xl bg-white/40 text-center">
-          <div class="text-6xl text-mystic-gold/20 mb-8 select-none">✦</div>
-          <h2 class="serif-display text-3xl text-mystic-cocoa mb-6">Wgląd w Przyszłość</h2>
-          <p class="text-mystic-cocoa/70 text-lg font-light leading-relaxed mb-12">
-            Twoja ścieżka jest obecnie oświetlona przez silne wpływy Jowisza. To doskonały czas na nowe przedsięwzięcia i otworzenie się na relacje z innymi. Pamiętaj, aby dbać o swój wewnętrzny spokój.
-          </p>
-          <div class="w-full h-[1px] bg-mystic-rose/10 mb-12"></div>
-          
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
-            <div class="bg-[#fbf5f7] p-6 rounded-2xl border border-mystic-rose/5">
-              <h4 class="font-medium text-mystic-rose mb-2 text-sm uppercase tracking-widest">Miłość</h4>
-              <p class="text-mystic-cocoa/70 text-sm font-light">Nadchodzące dni przyniosą harmonię i zrozumienie w relacjach.</p>
-            </div>
-            <div class="bg-[#fbf5f7] p-6 rounded-2xl border border-mystic-rose/5">
-              <h4 class="font-medium text-mystic-gold mb-2 text-sm uppercase tracking-widest">Kariera</h4>
-              <p class="text-mystic-cocoa/70 text-sm font-light">Bądź uważny na nowe propozycje. Możesz odkryć ukrytą szansę.</p>
-            </div>
-          </div>
-        </div>
-      }
-
-      <!-- Ad Banner -->
-      <div class="mt-16 w-full h-32 border border-dashed border-mystic-rose/20 rounded-2xl flex flex-col items-center justify-center text-mystic-cocoa/30 group cursor-pointer hover:bg-mystic-rose/[0.02] transition-colors">
-         <span class="text-[10px] uppercase tracking-widest mb-1">Miejsce na Twoją Reklamę</span>
-         <span class="serif-display text-xl opacity-60">Zestawy do Rytuałów Księżycowych</span>
       </div>
+      } @else if (currentData?.horoscope) {
+      <div
+        class="glass-panel p-6 sm:p-10 md:p-16 rounded-3xl md:rounded-[2rem] border border-mystic-rose/10 shadow-xl relative overflow-hidden bg-white/40"
+      >
+        <div
+          class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-mystic-rose via-mystic-gold to-mystic-rose opacity-30"
+        ></div>
+
+        <div
+          class="flex flex-wrap items-center gap-3 sm:gap-4 text-mystic-rose mb-8 sm:mb-10 font-medium tracking-widest uppercase text-xs"
+        >
+          <ng-icon name="heroCalendar" class="text-lg" />
+          <span
+            >{{ currentData?.horoscope?.date || 'Wiadomość z gwiazd' }}</span
+          >
+        </div>
+
+        <div class="prose prose-mystic max-w-none relative">
+          <h2
+            class="serif-display text-2xl text-mystic-cocoa mb-8 flex items-center gap-4"
+          >
+            <ng-icon name="heroSparkles" class="text-mystic-gold" />
+            Przesłanie Wszechświata
+          </h2>
+
+          <p
+            class="text-mystic-cocoa text-xl leading-relaxed font-light first-letter:text-4xl first-letter:font-serif first-letter:text-mystic-rose first-letter:mr-2 first-letter:float-left"
+          >
+            {{ currentData?.horoscope?.content || 'Gwiazdy milczą w tej chwili,
+            ale Twoja energia pozostaje silna. Zaufaj swojej intuicji i podążaj
+            za głosem serca.' }}
+          </p>
+
+          <app-premium-preview-block
+            variant="horoscope"
+            [isPremium]="canDisplayPremiumContent(currentData?.horoscope)"
+            [premiumContent]="currentData?.horoscope?.premiumContent"
+            [hasPremiumContent]="hasPremiumExtension(currentData?.horoscope)"
+            title="Pełna interpretacja Premium"
+            intro="Darmowy horoskop daje kierunek. Premium rozwija go o relacje, pracę, energię dnia, rytuał i pytanie refleksyjne."
+            ctaLabel="Zobacz pełną interpretację"
+            testId="horoscope-premium-preview"
+            (ctaClick)="trackPremiumCta(currentData)"
+          />
+        </div>
+
+        <!-- Bottom Ad / CTA -->
+        <div class="mt-20 pt-10 border-t border-mystic-rose/10 text-center">
+          <p class="text-mystic-cocoa text-sm mb-6 font-light italic">
+            Chcesz dowiedzieć się więcej?
+          </p>
+          <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            <a routerLink="/tarot/karta-dnia" class="btn-primary"
+              >Wylosuj Kartę Tarota ✦</a
+            >
+            <a routerLink="/kosmogram" class="btn-outline">Twój Kosmogram</a>
+          </div>
+        </div>
+      </div>
+      } @else {
+      <div
+        class="glass-panel p-6 sm:p-10 md:p-16 rounded-3xl md:rounded-[2rem] border border-mystic-rose/10 shadow-xl bg-white/40 text-center"
+      >
+        <div class="text-6xl text-mystic-gold/20 mb-8 select-none">✦</div>
+        <h2 class="serif-display text-3xl text-mystic-cocoa mb-6">
+          Horoskop jest jeszcze niedostępny
+        </h2>
+        <p class="text-mystic-cocoa text-lg font-light leading-relaxed mb-12">
+          {{ error() || 'Ten horoskop jest chwilowo niedostępny. Wybierz inny
+          znak albo wróć za moment.' }}
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <a routerLink="/horoskopy" class="btn-primary">Wybierz inny znak</a>
+          <a routerLink="/tarot/karta-dnia" class="btn-outline"
+            >Wylosuj kartę dnia</a
+          >
+        </div>
+      </div>
+      } @if (adsEnabled) {
+      <!-- Ad Banner -->
+      <div
+        class="mt-16 w-full h-32 border border-dashed border-mystic-rose/20 rounded-2xl flex flex-col items-center justify-center text-mystic-cocoa transition-colors"
+      >
+        <span class="text-[10px] uppercase tracking-widest mb-1"
+          >Miejsce na Twoją Reklamę</span
+        >
+        <span class="serif-display text-xl opacity-60"
+          >Zestawy do Rytuałów Księżycowych</span
+        >
+      </div>
+      }
     </div>
   </section>
-
 </div>

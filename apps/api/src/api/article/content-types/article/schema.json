@@ -18,6 +18,13 @@
       "type": "richtext",
       "required": true
     },
+    "premiumContent": {
+      "type": "richtext"
+    },
+    "isPremium": {
+      "type": "boolean",
+      "default": false
+    },
     "slug": {
       "type": "uid",
       "targetField": "title",
@@ -43,6 +50,11 @@
     },
     "author": {
       "type": "string"
+    },
+    "seo": {
+      "type": "component",
+      "repeatable": false,
+      "component": "shared.seo"
     }
   }
 }

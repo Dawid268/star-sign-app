@@ -1,4 +1,5 @@
 const { compileStrapi, createStrapi } = require('@strapi/strapi');
+const aicoContract = require('../src/bootstrap/aico-content-contract.json');
 
 const WARSAW_TIMEZONE = 'Europe/Warsaw';
 
@@ -52,7 +53,8 @@ const SIGNS = [
     date_range: '23.09 - 22.10',
     element: 'Powietrze',
     planet: 'Wenus',
-    description: 'Harmonijny znak powietrza, nastawiony na relacje i równowagę.',
+    description:
+      'Harmonijny znak powietrza, nastawiony na relacje i równowagę.',
   },
   {
     name: 'Skorpion',
@@ -101,7 +103,8 @@ const ARTICLES = [
   {
     title: 'Jak czytać sygnały dnia według własnego znaku',
     slug: 'jak-czytac-sygnaly-dnia-wedlug-znaku',
-    excerpt: 'Krótki rytuał poranny, który pomaga lepiej korzystać z energii dnia.',
+    excerpt:
+      'Krótki rytuał poranny, który pomaga lepiej korzystać z energii dnia.',
     content:
       'Zacznij dzień od chwili ciszy i pytania: jaki jeden krok da mi dziś największy spokój? Sprawdź horoskop, ale traktuj go jako kompas do refleksji. Najważniejsze wskazówki zapisuj wieczorem, aby po tygodniu zobaczyć wzorce.',
     read_time_minutes: 5,
@@ -121,7 +124,8 @@ const ARTICLES = [
   {
     title: 'Dlaczego wersja premium działa najlepiej z profilem urodzeniowym',
     slug: 'dlaczego-premium-dziala-z-profilem-urodzeniowym',
-    excerpt: 'Personalizacja treści to różnica między inspiracją a konkretną wskazówką.',
+    excerpt:
+      'Personalizacja treści to różnica między inspiracją a konkretną wskazówką.',
     content:
       'Podstawowy horoskop daje kierunek, a profil urodzeniowy dodaje kontekst. Dzięki danym profilu łatwiej dobrać moment działania, obszar priorytetu i styl komunikatu. To zwiększa trafność i retencję użytkownika.',
     read_time_minutes: 6,
@@ -131,7 +135,8 @@ const ARTICLES = [
   {
     title: 'Horoskop dzienny bez chaosu: jak wybrać jedną wskazówkę',
     slug: 'horoskop-dzienny-bez-chaosu',
-    excerpt: 'Prosty sposób na korzystanie z codziennego horoskopu bez nadinterpretacji.',
+    excerpt:
+      'Prosty sposób na korzystanie z codziennego horoskopu bez nadinterpretacji.',
     content:
       'Najlepszy horoskop dzienny działa jak krótkie pytanie kontrolne. Wybierz jedną wskazówkę, zapisz ją w kalendarzu i sprawdź wieczorem, czy pomogła Ci działać spokojniej. Nie traktuj jej jak wyroku, tylko jak ramę do uważnej decyzji.',
     read_time_minutes: 5,
@@ -161,7 +166,8 @@ const ARTICLES = [
   {
     title: 'Miłosny horoskop bez presji: jak czytać sygnały w relacji',
     slug: 'milosny-horoskop-bez-presji',
-    excerpt: 'Wskazówki dla osób, które chcą korzystać z horoskopu relacyjnie i odpowiedzialnie.',
+    excerpt:
+      'Wskazówki dla osób, które chcą korzystać z horoskopu relacyjnie i odpowiedzialnie.',
     content:
       'Horoskop miłosny najlepiej czytać jako zaproszenie do rozmowy. Jeśli tekst mówi o napięciu, nie szukaj winy, tylko nazwij potrzebę. Jeśli mówi o bliskości, wybierz konkretny gest: wiadomość, czas offline albo spokojne pytanie.',
     read_time_minutes: 6,
@@ -171,7 +177,8 @@ const ARTICLES = [
   {
     title: 'Karta dnia w pracy: rytuał przed ważnym spotkaniem',
     slug: 'karta-dnia-w-pracy-rytual-przed-spotkaniem',
-    excerpt: 'Jak użyć jednej karty do przygotowania komunikacji i priorytetów.',
+    excerpt:
+      'Jak użyć jednej karty do przygotowania komunikacji i priorytetów.',
     content:
       'Przed spotkaniem wylosuj kartę i zapisz jedno hasło: czego pilnować w tonie, co uprościć i z czym nie przesadzić. Nawet jeśli traktujesz tarot symbolicznie, taka pauza pomaga wejść w rozmowę z większą uważnością.',
     read_time_minutes: 4,
@@ -179,9 +186,11 @@ const ARTICLES = [
     categoryName: 'Tarot',
   },
   {
-    title: 'Znaki zodiaku i regeneracja: jak odpoczywać zgodnie z temperamentem',
+    title:
+      'Znaki zodiaku i regeneracja: jak odpoczywać zgodnie z temperamentem',
     slug: 'znaki-zodiaku-i-regeneracja',
-    excerpt: 'Ogień, ziemia, powietrze i woda potrzebują innego rodzaju odpoczynku.',
+    excerpt:
+      'Ogień, ziemia, powietrze i woda potrzebują innego rodzaju odpoczynku.',
     content:
       'Znaki ognia często odpoczywają przez ruch, ziemi przez rytm i zmysły, powietrza przez zmianę bodźców, a wody przez ciszę i emocjonalne domknięcie. Sprawdź swój element i dobierz odpoczynek do realnego napięcia, nie do mody.',
     read_time_minutes: 7,
@@ -191,7 +200,8 @@ const ARTICLES = [
   {
     title: 'Jak przygotować profil urodzeniowy, żeby personalizacja miała sens',
     slug: 'jak-przygotowac-profil-urodzeniowy',
-    excerpt: 'Jakie dane warto podać i dlaczego godzina urodzenia zmienia kontekst odczytu.',
+    excerpt:
+      'Jakie dane warto podać i dlaczego godzina urodzenia zmienia kontekst odczytu.',
     content:
       'Data urodzenia daje podstawową mapę, miejsce dopowiada kontekst, a godzina pozwala lepiej pracować z rytmem dnia. Jeśli nie znasz dokładnej godziny, zaznacz przybliżenie i traktuj personalizację jako łagodniejszą sugestię.',
     read_time_minutes: 6,
@@ -201,7 +211,8 @@ const ARTICLES = [
   {
     title: 'Tygodniowy przegląd energii: niedzielny rytuał planowania',
     slug: 'tygodniowy-przeglad-energii',
-    excerpt: 'Prosty rytuał, który łączy astrologię, kalendarz i realne priorytety.',
+    excerpt:
+      'Prosty rytuał, który łączy astrologię, kalendarz i realne priorytety.',
     content:
       'W niedzielę wybierz trzy obszary: relacje, praca, ciało. Do każdego dopisz jedną decyzję i jeden limit. Horoskop tygodniowy potraktuj jako kontekst, a kalendarz jako miejsce, w którym ta refleksja staje się działaniem.',
     read_time_minutes: 5,
@@ -209,9 +220,11 @@ const ARTICLES = [
     categoryName: 'Rozwój',
   },
   {
-    title: 'Finansowy horoskop: jak czytać go bez podejmowania impulsywnych decyzji',
+    title:
+      'Finansowy horoskop: jak czytać go bez podejmowania impulsywnych decyzji',
     slug: 'finansowy-horoskop-bez-impulsu',
-    excerpt: 'Astrologiczne inspiracje nie zastępują planu, ale mogą pomóc sprawdzić nastawienie.',
+    excerpt:
+      'Astrologiczne inspiracje nie zastępują planu, ale mogą pomóc sprawdzić nastawienie.',
     content:
       'Jeśli horoskop finansowy mówi o szansie, najpierw sprawdź budżet, ryzyko i termin decyzji. Jeśli mówi o ostrożności, nie zamrażaj działań, tylko poszukaj danych. Dobra interpretacja wzmacnia refleksję, nie zastępuje odpowiedzialności.',
     read_time_minutes: 6,
@@ -331,8 +344,10 @@ const TAROT_CARDS = [
     name: 'Kapłan',
     arcana: 'Wielkie Arkana · V',
     meaning_upright: 'Nauka, tradycja, mentorstwo i wartości.',
-    meaning_reversed: 'Dogmatyzm, presja otoczenia albo potrzeba własnej drogi.',
-    description: 'Szukaj sprawdzonej wiedzy, ale filtruj ją przez własne wartości.',
+    meaning_reversed:
+      'Dogmatyzm, presja otoczenia albo potrzeba własnej drogi.',
+    description:
+      'Szukaj sprawdzonej wiedzy, ale filtruj ją przez własne wartości.',
     symbol: 'KAPLAN',
     slug: 'kaplan',
   },
@@ -385,7 +400,8 @@ const TAROT_CARDS = [
     name: 'Wisielec',
     arcana: 'Wielkie Arkana · XII',
     meaning_upright: 'Nowa perspektywa, pauza i świadome odpuszczenie.',
-    meaning_reversed: 'Tkwienie w zawieszeniu albo opór przed zmianą spojrzenia.',
+    meaning_reversed:
+      'Tkwienie w zawieszeniu albo opór przed zmianą spojrzenia.',
     description: 'Zmiana kąta patrzenia może odblokować dalszy ruch.',
     symbol: 'WISIELEC',
     slug: 'wisielec',
@@ -403,7 +419,8 @@ const TAROT_CARDS = [
     name: 'Umiarkowanie',
     arcana: 'Wielkie Arkana · XIV',
     meaning_upright: 'Harmonia, cierpliwość i łączenie przeciwieństw.',
-    meaning_reversed: 'Przesada, brak rytmu albo trudność w znalezieniu środka.',
+    meaning_reversed:
+      'Przesada, brak rytmu albo trudność w znalezieniu środka.',
     description: 'Najlepszy efekt przyjdzie przez wyważenie, nie skrajności.',
     symbol: 'UMIARKOWANIE',
     slug: 'umiarkowanie',
@@ -412,7 +429,8 @@ const TAROT_CARDS = [
     name: 'Diabeł',
     arcana: 'Wielkie Arkana · XV',
     meaning_upright: 'Przywiązania, pokusy i świadomość ograniczeń.',
-    meaning_reversed: 'Uwalnianie się, przełamanie schematu albo odzyskanie wpływu.',
+    meaning_reversed:
+      'Uwalnianie się, przełamanie schematu albo odzyskanie wpływu.',
     description: 'Zobacz, co odbiera Ci wolność wyboru.',
     symbol: 'DIABEL',
     slug: 'diabel',
@@ -421,7 +439,8 @@ const TAROT_CARDS = [
     name: 'Wieża',
     arcana: 'Wielkie Arkana · XVI',
     meaning_upright: 'Nagłe ujawnienie prawdy i rozpad nietrwałej struktury.',
-    meaning_reversed: 'Odkładany przełom albo próba ratowania tego, co nie działa.',
+    meaning_reversed:
+      'Odkładany przełom albo próba ratowania tego, co nie działa.',
     description: 'To moment szczerości, który może oczyścić sytuację.',
     symbol: 'WIEZA',
     slug: 'wieza',
@@ -430,7 +449,8 @@ const TAROT_CARDS = [
     name: 'Gwiazda',
     arcana: 'Wielkie Arkana · XVII',
     meaning_upright: 'Nadzieja, regeneracja i powrót zaufania.',
-    meaning_reversed: 'Zwątpienie, zmęczenie albo trudność w przyjęciu wsparcia.',
+    meaning_reversed:
+      'Zwątpienie, zmęczenie albo trudność w przyjęciu wsparcia.',
     description: 'Daj sobie czas na odbudowę i łagodny kierunek.',
     symbol: 'GWIAZDA',
     slug: 'gwiazda',
@@ -440,7 +460,8 @@ const TAROT_CARDS = [
     arcana: 'Wielkie Arkana · XVIII',
     meaning_upright: 'Podświadomość, sny i niejasność wymagająca intuicji.',
     meaning_reversed: 'Rozjaśnienie lęku, wyjście z iluzji albo ukryta prawda.',
-    description: 'Nie wszystko jest jeszcze widoczne, więc sprawdzaj fakty spokojnie.',
+    description:
+      'Nie wszystko jest jeszcze widoczne, więc sprawdzaj fakty spokojnie.',
     symbol: 'KSIEZYC',
     slug: 'ksiezyc',
   },
@@ -448,7 +469,8 @@ const TAROT_CARDS = [
     name: 'Słońce',
     arcana: 'Wielkie Arkana · XIX',
     meaning_upright: 'Radość, klarowność i życiowa energia.',
-    meaning_reversed: 'Przygaszona pewność siebie albo opóźnione poczucie lekkości.',
+    meaning_reversed:
+      'Przygaszona pewność siebie albo opóźnione poczucie lekkości.',
     description: 'Karta wnosi prostotę, ciepło i widoczny postęp.',
     symbol: 'SLONCE',
     slug: 'slonce',
@@ -466,7 +488,8 @@ const TAROT_CARDS = [
     name: 'Świat',
     arcana: 'Wielkie Arkana · XXI',
     meaning_upright: 'Spełnienie, integracja i domknięcie cyklu.',
-    meaning_reversed: 'Niedokończenie, brak ostatniego kroku albo rozproszenie.',
+    meaning_reversed:
+      'Niedokończenie, brak ostatniego kroku albo rozproszenie.',
     description: 'Zbierasz efekty procesu i możesz przejść dalej pełniej.',
     symbol: 'SWIAT',
     slug: 'swiat',
@@ -485,19 +508,22 @@ const NUMEROLOGY = [
     number: 2,
     title: 'Mediator',
     description: 'Wrażliwość i relacje.',
-    extended_description: 'Dwójka wspiera zespoły i relacje. Wyzwanie: stawianie granic.',
+    extended_description:
+      'Dwójka wspiera zespoły i relacje. Wyzwanie: stawianie granic.',
   },
   {
     number: 3,
     title: 'Twórca',
     description: 'Ekspresja i komunikacja.',
-    extended_description: 'Trójka rozwija się przez twórczość i słowo. Wyzwanie: konsekwencja.',
+    extended_description:
+      'Trójka rozwija się przez twórczość i słowo. Wyzwanie: konsekwencja.',
   },
   {
     number: 4,
     title: 'Budowniczy',
     description: 'Struktura i porządek.',
-    extended_description: 'Czwórka daje stabilność i system. Wyzwanie: elastyczność.',
+    extended_description:
+      'Czwórka daje stabilność i system. Wyzwanie: elastyczność.',
   },
   {
     number: 5,
@@ -517,7 +543,8 @@ const NUMEROLOGY = [
     number: 7,
     title: 'Analityk',
     description: 'Wiedza i introspekcja.',
-    extended_description: 'Siódemka szuka sensu i głębi. Wyzwanie: nie izolować się od ludzi.',
+    extended_description:
+      'Siódemka szuka sensu i głębi. Wyzwanie: nie izolować się od ludzi.',
   },
   {
     number: 8,
@@ -583,8 +610,14 @@ const BASE_PUBLIC_READ_ACTIONS = [
   'api::zodiac-sign.zodiac-sign.findOne',
 ];
 
-const SHOP_PUBLIC_READ_ACTIONS = ['api::product.product.find', 'api::product.product.findOne'];
-const MANAGED_PUBLIC_READ_ACTIONS = [...BASE_PUBLIC_READ_ACTIONS, ...SHOP_PUBLIC_READ_ACTIONS];
+const SHOP_PUBLIC_READ_ACTIONS = [
+  'api::product.product.find',
+  'api::product.product.findOne',
+];
+const MANAGED_PUBLIC_READ_ACTIONS = [
+  ...BASE_PUBLIC_READ_ACTIONS,
+  ...SHOP_PUBLIC_READ_ACTIONS,
+];
 const READ_ROLE_TYPES = ['public', 'authenticated'];
 
 const dailyHoroscopeTemplates = {
@@ -596,6 +629,12 @@ const dailyHoroscopeTemplates = {
     'W pracy wygrają konkrety: uporządkuj priorytety, dopnij najważniejszy temat i nie rozpraszaj energii.',
   Finansowy:
     'Finanse wymagają dziś rozsądnego tempa. Sprawdź szczegóły, odłóż impulsywną decyzję i wybierz stabilność.',
+  Chiński:
+    'Dzisiejsza energia Wschodu wspiera cierpliwe działanie, obserwację cykli i spokojne wybieranie właściwego momentu.',
+  Celtycki:
+    'Rytm natury wzmacnia intuicję. Zwróć uwagę na znaki w rozmowach, powrotach i prostych gestach równowagi.',
+  Egipski:
+    'Symboliczna opieka dawnych archetypów sprzyja porządkowaniu intencji i ochronie tego, co naprawdę wzmacnia Twoją drogę.',
 };
 
 const generalPeriodTemplates = {
@@ -607,12 +646,17 @@ const generalPeriodTemplates = {
     'Ten rok prowadzi Cię w stronę dojrzalszych decyzji, lepszego planowania i odwagi w wyborze własnej drogi.',
 };
 
-const DAILY_HOROSCOPE_WORKFLOW_TYPES = [
-  { type: 'Ogólny', generateMinute: 0 },
-  { type: 'Miłosny', generateMinute: 5 },
-  { type: 'Zawodowy', generateMinute: 10 },
-  { type: 'Finansowy', generateMinute: 15 },
-];
+const buildPremiumContent = (label) => `${label}: Pełna interpretacja Premium.
+
+Relacje: wybierz jedną relację, w której chcesz dziś działać spokojniej i uczciwiej. Nazwij fakt, potrzebę oraz granicę, zanim dopiszesz w myślach intencje drugiej osoby. Premium prowadzi do kontaktu bez presji: krótkiej rozmowy, jednego jasnego zdania i gotowości, aby słuchać odpowiedzi bez natychmiastowego bronienia swojej racji. Dodaj test rzeczywistości: sprawdź, czy reagujesz na aktualną sytuację, czy na wcześniejszy lęk przed odrzuceniem.
+
+Praca: przesuń energię z planowania na domykanie. Wybierz zadanie, które ma widoczny koniec i realnie zmniejszy napięcie. Ustal minimalny dobry rezultat, zamknij rozpraszacze i wykonaj pierwszy krok przed sprawami pobocznymi. Jeżeli pojawi się chaos, wróć do pytania, co dziś buduje stabilność, a co jest tylko reakcją na cudze tempo. Zapisz także koszt decyzji: czas, uwagę albo rozmowę, której nie warto dłużej odkładać.
+
+Energia dnia: ciało potrzebuje prostego rytmu: wody, oddechu, krótkiej pauzy i jednej decyzji mniej. Zwróć uwagę na barki, szczękę oraz dłonie, bo tam najszybciej zapisuje się pośpiech. Nie musisz rozwiązać wszystkiego naraz. Wystarczy, że wybierzesz najspokojniejszy następny krok i wykonasz go bez przeciążania siebie. Po południu oceń pobudzenie w skali od jednego do dziesięciu i najpierw obniż napięcie, zanim odpowiesz na wymagającą wiadomość.
+
+Rytuał: usiądź przy naturalnym świetle albo zapal małą świecę. Zapisz zdanie zaczynające się od słów "Dziś wybieram". Dopisz trzy gesty, które potwierdzą tę intencję w relacjach, pracy i odpoczynku. Przez dziewięć oddechów trzymaj uwagę na sercu, a potem wykonaj pierwszy najmniejszy gest od razu. Wieczorem wróć do notatki i dopisz, co naprawdę zadziałało. Dzięki temu Premium staje się osobistym archiwum wzorców, nie jednorazową inspiracją.
+
+Pytanie refleksyjne: który wybór wzmacnia mój spokój i sprawczość, nawet jeśli wymaga ode mnie większej szczerości niż zwykle? Jaką jedną decyzję mogę odłożyć, dopóki nie wrócę do spokojniejszego oddechu i pełniejszego obrazu sytuacji?`;
 
 const DEV_TOPIC_QUEUE = [
   {
@@ -674,7 +718,8 @@ const STG_PROD_TOPIC_QUEUE = [
   },
   {
     seedKey: 'stg-prod-4',
-    title: 'Jak czytać horoskop miłosny, żeby nie podejmować impulsywnych decyzji',
+    title:
+      'Jak czytać horoskop miłosny, żeby nie podejmować impulsywnych decyzji',
     brief:
       'Edukacyjny materiał z elementami psychologii relacji. Bez straszenia, bez skrajnych tez.',
     daysOffset: 3,
@@ -682,7 +727,8 @@ const STG_PROD_TOPIC_QUEUE = [
   {
     seedKey: 'stg-prod-5',
     title: 'Astrologiczny plan tygodnia dla freelancera i małej firmy',
-    brief: 'Nastawienie na planowanie pracy, klientów i regeneracji. Ton profesjonalny.',
+    brief:
+      'Nastawienie na planowanie pracy, klientów i regeneracji. Ton profesjonalny.',
     daysOffset: 4,
   },
   {
@@ -694,7 +740,8 @@ const STG_PROD_TOPIC_QUEUE = [
   {
     seedKey: 'stg-prod-7',
     title: 'Znaki zodiaku i styl komunikacji: przewodnik dla zespołów',
-    brief: 'Format poradnikowy dla HR i liderów zespołów. Konkretne przykłady zachowań.',
+    brief:
+      'Format poradnikowy dla HR i liderów zespołów. Konkretne przykłady zachowań.',
     daysOffset: 6,
   },
 ];
@@ -770,7 +817,8 @@ const getWarsawDate = (date = new Date()) =>
     day: '2-digit',
   }).format(date);
 
-const plusDaysIso = (days) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+const plusDaysIso = (days) =>
+  new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 
 const plusDaysAtTimeIso = (daysOffset, hour = 6, minute = 0) => {
   const base = new Date();
@@ -823,7 +871,8 @@ const resolveRelationId = (value) => {
 
 const setPermission = (permissions, actionId, enabled) => {
   const [typeName, controllerName, actionName] = actionId.split('.');
-  const action = permissions?.[typeName]?.controllers?.[controllerName]?.[actionName];
+  const action =
+    permissions?.[typeName]?.controllers?.[controllerName]?.[actionName];
 
   if (!action) {
     return false;
@@ -841,9 +890,11 @@ const ensureReadPermissions = async (strapi) => {
   ]);
 
   for (const roleType of READ_ROLE_TYPES) {
-    const dbRole = await strapi.db.query('plugin::users-permissions.role').findOne({
-      where: { type: roleType },
-    });
+    const dbRole = await strapi.db
+      .query('plugin::users-permissions.role')
+      .findOne({
+        where: { type: roleType },
+      });
 
     if (!dbRole) {
       throw new Error(`Brak roli "${roleType}" w users-permissions.`);
@@ -853,14 +904,20 @@ const ensureReadPermissions = async (strapi) => {
     const missingActions = [];
 
     for (const actionId of MANAGED_PUBLIC_READ_ACTIONS) {
-      const exists = setPermission(role.permissions, actionId, enabledActions.has(actionId));
+      const exists = setPermission(
+        role.permissions,
+        actionId,
+        enabledActions.has(actionId),
+      );
       if (!exists && enabledActions.has(actionId)) {
         missingActions.push(actionId);
       }
     }
 
     if (missingActions.length > 0) {
-      throw new Error(`Nie znaleziono akcji dla roli "${roleType}": ${missingActions.join(', ')}`);
+      throw new Error(
+        `Nie znaleziono akcji dla roli "${roleType}": ${missingActions.join(', ')}`,
+      );
     }
 
     await roleService.updateRole(dbRole.id, {
@@ -875,7 +932,12 @@ const seedZodiacSigns = async (strapi) => {
   const byName = new Map();
 
   for (const sign of SIGNS) {
-    const seeded = await upsertOne(strapi, 'api::zodiac-sign.zodiac-sign', { name: sign.name }, sign);
+    const seeded = await upsertOne(
+      strapi,
+      'api::zodiac-sign.zodiac-sign',
+      { name: sign.name },
+      sign,
+    );
     byName.set(seeded.name, seeded);
   }
 
@@ -886,7 +948,12 @@ const seedCategories = async (strapi) => {
   const byName = new Map();
 
   for (const category of CATEGORIES) {
-    const seeded = await upsertOne(strapi, 'api::category.category', { name: category.name }, category);
+    const seeded = await upsertOne(
+      strapi,
+      'api::category.category',
+      { name: category.name },
+      category,
+    );
     byName.set(seeded.name, seeded);
   }
 
@@ -907,12 +974,16 @@ const seedArticles = async (strapi, categoriesByName) => {
         title: article.title,
         slug: article.slug,
         content: article.content,
+        premiumContent: `${buildPremiumContent(article.title)}\n\n${buildPremiumContent(
+          `${article.title} - praktyka`,
+        )}`,
+        isPremium: true,
         excerpt: article.excerpt,
         read_time_minutes: article.read_time_minutes,
         author: article.author,
         category: category?.id || null,
         publishedAt,
-      }
+      },
     );
   }
 };
@@ -928,7 +999,7 @@ const seedProducts = async (strapi) => {
       {
         ...product,
         publishedAt,
-      }
+      },
     );
   }
 };
@@ -945,7 +1016,7 @@ const seedTarotCards = async (strapi) => {
       {
         ...card,
         publishedAt,
-      }
+      },
     );
     bySlug.set(seeded.slug, seeded);
   }
@@ -955,7 +1026,8 @@ const seedTarotCards = async (strapi) => {
 
 const seedDailyTarotDraw = async (strapi, cardsBySlug) => {
   const today = getWarsawDate();
-  const firstCard = cardsBySlug.get('glupiec') || [...cardsBySlug.values()][0] || null;
+  const firstCard =
+    cardsBySlug.get('glupiec') || [...cardsBySlug.values()][0] || null;
 
   if (!firstCard) {
     return;
@@ -968,8 +1040,9 @@ const seedDailyTarotDraw = async (strapi, cardsBySlug) => {
     {
       draw_date: today,
       card: firstCard.id,
-      message: 'Dziś postaw na odwagę pierwszego kroku i zaufanie do swojej intuicji.',
-    }
+      message:
+        'Dziś postaw na odwagę pierwszego kroku i zaufanie do swojej intuicji.',
+    },
   );
 };
 
@@ -984,7 +1057,7 @@ const seedNumerology = async (strapi) => {
       {
         ...item,
         publishedAt,
-      }
+      },
     );
   }
 };
@@ -1010,12 +1083,15 @@ const seedHoroscopes = async (strapi, signsByName) => {
           date: today,
           zodiac_sign: sign.id,
           content: `${sign.name}: ${baseContent}`,
+          premiumContent: buildPremiumContent(`${sign.name} ${type}`),
           publishedAt,
-        }
+        },
       );
     }
 
-    for (const [period, baseContent] of Object.entries(generalPeriodTemplates)) {
+    for (const [period, baseContent] of Object.entries(
+      generalPeriodTemplates,
+    )) {
       await upsertOne(
         strapi,
         'api::horoscope.horoscope',
@@ -1031,8 +1107,11 @@ const seedHoroscopes = async (strapi, signsByName) => {
           date: today,
           zodiac_sign: sign.id,
           content: `${sign.name}: ${baseContent}`,
+          premiumContent: `${buildPremiumContent(
+            `${sign.name} ${period}`,
+          )}\n\n${buildPremiumContent(`${sign.name} ${period} - druga warstwa`)}`,
           publishedAt,
-        }
+        },
       );
     }
   }
@@ -1048,9 +1127,11 @@ const ensureSeedUser = async (strapi, signsByName, config) => {
   }
 
   const userService = strapi.plugin('users-permissions').service('user');
-  const existing = await strapi.db.query('plugin::users-permissions.user').findOne({
-    where: { email: config.user.email },
-  });
+  const existing = await strapi.db
+    .query('plugin::users-permissions.user')
+    .findOne({
+      where: { email: config.user.email },
+    });
 
   let user;
 
@@ -1076,7 +1157,8 @@ const ensureSeedUser = async (strapi, signsByName, config) => {
     });
   }
 
-  const sign = signsByName.get(config.signName) || [...signsByName.values()][0] || null;
+  const sign =
+    signsByName.get(config.signName) || [...signsByName.values()][0] || null;
 
   const profile = await upsertOne(
     strapi,
@@ -1097,7 +1179,7 @@ const ensureSeedUser = async (strapi, signsByName, config) => {
       current_period_end: config.profile.current_period_end,
       cancel_at_period_end: false,
       last_synced_at: new Date().toISOString(),
-    }
+    },
   );
 
   const today = getWarsawDate();
@@ -1106,7 +1188,11 @@ const ensureSeedUser = async (strapi, signsByName, config) => {
     await upsertOne(
       strapi,
       'api::user-reading.user-reading',
-      { user: user.id, reading_type: reading.reading_type, reading_date: today },
+      {
+        user: user.id,
+        reading_type: reading.reading_type,
+        reading_date: today,
+      },
       {
         user: user.id,
         reading_type: reading.reading_type,
@@ -1119,7 +1205,7 @@ const ensureSeedUser = async (strapi, signsByName, config) => {
         is_premium: true,
         source: config.source,
         metadata: reading.metadata || {},
-      }
+      },
     );
   }
 };
@@ -1180,7 +1266,8 @@ const ensurePremiumUser = async (strapi, signsByName) =>
       {
         reading_type: 'horoscope',
         title: 'Premium horoskop dnia {{today}}',
-        summary: 'Pełny odczyt premium z naciskiem na relacje, pracę i regenerację.',
+        summary:
+          'Pełny odczyt premium z naciskiem na relacje, pracę i regenerację.',
         content:
           'Twoja aktywna subskrypcja premium odblokowuje głębszą interpretację dnia. Dla Wagi najważniejsza jest dziś jakość rozmów: wybierz jedną relację, w której możesz nazwać potrzeby bez nacisku. W pracy postaw na decyzję, która porządkuje kalendarz na kolejne dni.',
         period: 'dzienny',
@@ -1188,7 +1275,8 @@ const ensurePremiumUser = async (strapi, signsByName) =>
       {
         reading_type: 'tarot',
         title: 'Premium karta dnia: Gwiazda',
-        summary: 'Karta premium wspiera spokojny powrót do zaufania i długiego planu.',
+        summary:
+          'Karta premium wspiera spokojny powrót do zaufania i długiego planu.',
         content:
           'Gwiazda w odczycie premium mówi o regeneracji po okresie przeciążenia. Nie musisz dziś przyspieszać. Wybierz jedną rzecz, która odbudowuje poczucie wpływu: rozmowę, uporządkowanie przestrzeni albo zapisanie decyzji, którą odkładasz.',
         metadata: { cardSlug: 'gwiazda', premiumFixture: true },
@@ -1239,7 +1327,11 @@ const resolveOpenRouterToken = (mode) => {
     process.env.OPENROUTER_API_KEY,
   ];
 
-  return candidates.find((value) => typeof value === 'string' && value.trim().length > 0)?.trim() || '';
+  return (
+    candidates
+      .find((value) => typeof value === 'string' && value.trim().length > 0)
+      ?.trim() || ''
+  );
 };
 
 const resolveOpenRouterModel = (mode) => {
@@ -1252,99 +1344,45 @@ const resolveOpenRouterModel = (mode) => {
   );
 };
 
-const buildWorkflowDefinitions = ({ model, encryptedToken, enableWorkflows, categoryId, mode }) => {
-  const shared = {
+const buildWorkflowDefinitions = ({
+  model,
+  encryptedToken,
+  enableWorkflows,
+  categoryId,
+}) => {
+  const defaults = aicoContract.workflowDefaults;
+
+  return aicoContract.workflows.map((workflow) => ({
+    name: workflow.name,
     enabled: enableWorkflows,
     status: 'idle',
-    timezone: WARSAW_TIMEZONE,
-    locale: 'pl',
+    workflow_type: workflow.workflowType,
+    generate_cron: workflow.generateCron,
+    publish_cron: workflow.publishCron,
+    topic_mode: workflow.topicMode,
+    timezone: aicoContract.timezone,
+    locale: aicoContract.locale,
     llm_model: model,
     llm_api_token_encrypted: encryptedToken,
-    temperature: mode === 'prod' ? 0.55 : 0.65,
-    max_completion_tokens: 2000,
-    retry_max: 3,
-    retry_backoff_seconds: 120,
-    daily_request_limit: mode === 'prod' ? 220 : 160,
-    daily_token_limit: mode === 'prod' ? 500000 : 300000,
-    allow_manual_edit: true,
-    auto_publish: true,
-    force_regenerate: false,
-  };
-
-  const dailyHoroscopeDefinitions = DAILY_HOROSCOPE_WORKFLOW_TYPES.map(({ type, generateMinute }) => ({
-      ...shared,
-      name: `AICO Horoskop Dzienny - ${type} (23:${String(generateMinute).padStart(2, '0')} → 00:00)`,
-      workflow_type: 'horoscope',
-      generate_cron: `${generateMinute} 23 * * *`,
-      publish_cron: '0 0 * * *',
-      topic_mode: 'mixed',
-      horoscope_period: 'Dzienny',
-      horoscope_type_values: [type],
-      all_signs: true,
-      article_category: null,
-      prompt_template:
-        'Napisz {{type}} horoskop {{period}} dla daty {{targetDate}} dla WSZYSTKICH znaków: {{signList}}. Każdy opis ma mieć 80-130 słów, język polski, ton wspierający i konkretny. Unikaj ogólników i straszenia. Zwróć WYŁĄCZNIE JSON.',
+    temperature: workflow.temperature,
+    max_completion_tokens: workflow.maxCompletionTokens,
+    retry_max: defaults.retryMax,
+    retry_backoff_seconds: defaults.retryBackoffSeconds,
+    daily_request_limit: defaults.dailyRequestLimit,
+    daily_token_limit: defaults.dailyTokenLimit,
+    allow_manual_edit: defaults.allowManualEdit,
+    auto_publish: defaults.autoPublish,
+    force_regenerate: defaults.forceRegenerate,
+    horoscope_period: workflow.horoscopePeriod,
+    horoscope_type_values: workflow.horoscopeTypeValues,
+    all_signs: workflow.allSigns,
+    article_category:
+      workflow.workflowType === 'article' ||
+      workflow.workflowType === 'daily_card'
+        ? categoryId
+        : null,
+    prompt_template: aicoContract.prompts[workflow.promptKey],
   }));
-
-  return [
-    ...dailyHoroscopeDefinitions,
-    {
-      ...shared,
-      name: 'AICO Horoskop Tygodniowy (niedz. 23:10 → pon. 00:00)',
-      workflow_type: 'horoscope',
-      generate_cron: '10 23 * * 0',
-      publish_cron: '0 0 * * 1',
-      topic_mode: 'mixed',
-      horoscope_period: 'Tygodniowy',
-      horoscope_type_values: ['Ogólny', 'Miłosny', 'Zawodowy'],
-      all_signs: true,
-      article_category: null,
-      prompt_template:
-        'Przygotuj {{type}} horoskop {{period}} na tydzień zaczynający się {{targetDate}} dla znaków: {{signList}}. Każdy opis: 120-180 słów, konkretne wskazówki na relacje, pracę i energię. Język polski, styl redakcyjny premium. Zwróć WYŁĄCZNIE JSON.',
-    },
-    {
-      ...shared,
-      name: 'AICO Horoskop Miesięczny (1. dzień miesiąca)',
-      workflow_type: 'horoscope',
-      generate_cron: '20 23 28-31 * *',
-      publish_cron: '5 0 1 * *',
-      topic_mode: 'mixed',
-      horoscope_period: 'Miesięczny',
-      horoscope_type_values: ['Ogólny', 'Miłosny', 'Finansowy'],
-      all_signs: true,
-      article_category: null,
-      prompt_template:
-        'Stwórz {{type}} horoskop {{period}} na miesiąc zaczynający się {{targetDate}} dla znaków: {{signList}}. Każdy opis: 150-220 słów, ma zawierać 1 szansę i 1 ryzyko oraz konkretną rekomendację działania. Zwróć WYŁĄCZNIE JSON.',
-    },
-    {
-      ...shared,
-      name: 'AICO Karta Dnia (23:30 → 00:10)',
-      workflow_type: 'daily_card',
-      generate_cron: '30 23 * * *',
-      publish_cron: '10 0 * * *',
-      topic_mode: 'mixed',
-      horoscope_period: 'Dzienny',
-      horoscope_type_values: ['Ogólny'],
-      all_signs: true,
-      article_category: categoryId,
-      prompt_template:
-        'Przygotuj publikację "Karta dnia" na {{targetDate}}. Wylosowana karta: {{cardName}}. Kontekst: {{cardDescription}} {{cardMeaningUpright}} {{cardMeaningReversed}}. Zwróć JSON z polami: title, excerpt, content, draw_message. Treść 350-550 słów, praktyczna i codzienna.',
-    },
-    {
-      ...shared,
-      name: 'AICO Blog Daily (06:00 → 07:00)',
-      workflow_type: 'article',
-      generate_cron: '0 6 * * *',
-      publish_cron: '0 7 * * *',
-      topic_mode: 'manual',
-      horoscope_period: 'Dzienny',
-      horoscope_type_values: ['Ogólny'],
-      all_signs: true,
-      article_category: categoryId,
-      prompt_template:
-        'Napisz artykuł blogowy po polsku na {{targetDate}} na podstawie briefu: {{topicBrief}}. Kategoria: {{category}}. Zwróć JSON z polami title, excerpt, content, author, read_time_minutes, slug. Długość 700-1100 słów, struktura H2/H3, konkretne przykłady i podsumowanie.',
-    },
-  ];
 };
 
 const seedAicoSettings = async (strapi) => {
@@ -1364,13 +1402,15 @@ const seedAicoSettings = async (strapi) => {
 
 const seedAicoWorkflows = async (strapi, mode, categoriesByName) => {
   const defaults = getModeDefaults(mode);
-  const requireToken = defaults.requireOpenRouterToken && process.env.AICO_ALLOW_MISSING_TOKEN !== 'true';
+  const requireToken =
+    defaults.requireOpenRouterToken &&
+    process.env.AICO_ALLOW_MISSING_TOKEN !== 'true';
 
   const token = resolveOpenRouterToken(mode);
 
   if (!token && requireToken) {
     throw new Error(
-      `[seed:${mode}] Brak tokena OpenRouter. Ustaw AICO_OPENROUTER_TOKEN_${mode.toUpperCase()} albo AICO_OPENROUTER_TOKEN.`
+      `[seed:${mode}] Brak tokena OpenRouter. Ustaw AICO_OPENROUTER_TOKEN_${mode.toUpperCase()} albo AICO_OPENROUTER_TOKEN.`,
     );
   }
 
@@ -1381,10 +1421,16 @@ const seedAicoWorkflows = async (strapi, mode, categoriesByName) => {
     encryptedToken = strapi.service('admin::encryption').encrypt(token);
   }
 
-  const enableByDefault = toBoolean(process.env.AICO_ENABLE_WORKFLOWS, defaults.defaultEnableWorkflows);
+  const enableByDefault = toBoolean(
+    process.env.AICO_ENABLE_WORKFLOWS,
+    defaults.defaultEnableWorkflows,
+  );
   const enableWorkflows = Boolean(token) && enableByDefault;
 
-  const category = categoriesByName.get('Astrologia') || [...categoriesByName.values()][0] || null;
+  const category =
+    categoriesByName.get('Astrologia') ||
+    [...categoriesByName.values()][0] ||
+    null;
   const categoryId = category?.id || null;
 
   const definitions = buildWorkflowDefinitions({
@@ -1402,7 +1448,9 @@ const seedAicoWorkflows = async (strapi, mode, categoriesByName) => {
     const existing = await query.findOne({ where: { name: definition.name } });
 
     const tokenToPersist =
-      definition.llm_api_token_encrypted || existing?.llm_api_token_encrypted || null;
+      definition.llm_api_token_encrypted ||
+      existing?.llm_api_token_encrypted ||
+      null;
 
     const saved = await upsertOne(
       strapi,
@@ -1412,27 +1460,36 @@ const seedAicoWorkflows = async (strapi, mode, categoriesByName) => {
         ...definition,
         llm_api_token_encrypted: tokenToPersist,
         enabled: tokenToPersist ? definition.enabled : false,
-      }
+      },
     );
 
     byName.set(saved.name, saved);
   }
 
-  const legacyDailyWorkflow = await query.findOne({
-    where: { name: 'AICO Horoskop Dzienny (23:00 → 00:00)' },
-  });
-
-  if (legacyDailyWorkflow?.id) {
-    await query.update({
-      where: { id: legacyDailyWorkflow.id },
-      data: {
-        enabled: false,
-        status: 'idle',
-      },
+  const canonicalWorkflowNames = new Set(
+    aicoContract.workflows.map((workflow) => workflow.name),
+  );
+  for (const legacyName of aicoContract.legacyWorkflowNames.filter(
+    (name) => !canonicalWorkflowNames.has(name),
+  )) {
+    const legacyWorkflow = await query.findOne({
+      where: { name: legacyName },
     });
+
+    if (legacyWorkflow?.id) {
+      await query.update({
+        where: { id: legacyWorkflow.id },
+        data: {
+          enabled: false,
+          status: 'idle',
+        },
+      });
+    }
   }
 
-  const enabledCount = [...byName.values()].filter((workflow) => workflow.enabled).length;
+  const enabledCount = [...byName.values()].filter(
+    (workflow) => workflow.enabled,
+  ).length;
 
   return {
     workflowsByName: byName,
@@ -1447,7 +1504,9 @@ const seedAicoMediaAssets = async (strapi) => {
   let seeded = 0;
 
   for (const definition of MEDIA_ASSET_PLACEHOLDERS) {
-    const existing = await query.findOne({ where: { asset_key: definition.asset_key } });
+    const existing = await query.findOne({
+      where: { asset_key: definition.asset_key },
+    });
 
     await upsertOne(
       strapi,
@@ -1456,9 +1515,10 @@ const seedAicoMediaAssets = async (strapi) => {
       {
         ...definition,
         asset: resolveRelationId(existing?.asset),
-        use_count: typeof existing?.use_count === 'number' ? existing.use_count : 0,
+        use_count:
+          typeof existing?.use_count === 'number' ? existing.use_count : 0,
         last_used_at: existing?.last_used_at || null,
-      }
+      },
     );
 
     seeded += 1;
@@ -1467,7 +1527,12 @@ const seedAicoMediaAssets = async (strapi) => {
   return seeded;
 };
 
-const seedAicoTopicQueue = async (strapi, mode, workflowsByName, categoriesByName) => {
+const seedAicoTopicQueue = async (
+  strapi,
+  mode,
+  workflowsByName,
+  categoriesByName,
+) => {
   const defaults = getModeDefaults(mode);
 
   if (!defaults.includeTopicQueue) {
@@ -1475,8 +1540,12 @@ const seedAicoTopicQueue = async (strapi, mode, workflowsByName, categoriesByNam
   }
 
   const topicItems = mode === 'dev' ? DEV_TOPIC_QUEUE : STG_PROD_TOPIC_QUEUE;
-  const workflow = workflowsByName.get('AICO Blog Daily (06:00 → 07:00)') || null;
-  const category = categoriesByName.get('Astrologia') || [...categoriesByName.values()][0] || null;
+  const workflow =
+    workflowsByName.get('AICO Blog - Magia i Astrologia') || null;
+  const category =
+    categoriesByName.get('Astrologia') ||
+    [...categoriesByName.values()][0] ||
+    null;
 
   if (!workflow || !category) {
     return 0;
@@ -1485,7 +1554,8 @@ const seedAicoTopicQueue = async (strapi, mode, workflowsByName, categoriesByNam
   let seeded = 0;
 
   for (const [index, item] of topicItems.entries()) {
-    const imageAssetKey = BLOG_IMAGE_ASSET_KEYS[index % BLOG_IMAGE_ASSET_KEYS.length];
+    const imageAssetKey =
+      BLOG_IMAGE_ASSET_KEYS[index % BLOG_IMAGE_ASSET_KEYS.length];
 
     await upsertOne(
       strapi,
@@ -1506,7 +1576,7 @@ const seedAicoTopicQueue = async (strapi, mode, workflowsByName, categoriesByNam
         },
         workflow: workflow.id,
         article_category: category.id,
-      }
+      },
     );
 
     seeded += 1;
@@ -1517,11 +1587,15 @@ const seedAicoTopicQueue = async (strapi, mode, workflowsByName, categoriesByNam
 
 const seedWithMode = async (mode) => {
   if (!SUPPORTED_MODES.includes(mode)) {
-    throw new Error(`Nieobsługiwany seed mode: ${mode}. Użyj jednego z: ${SUPPORTED_MODES.join(', ')}`);
+    throw new Error(
+      `Nieobsługiwany seed mode: ${mode}. Użyj jednego z: ${SUPPORTED_MODES.join(', ')}`,
+    );
   }
 
   if (mode === 'prod' && process.env.ALLOW_PRODUCTION_SEED !== 'true') {
-    throw new Error('Seed prod jest zablokowany. Ustaw ALLOW_PRODUCTION_SEED=true, jeśli to zamierzone.');
+    throw new Error(
+      'Seed prod jest zablokowany. Ustaw ALLOW_PRODUCTION_SEED=true, jeśli to zamierzone.',
+    );
   }
 
   const defaults = getModeDefaults(mode);
@@ -1556,7 +1630,12 @@ const seedWithMode = async (mode) => {
 
     const workflowSeed = await seedAicoWorkflows(app, mode, categories);
     const mediaAssetsSeeded = await seedAicoMediaAssets(app);
-    const topicsSeeded = await seedAicoTopicQueue(app, mode, workflowSeed.workflowsByName, categories);
+    const topicsSeeded = await seedAicoTopicQueue(
+      app,
+      mode,
+      workflowSeed.workflowsByName,
+      categories,
+    );
     const coverage = await app
       .plugin('ai-content-orchestrator')
       .service('media-assets')
@@ -1564,14 +1643,18 @@ const seedWithMode = async (mode) => {
 
     console.log(`✅ Seed ${mode} zakończony powodzeniem.`);
     console.log(`🔧 AICO model: ${workflowSeed.model}`);
-    console.log(`🔐 AICO token ustawiony: ${workflowSeed.tokenPresent ? 'tak' : 'nie'}`);
+    console.log(
+      `🔐 AICO token ustawiony: ${workflowSeed.tokenPresent ? 'tak' : 'nie'}`,
+    );
     console.log(`⚙️ AICO workflow enabled: ${workflowSeed.enabledCount}`);
     console.log(`🖼️ AICO media assets (placeholders): ${mediaAssetsSeeded}`);
     console.log(`🗂️ AICO topic queue items: ${topicsSeeded}`);
     console.log(
       `🧪 AICO media coverage ok: ${coverage.ok ? 'tak' : 'nie'} (missing workflows: ${
-        Array.isArray(coverage.missingWorkflows) ? coverage.missingWorkflows.length : 0
-      })`
+        Array.isArray(coverage.missingWorkflows)
+          ? coverage.missingWorkflows.length
+          : 0
+      })`,
     );
 
     if (defaults.includeDemoUser) {

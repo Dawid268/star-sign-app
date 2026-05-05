@@ -1,6 +1,8 @@
 import type { Context } from 'koa';
 
+import { MEDIA_ASSET_UID } from '../constants';
 import type { MediaPeriodScope, MediaPurpose, Strapi } from '../types';
+import { recordAdminAuditEvent } from '../utils/audit-trail';
 import { toSafeErrorMessage } from '../utils/json';
 
 const mediaAssetsController = ({ strapi }: { strapi: Strapi }) => ({
@@ -20,10 +22,31 @@ const mediaAssetsController = ({ strapi }: { strapi: Strapi }) => ({
         .service('media-assets')
         .create((ctx.request.body ?? {}) as Record<string, unknown>);
 
-      const serialized = strapi.plugin('ai-content-orchestrator').service('media-assets').serialize(created);
+      const serialized = strapi
+        .plugin('ai-content-orchestrator')
+        .service('media-assets')
+        .serialize(created);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'media-asset.create',
+        outcome: 'success',
+        resourceUid: MEDIA_ASSET_UID,
+        resourceId: created.id,
+        resourceLabel: created.title ?? created.key,
+        metadata: {
+          changedFields: Object.keys((ctx.request.body ?? {}) as Record<string, unknown>),
+        },
+      });
       ctx.body = { data: serialized };
     } catch (error) {
-      ctx.badRequest(toSafeErrorMessage(error));
+      const message = toSafeErrorMessage(error);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'media-asset.create',
+        outcome: 'failure',
+        severity: 'error',
+        resourceUid: MEDIA_ASSET_UID,
+        metadata: { error: message },
+      });
+      ctx.badRequest(message);
     }
   },
 
@@ -41,10 +64,32 @@ const mediaAssetsController = ({ strapi }: { strapi: Strapi }) => ({
         .service('media-assets')
         .update(id, (ctx.request.body ?? {}) as Record<string, unknown>);
 
-      const serialized = strapi.plugin('ai-content-orchestrator').service('media-assets').serialize(updated);
+      const serialized = strapi
+        .plugin('ai-content-orchestrator')
+        .service('media-assets')
+        .serialize(updated);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'media-asset.update',
+        outcome: 'success',
+        resourceUid: MEDIA_ASSET_UID,
+        resourceId: id,
+        resourceLabel: updated.title ?? updated.key,
+        metadata: {
+          changedFields: Object.keys((ctx.request.body ?? {}) as Record<string, unknown>),
+        },
+      });
       ctx.body = { data: serialized };
     } catch (error) {
-      ctx.badRequest(toSafeErrorMessage(error));
+      const message = toSafeErrorMessage(error);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'media-asset.update',
+        outcome: 'failure',
+        severity: 'error',
+        resourceUid: MEDIA_ASSET_UID,
+        resourceId: ctx.params.id,
+        metadata: { error: message },
+      });
+      ctx.badRequest(message);
     }
   },
 
@@ -65,16 +110,36 @@ const mediaAssetsController = ({ strapi }: { strapi: Strapi }) => ({
           apply: body.apply,
         });
 
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'media-asset.bulk-upsert',
+        outcome: 'success',
+        resourceUid: MEDIA_ASSET_UID,
+        metadata: {
+          count: Array.isArray(body.items) ? body.items.length : 0,
+          dryRun: Boolean(body.dryRun),
+          apply: Boolean(body.apply),
+          result,
+        },
+      });
       ctx.body = { data: result };
     } catch (error) {
-      ctx.badRequest(toSafeErrorMessage(error));
+      const message = toSafeErrorMessage(error);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'media-asset.bulk-upsert',
+        outcome: 'failure',
+        severity: 'error',
+        resourceUid: MEDIA_ASSET_UID,
+        metadata: { error: message },
+      });
+      ctx.badRequest(message);
     }
   },
 
   async previewIdentity(ctx: Context): Promise<void> {
     try {
       const body = (ctx.request.body ?? {}) as Record<string, unknown>;
-      const purpose = typeof body.purpose === 'string' ? (body.purpose as MediaPurpose) : 'blog_article';
+      const purpose =
+        typeof body.purpose === 'string' ? (body.purpose as MediaPurpose) : 'blog_article';
       const periodScope =
         typeof body.period_scope === 'string' ? (body.period_scope as MediaPeriodScope) : 'any';
       const result = await strapi
@@ -104,9 +169,26 @@ const mediaAssetsController = ({ strapi }: { strapi: Strapi }) => ({
           applyWorkflowDisabling: Boolean(body.applyWorkflowDisabling),
         });
 
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'media-asset.validate-coverage',
+        outcome: 'success',
+        resourceUid: MEDIA_ASSET_UID,
+        metadata: {
+          applyWorkflowDisabling: Boolean(body.applyWorkflowDisabling),
+          result,
+        },
+      });
       ctx.body = { data: result };
     } catch (error) {
-      ctx.badRequest(toSafeErrorMessage(error));
+      const message = toSafeErrorMessage(error);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'media-asset.validate-coverage',
+        outcome: 'failure',
+        severity: 'error',
+        resourceUid: MEDIA_ASSET_UID,
+        metadata: { error: message },
+      });
+      ctx.badRequest(message);
     }
   },
 });

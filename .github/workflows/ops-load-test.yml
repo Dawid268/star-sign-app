@@ -1,0 +1,53 @@
+name: Ops Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_frontend:
+        description: Frontend origin, for example https://star-sign.pl
+        required: true
+        type: string
+      target_api:
+        description: API base URL, for example https://api.star-sign.pl/api
+        required: true
+        type: string
+      shop_enabled:
+        description: Expect checkout endpoint validation instead of disabled-shop 404
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  soft-launch:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_FRONTEND: ${{ inputs.target_frontend }}
+      TARGET_API: ${{ inputs.target_api }}
+      TARGET_CHECKOUT_STATUS: ${{ inputs.shop_enabled && '400' || '404' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: mkdir -p artifacts/load
+
+      - run: npm exec -- artillery run ops/load/soft-launch.yml --output artifacts/load/soft-launch.json
+
+      - run: npm exec -- artillery report artifacts/load/soft-launch.json --output artifacts/load/soft-launch.html
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: soft-launch-load-report
+          path: artifacts/load

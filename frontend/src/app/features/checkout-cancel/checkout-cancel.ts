@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { featureFlags } from '../../core/feature-flags';
 
 @Component({
   selector: 'app-checkout-cancel',
@@ -8,4 +9,6 @@ import { RouterLink } from '@angular/router';
   styleUrl: './checkout-cancel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CheckoutCancel {}
+export class CheckoutCancel {
+  public readonly shopEnabled = featureFlags.shopEnabled;
+}

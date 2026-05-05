@@ -2,6 +2,8 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    expose:
+      - '5432'
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -9,10 +11,71 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 10s
       timeout: 5s
       retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    expose:
+      - '6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  bugsink-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    expose:
+      - '5432'
+    environment:
+      POSTGRES_DB: bugsink
+      POSTGRES_USER: bugsink
+      POSTGRES_PASSWORD: ${BUGSINK_POSTGRES_PASSWORD:?BUGSINK_POSTGRES_PASSWORD is required}
+    volumes:
+      - bugsink_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  bugsink:
+    image: bugsink/bugsink:2
+    restart: unless-stopped
+    expose:
+      - '8000'
+    environment:
+      SECRET_KEY: ${BUGSINK_SECRET_KEY:?BUGSINK_SECRET_KEY is required}
+      CREATE_SUPERUSER: ${BUGSINK_CREATE_SUPERUSER:-}
+      PORT: 8000
+      DATABASE_URL: postgresql://bugsink:${BUGSINK_POSTGRES_PASSWORD:?BUGSINK_POSTGRES_PASSWORD is required}@bugsink-db:5432/bugsink
+      BASE_URL: ${BUGSINK_BASE_URL:-https://bugsink.localhost}
+      SITE_TITLE: ${BUGSINK_SITE_TITLE:-Star Sign Bugsink}
+      BEHIND_HTTPS_PROXY: 'True'
+      SINGLE_USER: ${BUGSINK_SINGLE_USER:-true}
+      USER_REGISTRATION: ${BUGSINK_USER_REGISTRATION:-CB_NOBODY}
+      ALERTS_WEBHOOK_URL: ${BUGSINK_ALERT_WEBHOOK_URL:-}
+    depends_on:
+      bugsink-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'python -c "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen(''http://127.0.0.1:8000/'', timeout=5).status < 500 else 1)"',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   api:
     build:
@@ -29,12 +92,23 @@ services:
       DATABASE_NAME: ${POSTGRES_DB}
       DATABASE_USERNAME: ${POSTGRES_USER}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_URL: redis://redis:6379
+      RATE_LIMIT_REDIS_URL: redis://redis:6379
+      HTTP_CACHE_REDIS_URL: redis://redis:6379
       SHOP_ENABLED: ${SHOP_ENABLED:-false}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:1337/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:1337/api/health/ready'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -51,11 +125,23 @@ services:
       FRONTEND_URL: ${FRONTEND_URL}
       SHOP_ENABLED: ${SHOP_ENABLED:-false}
       FRONTEND_SHOP_ENABLED: ${FRONTEND_SHOP_ENABLED:-false}
+      TURNSTILE_ENABLED: ${TURNSTILE_ENABLED:-false}
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
+      GTM_CONTAINER_ID: ${GTM_CONTAINER_ID:-}
+      FRONTEND_SENTRY_DSN: ${FRONTEND_SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:4000/healthz'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -66,21 +152,46 @@ services:
     environment:
       FRONTEND_DOMAIN: ${FRONTEND_DOMAIN}
       API_DOMAIN: ${API_DOMAIN}
+      BUGSINK_DOMAIN: ${BUGSINK_DOMAIN:-bugsink.localhost}
       ACME_EMAIL: ${ACME_EMAIL}
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      frontend:
-        condition: service_healthy
       api:
         condition: service_healthy
+      bugsink:
+        condition: service_healthy
+
+  mailpit:
+    image: axllent/mailpit
+    profiles:
+      - dev
+    restart: unless-stopped
+    ports:
+      - '8025:8025'
+      - '1025:1025'
+
+  stripe:
+    image: stripe/stripe-cli
+    profiles:
+      - dev
+    restart: unless-stopped
+    command: listen --forward-to api:1337/api/stripe/webhook --api-key $STRIPE_SECRET_KEY
+    env_file:
+      - .env
+    depends_on:
+      - api
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
 
 volumes:
   postgres_data:
+  redis_data:
+  bugsink_postgres_data:
   caddy_data:
   caddy_config:

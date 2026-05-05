@@ -36,7 +36,12 @@ const getId = (value: unknown): number | null => {
     return value;
   }
 
-  if (value && typeof value === 'object' && 'id' in value && typeof (value as { id: unknown }).id === 'number') {
+  if (
+    value &&
+    typeof value === 'object' &&
+    'id' in value &&
+    typeof (value as { id: unknown }).id === 'number'
+  ) {
     return (value as { id: number }).id;
   }
 
@@ -65,7 +70,10 @@ const mediaLibrary = ({ strapi }: { strapi: Strapi }) => {
   const mediaAssetsService = () => strapi.plugin('ai-content-orchestrator').service('media-assets');
   const uploadService = () => strapi.plugin('upload').service('upload');
 
-  const buildUploadFilters = (input: MediaLibraryListInput, fileIds?: { include?: number[]; exclude?: number[] }) => {
+  const buildUploadFilters = (
+    input: MediaLibraryListInput,
+    fileIds?: { include?: number[]; exclude?: number[] }
+  ) => {
     const clauses: Array<Record<string, unknown>> = [];
     const search = parseOptionalString(input.search);
 
@@ -103,8 +111,14 @@ const mediaLibrary = ({ strapi }: { strapi: Strapi }) => {
     page: number,
     pageSize: number,
     fileIds?: { include?: number[]; exclude?: number[] }
-  ): Promise<{ results: UploadFileRecord[]; pagination: { page: number; pageSize: number; pageCount: number; total: number } }> => {
-    const sortMap: Record<NonNullable<MediaLibraryListInput['sort']>, Array<Record<string, 'asc' | 'desc'>>> = {
+  ): Promise<{
+    results: UploadFileRecord[];
+    pagination: { page: number; pageSize: number; pageCount: number; total: number };
+  }> => {
+    const sortMap: Record<
+      NonNullable<MediaLibraryListInput['sort']>,
+      Array<Record<string, 'asc' | 'desc'>>
+    > = {
       createdAtDesc: [{ createdAt: 'desc' }],
       createdAtAsc: [{ createdAt: 'asc' }],
       nameAsc: [{ name: 'asc' }],
@@ -180,7 +194,10 @@ const mediaLibrary = ({ strapi }: { strapi: Strapi }) => {
         .map((item) => getId(item.asset))
         .filter((id): id is number => typeof id === 'number');
 
-      if (mappedFilter === 'unmapped' && (purposeFilter !== 'all' || signFilter !== 'all' || activeFilter !== 'all')) {
+      if (
+        mappedFilter === 'unmapped' &&
+        (purposeFilter !== 'all' || signFilter !== 'all' || activeFilter !== 'all')
+      ) {
         return {
           items: [],
           pagination: {
@@ -193,7 +210,10 @@ const mediaLibrary = ({ strapi }: { strapi: Strapi }) => {
       }
 
       const needsMappedInclude =
-        mappedFilter === 'mapped' || purposeFilter !== 'all' || signFilter !== 'all' || activeFilter !== 'all';
+        mappedFilter === 'mapped' ||
+        purposeFilter !== 'all' ||
+        signFilter !== 'all' ||
+        activeFilter !== 'all';
 
       if (needsMappedInclude && matchingMappedFileIds.length === 0) {
         return {

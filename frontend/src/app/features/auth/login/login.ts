@@ -1,8 +1,21 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  inject,
+  signal,
+} from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../../core/services/auth.service';
+import { environment } from '../../../../environments/environment';
+
+type DemoAccount = {
+  label: string;
+  description: string;
+  identifier: string;
+  password: string;
+};
 
 @Component({
   selector: 'app-login',
@@ -15,9 +28,26 @@ export class Login {
   private readonly authService = inject(AuthService);
   private readonly formBuilder = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   public readonly loading = signal(false);
   public readonly error = signal<string | null>(null);
+  public readonly demoAccounts: DemoAccount[] = environment.production
+    ? []
+    : [
+        {
+          label: 'Demo',
+          description: 'Bezpłatny profil startowy',
+          identifier: 'demo@starsign.local',
+          password: 'Test1234!',
+        },
+        {
+          label: 'Premium',
+          description: 'Profil z aktywną subskrypcją',
+          identifier: 'premium@starsign.local',
+          password: 'Test1234!',
+        },
+      ];
 
   public readonly form = this.formBuilder.nonNullable.group({
     identifier: ['', [Validators.required, Validators.email]],
@@ -25,25 +55,42 @@ export class Login {
   });
 
   public submit(): void {
-    if (this.loading() || this.form.invalid) {
+    if (this.loading()) {
+      return;
+    }
+
+    const rawValue = this.form.getRawValue();
+    const identifier = rawValue.identifier.trim().toLowerCase();
+    if (identifier !== rawValue.identifier) {
+      this.form.controls.identifier.setValue(identifier, { emitEvent: false });
+    }
+
+    if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    const { identifier, password } = this.form.getRawValue();
-    this.loading.set(true);
+    this.setFormDisabled(true);
     this.error.set(null);
 
-    this.authService.login(identifier, password).subscribe({
+    this.authService.login(identifier, rawValue.password).subscribe({
       next: () => {
-        this.loading.set(false);
-        this.router.navigateByUrl('/panel');
+        this.setFormDisabled(false);
+        this.router.navigateByUrl(this.resolveReturnUrl());
       },
       error: (error: unknown) => {
-        this.loading.set(false);
+        this.setFormDisabled(false);
         this.error.set(this.toMessage(error));
       },
     });
+  }
+
+  public useDemoAccount(account: DemoAccount): void {
+    this.form.setValue({
+      identifier: account.identifier,
+      password: account.password,
+    });
+    this.error.set(null);
   }
 
   private toMessage(error: unknown): string {
@@ -78,6 +125,30 @@ export class Login {
     if (normalized.includes('too many requests')) {
       return 'Zbyt wiele prób logowania. Spróbuj ponownie za chwilę.';
     }
-    return message;
+    return 'Wystąpił nieoczekiwany błąd serwera.';
+  }
+
+  private setFormDisabled(disabled: boolean): void {
+    this.loading.set(disabled);
+    if (disabled) {
+      this.form.disable({ emitEvent: false });
+      return;
+    }
+
+    this.form.enable({ emitEvent: false });
+  }
+
+  private resolveReturnUrl(): string {
+    const raw = this.route.snapshot.queryParamMap.get('returnUrl');
+    if (!raw) {
+      return '/panel';
+    }
+
+    const normalized = raw.trim();
+    if (!normalized.startsWith('/') || normalized.startsWith('//')) {
+      return '/panel';
+    }
+
+    return normalized;
   }
 }

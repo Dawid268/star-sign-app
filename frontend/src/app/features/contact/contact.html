@@ -1,0 +1,239 @@
+<main class="min-h-screen bg-[#FFFBFB] pt-20 pb-16 sm:pb-24">
+  <!-- Hero Section -->
+  <section
+    class="bg-[#FDF4F5] border-b border-mystic-rose/10 py-12 md:py-20 lg:py-24 mb-12 md:mb-16"
+  >
+    <div class="section-container text-center">
+      <div
+        class="text-4xl text-mystic-gold opacity-40 mb-6 select-none animate-float"
+      >
+        ✦
+      </div>
+      <h1 class="serif-display text-4xl md:text-6xl text-mystic-cocoa mb-4 leading-tight break-words">
+        Skontaktuj się z nami
+      </h1>
+      <p
+        class="text-mystic-cocoa max-w-2xl mx-auto font-light leading-relaxed text-lg"
+      >
+        Masz pytania dotyczące swojego horoskopu, zamówienia w sklepie lub
+        chcesz nawiązać współpracę? Jesteśmy tu, aby Ci pomóc.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-container">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+      <!-- Contact Info -->
+      <div class="space-y-12">
+        <div>
+          <h2 class="serif-display text-3xl text-mystic-cocoa mb-8">
+            Nasze Wibracje
+          </h2>
+          <div class="space-y-8">
+            <div class="flex items-start gap-4 sm:gap-6">
+              <div
+                class="w-12 h-12 rounded-full bg-white border border-mystic-rose/20 flex items-center justify-center text-mystic-rose shrink-0"
+              >
+                <ng-icon name="heroEnvelope" class="text-xl" />
+              </div>
+              <div>
+                <h3
+                  class="text-mystic-cocoa font-bold text-sm uppercase tracking-widest mb-1"
+                >
+                  E-mail
+                </h3>
+                <p class="text-mystic-cocoa text-lg">{{ contactEmail }}</p>
+              </div>
+            </div>
+
+            @if (contactPhone) {
+            <div class="flex items-start gap-6">
+              <div
+                class="w-12 h-12 rounded-full bg-white border border-mystic-rose/20 flex items-center justify-center text-mystic-rose shrink-0"
+              >
+                <ng-icon name="heroPhone" class="text-xl" />
+              </div>
+              <div>
+                <h3
+                  class="text-mystic-cocoa font-bold text-sm uppercase tracking-widest mb-1"
+                >
+                  Telefon
+                </h3>
+                <p class="text-mystic-cocoa text-lg">{{ contactPhone }}</p>
+              </div>
+            </div>
+            } @if (contactAddress) {
+            <div class="flex items-start gap-6">
+              <div
+                class="w-12 h-12 rounded-full bg-white border border-mystic-rose/20 flex items-center justify-center text-mystic-rose shrink-0"
+              >
+                <ng-icon name="heroMapPin" class="text-xl" />
+              </div>
+              <div>
+                <h3
+                  class="text-mystic-cocoa font-bold text-sm uppercase tracking-widest mb-1"
+                >
+                  Biuro
+                </h3>
+                <p class="text-mystic-cocoa text-lg">{{ contactAddress }}</p>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+
+        @if (socials.length > 0) {
+        <!-- Socials -->
+        <div>
+          <h3
+            class="text-mystic-cocoa font-bold text-sm uppercase tracking-widest mb-6"
+          >
+            Znajdź nas w sieci
+          </h3>
+          <div class="flex gap-4">
+            @for (social of socials; track social.label) {
+            <a
+              [href]="social.href"
+              class="w-12 h-12 rounded-full border border-mystic-rose/20 flex items-center justify-center text-mystic-cocoa hover:text-mystic-rose hover:border-mystic-rose transition-all"
+              >{{ social.label }}</a
+            >
+            }
+          </div>
+        </div>
+        }
+      </div>
+
+      <!-- Contact Form -->
+      <div
+        class="bg-white rounded-3xl md:rounded-[2.5rem] p-5 sm:p-8 md:p-12 shadow-xl shadow-mystic-rose/5 border border-mystic-rose/10"
+      >
+        @if (isSuccess()) {
+        <div
+          class="text-center py-12 animate-fade-in"
+          data-test="contact-success-message"
+        >
+          <div class="text-6xl text-mystic-gold mb-6">✧</div>
+          <h3 class="serif-display text-3xl text-mystic-cocoa mb-4">
+            Wiadomość wysłana!
+          </h3>
+          <p class="text-mystic-cocoa mb-8">
+            Dziękujemy za kontakt. Odpowiemy tak szybko, jak pozwoli na to układ
+            planet.
+          </p>
+          <button (click)="isSuccess.set(false)" class="btn-outline">
+            Wyślij kolejną
+          </button>
+        </div>
+        } @else {
+        <form
+          (ngSubmit)="onSubmit()"
+          class="space-y-6"
+          data-test="contact-form"
+        >
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-2">
+              <label
+                for="name"
+                class="text-xs font-bold uppercase tracking-widest text-mystic-cocoa ml-1"
+                >Imię i Nazwisko</label
+              >
+              <input
+                type="text"
+                id="name"
+                name="name"
+                [(ngModel)]="formData.name"
+                (ngModelChange)="handleFormChange()"
+                required
+                data-test="contact-name-input"
+                class="w-full bg-[#FDF4F5]/50 border border-mystic-rose/10 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-mystic-rose/20 focus:border-mystic-rose outline-none transition-all"
+                placeholder="Jan Kowalski"
+              />
+            </div>
+            <div class="space-y-2">
+              <label
+                for="email"
+                class="text-xs font-bold uppercase tracking-widest text-mystic-cocoa ml-1"
+                >Adres E-mail</label
+              >
+              <input
+                type="email"
+                id="email"
+                name="email"
+                [(ngModel)]="formData.email"
+                (ngModelChange)="handleFormChange()"
+                required
+                email
+                data-test="contact-email-input"
+                class="w-full bg-[#FDF4F5]/50 border border-mystic-rose/10 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-mystic-rose/20 focus:border-mystic-rose outline-none transition-all"
+                placeholder="jan@przyklad.pl"
+              />
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label
+              for="subject"
+              class="text-xs font-bold uppercase tracking-widest text-mystic-cocoa ml-1"
+              >Temat</label
+            >
+            <input
+              type="text"
+              id="subject"
+              name="subject"
+              [(ngModel)]="formData.subject"
+              (ngModelChange)="handleFormChange()"
+              required
+              data-test="contact-subject-input"
+              class="w-full bg-[#FDF4F5]/50 border border-mystic-rose/10 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-mystic-rose/20 focus:border-mystic-rose outline-none transition-all"
+              placeholder="W czym możemy pomóc?"
+            />
+          </div>
+
+          <div class="space-y-2">
+            <label
+              for="message"
+              class="text-xs font-bold uppercase tracking-widest text-mystic-cocoa ml-1"
+              >Wiadomość</label
+            >
+            <textarea
+              id="message"
+              name="message"
+              [(ngModel)]="formData.message"
+              (ngModelChange)="handleFormChange()"
+              required
+              rows="5"
+              data-test="contact-message-input"
+              class="w-full bg-[#FDF4F5]/50 border border-mystic-rose/10 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-mystic-rose/20 focus:border-mystic-rose outline-none transition-all resize-none"
+              placeholder="Twoja wiadomość..."
+            ></textarea>
+          </div>
+
+          <app-turnstile-widget
+            action="contact"
+            (tokenChange)="handleTurnstileToken($event)"
+            class="pt-1"
+          />
+
+          <button
+            type="submit"
+            [disabled]="!isFormReady() || isSubmitting()"
+            data-test="contact-submit-button"
+            class="btn-primary w-full py-4 sm:py-5 flex items-center justify-center gap-3 group"
+          >
+            @if (isSubmitting()) {
+            <span class="animate-spin text-xl">✧</span>
+            <span>Wysyłanie...</span>
+            } @else {
+            <ng-icon
+              name="heroPaperAirplane"
+              class="text-xl group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"
+            />
+            <span>Wyślij wiadomość</span>
+            }
+          </button>
+        </form>
+        }
+      </div>
+    </div>
+  </div>
+</main>

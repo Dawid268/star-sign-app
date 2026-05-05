@@ -430,6 +430,222 @@ export interface AdminUser extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiAnalyticsEventAnalyticsEvent
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'analytics_events';
+  info: {
+    description: 'First-party product analytics event log.';
+    displayName: 'Analytics Event';
+    pluralName: 'analytics-events';
+    singularName: 'analytics-event';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    access_state: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 80;
+      }>;
+    auth_state: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 40;
+      }>;
+    browser_family: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 40;
+      }>;
+    content_id: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 120;
+      }>;
+    content_slug: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 180;
+      }>;
+    content_type: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 80;
+      }>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    cta_location: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 120;
+      }>;
+    currency: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 12;
+      }>;
+    device_category: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 40;
+      }>;
+    event_day: Schema.Attribute.Date;
+    event_type: Schema.Attribute.Enumeration<
+      [
+        'daily_horoscope_view',
+        'premium_content_impression',
+        'premium_content_view',
+        'premium_cta_click',
+        'premium_pricing_view',
+        'begin_checkout',
+        'checkout_redirect',
+        'purchase',
+        'premium_subscription_conversion',
+        'view_item',
+        'select_item',
+      ]
+    > &
+      Schema.Attribute.Required;
+    funnel_step: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 80;
+      }>;
+    horoscope_period: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 80;
+      }>;
+    is_unique_daily: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::analytics-event.analytics-event'
+    > &
+      Schema.Attribute.Private;
+    metadata: Schema.Attribute.JSON;
+    occurred_at: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    plan: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 80;
+      }>;
+    premium_access_policy: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 80;
+      }>;
+    premium_mode: Schema.Attribute.Enumeration<['open', 'paid']>;
+    publishedAt: Schema.Attribute.DateTime;
+    referrer: Schema.Attribute.Text;
+    route: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 300;
+      }>;
+    session_id: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 128;
+      }>;
+    sign_slug: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 80;
+      }>;
+    subscription_plan: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 80;
+      }>;
+    subscription_status: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 40;
+      }>;
+    ui_surface: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 120;
+      }>;
+    unique_key: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 400;
+      }>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+    utm_campaign: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 180;
+      }>;
+    utm_medium: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 120;
+      }>;
+    utm_source: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 120;
+      }>;
+    value: Schema.Attribute.Decimal;
+    visitor_id: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 128;
+      }>;
+    visitor_segment: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 40;
+      }>;
+  };
+}
+
+export interface ApiAppSettingAppSetting extends Struct.SingleTypeSchema {
+  collectionName: 'app_settings';
+  info: {
+    description: 'Production feature and billing settings managed from Strapi.';
+    displayName: 'App Settings';
+    pluralName: 'app-settings';
+    singularName: 'app-setting';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    allow_promotion_codes: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<true>;
+    annual_price: Schema.Attribute.Decimal & Schema.Attribute.DefaultTo<199>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    currency: Schema.Attribute.Enumeration<['PLN', 'EUR', 'USD']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'PLN'>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::app-setting.app-setting'
+    > &
+      Schema.Attribute.Private;
+    monthly_price: Schema.Attribute.Decimal & Schema.Attribute.DefaultTo<24.99>;
+    premium_mode: Schema.Attribute.Enumeration<['open', 'paid']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'open'>;
+    publishedAt: Schema.Attribute.DateTime;
+    stripe_annual_price_id: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 120;
+      }>;
+    stripe_checkout_enabled: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
+    stripe_monthly_price_id: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 120;
+      }>;
+    trial_days: Schema.Attribute.Integer &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 90;
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<7>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiArticleArticle extends Struct.CollectionTypeSchema {
   collectionName: 'articles';
   info: {
@@ -449,14 +665,17 @@ export interface ApiArticleArticle extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     excerpt: Schema.Attribute.Text;
     image: Schema.Attribute.Media<'images'>;
+    isPremium: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::article.article'
     > &
       Schema.Attribute.Private;
+    premiumContent: Schema.Attribute.RichText;
     publishedAt: Schema.Attribute.DateTime;
     read_time_minutes: Schema.Attribute.Integer;
+    seo: Schema.Attribute.Component<'shared.seo', false>;
     slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
@@ -555,7 +774,9 @@ export interface ApiHoroscopeHoroscope extends Struct.CollectionTypeSchema {
     period: Schema.Attribute.Enumeration<
       ['Dzienny', 'Tygodniowy', 'Miesi\u0119czny', 'Roczny']
     >;
+    premiumContent: Schema.Attribute.Text;
     publishedAt: Schema.Attribute.DateTime;
+    seo: Schema.Attribute.Component<'shared.seo', false>;
     type: Schema.Attribute.Enumeration<
       [
         'Og\u00F3lny',
@@ -651,6 +872,7 @@ export interface ApiNumerologyProfileNumerologyProfile
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
     publishedAt: Schema.Attribute.DateTime;
+    seo: Schema.Attribute.Component<'shared.seo', false>;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -797,6 +1019,7 @@ export interface ApiTarotCardTarotCard extends Struct.CollectionTypeSchema {
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     description: Schema.Attribute.Text;
+    image: Schema.Attribute.Media<'images'>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -936,6 +1159,7 @@ export interface ApiZodiacSignZodiacSign extends Struct.CollectionTypeSchema {
       'oneToMany',
       'api::horoscope.horoscope'
     >;
+    image: Schema.Attribute.Media<'images'>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
@@ -947,11 +1171,261 @@ export interface ApiZodiacSignZodiacSign extends Struct.CollectionTypeSchema {
       Schema.Attribute.Unique;
     planet: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
+    seo: Schema.Attribute.Component<'shared.seo', false>;
     slug: Schema.Attribute.UID<'name'> & Schema.Attribute.Required;
     symbol: Schema.Attribute.Media<'images'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+  };
+}
+
+export interface PluginAiContentOrchestratorContentPerformanceSnapshot
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'aico_content_performance_snapshots';
+  info: {
+    displayName: 'AICO Content Performance Snapshot';
+    pluralName: 'content-performance-snapshots';
+    singularName: 'content-performance-snapshot';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  pluginOptions: {
+    'content-manager': {
+      visible: true;
+    };
+    'content-type-builder': {
+      visible: true;
+    };
+  };
+  attributes: {
+    checkout_events: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    content_entry_id: Schema.Attribute.Integer & Schema.Attribute.Required;
+    content_slug: Schema.Attribute.String;
+    content_title: Schema.Attribute.String;
+    content_uid: Schema.Attribute.String & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    cta_clicks: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    freshness_days: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'plugin::ai-content-orchestrator.content-performance-snapshot'
+    > &
+      Schema.Attribute.Private;
+    metadata: Schema.Attribute.JSON;
+    premium_events: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    publishedAt: Schema.Attribute.DateTime;
+    recommendations: Schema.Attribute.JSON;
+    score: Schema.Attribute.Float & Schema.Attribute.DefaultTo<0>;
+    snapshot_day: Schema.Attribute.Date & Schema.Attribute.Required;
+    social_failed: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    social_published: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    unique_key: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    views: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    workflow: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::ai-content-orchestrator.workflow'
+    >;
+  };
+}
+
+export interface PluginAiContentOrchestratorContentPlanItem
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'aico_content_plan_items';
+  info: {
+    displayName: 'AICO Content Plan Item';
+    pluralName: 'content-plan-items';
+    singularName: 'content-plan-item';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  pluginOptions: {
+    'content-manager': {
+      visible: true;
+    };
+    'content-type-builder': {
+      visible: true;
+    };
+  };
+  attributes: {
+    agent_rationale: Schema.Attribute.Text;
+    article_category: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::category.category'
+    >;
+    brief: Schema.Attribute.Text;
+    channels: Schema.Attribute.JSON;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    dedupe_key: Schema.Attribute.String;
+    generated_topic: Schema.Attribute.Relation<
+      'oneToOne',
+      'plugin::ai-content-orchestrator.topic-queue-item'
+    >;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'plugin::ai-content-orchestrator.content-plan-item'
+    > &
+      Schema.Attribute.Private;
+    metadata: Schema.Attribute.JSON;
+    priority_score: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<50>;
+    publishedAt: Schema.Attribute.DateTime;
+    seo_cluster: Schema.Attribute.String;
+    seo_intent: Schema.Attribute.String;
+    source: Schema.Attribute.Enumeration<
+      ['strategy_agent', 'manual', 'performance_feedback']
+    > &
+      Schema.Attribute.DefaultTo<'strategy_agent'>;
+    status: Schema.Attribute.Enumeration<
+      ['planned', 'approved', 'queued', 'published', 'rejected', 'failed']
+    > &
+      Schema.Attribute.DefaultTo<'planned'>;
+    target_persona: Schema.Attribute.String;
+    target_publish_at: Schema.Attribute.DateTime;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    workflow: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::ai-content-orchestrator.workflow'
+    >;
+  };
+}
+
+export interface PluginAiContentOrchestratorEditorialMemory
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'aico_editorial_memories';
+  info: {
+    displayName: 'AICO Editorial Memory';
+    pluralName: 'editorial-memories';
+    singularName: 'editorial-memory';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  pluginOptions: {
+    'content-manager': {
+      visible: true;
+    };
+    'content-type-builder': {
+      visible: true;
+    };
+  };
+  attributes: {
+    active: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    content: Schema.Attribute.Text & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    key: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    label: Schema.Attribute.String & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'plugin::ai-content-orchestrator.editorial-memory'
+    > &
+      Schema.Attribute.Private;
+    memory_type: Schema.Attribute.Enumeration<
+      [
+        'brand_voice',
+        'seo_rule',
+        'persona',
+        'prohibited_phrase',
+        'linking_rule',
+        'custom',
+      ]
+    > &
+      Schema.Attribute.DefaultTo<'custom'>;
+    metadata: Schema.Attribute.JSON;
+    priority: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface PluginAiContentOrchestratorHomepageRecommendation
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'aico_homepage_recommendations';
+  info: {
+    displayName: 'AICO Homepage Recommendation';
+    pluralName: 'homepage-recommendations';
+    singularName: 'homepage-recommendation';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  pluginOptions: {
+    'content-manager': {
+      visible: true;
+    };
+    'content-type-builder': {
+      visible: true;
+    };
+  };
+  attributes: {
+    content_entry_id: Schema.Attribute.Integer;
+    content_slug: Schema.Attribute.String;
+    content_uid: Schema.Attribute.String;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    expires_at: Schema.Attribute.DateTime;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'plugin::ai-content-orchestrator.homepage-recommendation'
+    > &
+      Schema.Attribute.Private;
+    metadata: Schema.Attribute.JSON;
+    priority_score: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<50>;
+    publishedAt: Schema.Attribute.DateTime;
+    rationale: Schema.Attribute.Text;
+    slot: Schema.Attribute.Enumeration<
+      [
+        'today_in_stars',
+        'weekly_focus',
+        'recommended_for_you',
+        'new_premium',
+        'evergreen',
+      ]
+    > &
+      Schema.Attribute.Required;
+    source_snapshot: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::ai-content-orchestrator.content-performance-snapshot'
+    >;
+    starts_at: Schema.Attribute.DateTime;
+    status: Schema.Attribute.Enumeration<
+      ['scheduled', 'active', 'expired', 'archived']
+    > &
+      Schema.Attribute.DefaultTo<'active'>;
+    subtitle: Schema.Attribute.Text;
+    target_url: Schema.Attribute.String;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    workflow: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::ai-content-orchestrator.workflow'
+    >;
   };
 }
 
@@ -1006,7 +1480,13 @@ export interface PluginAiContentOrchestratorMediaAsset
     priority: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     publishedAt: Schema.Attribute.DateTime;
     purpose: Schema.Attribute.Enumeration<
-      ['horoscope_sign', 'daily_card', 'blog_article', 'fallback_general']
+      [
+        'horoscope_sign',
+        'daily_card',
+        'blog_article',
+        'zodiac_profile',
+        'fallback_general',
+      ]
     > &
       Schema.Attribute.DefaultTo<'blog_article'>;
     sign_slug: Schema.Attribute.String;
@@ -1183,6 +1663,72 @@ export interface PluginAiContentOrchestratorRunLog
   };
 }
 
+export interface PluginAiContentOrchestratorSocialPostTicket
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'aico_social_post_tickets';
+  info: {
+    displayName: 'AICO Social Post Ticket';
+    pluralName: 'social-post-tickets';
+    singularName: 'social-post-ticket';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  pluginOptions: {
+    'content-manager': {
+      visible: true;
+    };
+    'content-type-builder': {
+      visible: true;
+    };
+  };
+  attributes: {
+    attempt_count: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    blocked_reason: Schema.Attribute.String;
+    caption: Schema.Attribute.Text & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    idempotency_key: Schema.Attribute.String & Schema.Attribute.Unique;
+    last_error: Schema.Attribute.Text;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'plugin::ai-content-orchestrator.social-post-ticket'
+    > &
+      Schema.Attribute.Private;
+    media_url: Schema.Attribute.String;
+    next_attempt_at: Schema.Attribute.DateTime;
+    platform: Schema.Attribute.Enumeration<
+      ['facebook', 'instagram', 'twitter', 'tiktok']
+    > &
+      Schema.Attribute.Required;
+    provider_payload: Schema.Attribute.JSON;
+    provider_post_id: Schema.Attribute.String;
+    published_on: Schema.Attribute.DateTime;
+    publishedAt: Schema.Attribute.DateTime;
+    related_content_id: Schema.Attribute.Integer;
+    related_content_uid: Schema.Attribute.String;
+    scheduled_at: Schema.Attribute.DateTime & Schema.Attribute.Required;
+    source_run: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::ai-content-orchestrator.run-log'
+    >;
+    status: Schema.Attribute.Enumeration<
+      ['pending', 'scheduled', 'published', 'failed', 'canceled']
+    > &
+      Schema.Attribute.DefaultTo<'pending'>;
+    target_url: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    workflow: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::ai-content-orchestrator.workflow'
+    >;
+  };
+}
+
 export interface PluginAiContentOrchestratorTopicQueueItem
   extends Struct.CollectionTypeSchema {
   collectionName: 'aico_topic_queue_items';
@@ -1224,13 +1770,20 @@ export interface PluginAiContentOrchestratorTopicQueueItem
     > &
       Schema.Attribute.Private;
     metadata: Schema.Attribute.JSON;
+    plan_item: Schema.Attribute.Relation<
+      'oneToOne',
+      'plugin::ai-content-orchestrator.content-plan-item'
+    >;
+    priority_score: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<50>;
     processed_at: Schema.Attribute.DateTime;
     publishedAt: Schema.Attribute.DateTime;
     scheduled_for: Schema.Attribute.DateTime;
+    seo_intent: Schema.Attribute.String;
     status: Schema.Attribute.Enumeration<
       ['pending', 'processing', 'done', 'failed']
     > &
       Schema.Attribute.DefaultTo<'pending'>;
+    target_persona: Schema.Attribute.String;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1320,6 +1873,8 @@ export interface PluginAiContentOrchestratorWorkflow
       'api::category.category'
     >;
     auto_publish: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    auto_publish_guardrails: Schema.Attribute.JSON;
+    content_cluster: Schema.Attribute.String;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1328,13 +1883,21 @@ export interface PluginAiContentOrchestratorWorkflow
     daily_token_limit: Schema.Attribute.Integer &
       Schema.Attribute.DefaultTo<250000>;
     enabled: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    enabled_channels: Schema.Attribute.JSON;
+    fb_access_token_encrypted: Schema.Attribute.Text;
+    fb_page_id: Schema.Attribute.String;
     force_regenerate: Schema.Attribute.Boolean &
       Schema.Attribute.DefaultTo<false>;
     generate_cron: Schema.Attribute.String & Schema.Attribute.Required;
     horoscope_period: Schema.Attribute.Enumeration<
-      ['Dzienny', 'Tygodniowy', 'Miesi\u0119czny']
+      ['Dzienny', 'Tygodniowy', 'Miesi\u0119czny', 'Roczny']
     >;
     horoscope_type_values: Schema.Attribute.JSON;
+    ig_access_token_encrypted: Schema.Attribute.Text;
+    ig_user_id: Schema.Attribute.String;
+    image_gen_api_token_encrypted: Schema.Attribute.Text;
+    image_gen_model: Schema.Attribute.String &
+      Schema.Attribute.DefaultTo<'openai/gpt-image-2'>;
     last_error: Schema.Attribute.Text;
     last_generated_at: Schema.Attribute.DateTime;
     last_generation_slot: Schema.Attribute.String;
@@ -1353,6 +1916,8 @@ export interface PluginAiContentOrchestratorWorkflow
     name: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
+    performance_feedback_enabled: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<true>;
     prompt_template: Schema.Attribute.Text & Schema.Attribute.Required;
     publish_cron: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
@@ -1363,11 +1928,15 @@ export interface PluginAiContentOrchestratorWorkflow
       ['idle', 'running', 'failed', 'blocked_budget']
     > &
       Schema.Attribute.DefaultTo<'idle'>;
+    strategy_enabled: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
     temperature: Schema.Attribute.Float & Schema.Attribute.DefaultTo<0.7>;
     timezone: Schema.Attribute.String &
       Schema.Attribute.DefaultTo<'Europe/Warsaw'>;
     topic_mode: Schema.Attribute.Enumeration<['manual', 'mixed']> &
       Schema.Attribute.DefaultTo<'mixed'>;
+    tt_access_token_encrypted: Schema.Attribute.Text;
+    tt_creator_id: Schema.Attribute.String;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1375,6 +1944,10 @@ export interface PluginAiContentOrchestratorWorkflow
       ['horoscope', 'daily_card', 'article']
     > &
       Schema.Attribute.Required;
+    x_access_token_encrypted: Schema.Attribute.Text;
+    x_access_token_secret_encrypted: Schema.Attribute.Text;
+    x_api_key: Schema.Attribute.String;
+    x_api_secret_encrypted: Schema.Attribute.Text;
   };
 }
 
@@ -1889,6 +2462,8 @@ declare module '@strapi/strapi' {
       'admin::transfer-token': AdminTransferToken;
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
+      'api::analytics-event.analytics-event': ApiAnalyticsEventAnalyticsEvent;
+      'api::app-setting.app-setting': ApiAppSettingAppSetting;
       'api::article.article': ApiArticleArticle;
       'api::category.category': ApiCategoryCategory;
       'api::daily-tarot-draw.daily-tarot-draw': ApiDailyTarotDrawDailyTarotDraw;
@@ -1902,10 +2477,15 @@ declare module '@strapi/strapi' {
       'api::user-profile.user-profile': ApiUserProfileUserProfile;
       'api::user-reading.user-reading': ApiUserReadingUserReading;
       'api::zodiac-sign.zodiac-sign': ApiZodiacSignZodiacSign;
+      'plugin::ai-content-orchestrator.content-performance-snapshot': PluginAiContentOrchestratorContentPerformanceSnapshot;
+      'plugin::ai-content-orchestrator.content-plan-item': PluginAiContentOrchestratorContentPlanItem;
+      'plugin::ai-content-orchestrator.editorial-memory': PluginAiContentOrchestratorEditorialMemory;
+      'plugin::ai-content-orchestrator.homepage-recommendation': PluginAiContentOrchestratorHomepageRecommendation;
       'plugin::ai-content-orchestrator.media-asset': PluginAiContentOrchestratorMediaAsset;
       'plugin::ai-content-orchestrator.media-usage-log': PluginAiContentOrchestratorMediaUsageLog;
       'plugin::ai-content-orchestrator.publication-ticket': PluginAiContentOrchestratorPublicationTicket;
       'plugin::ai-content-orchestrator.run-log': PluginAiContentOrchestratorRunLog;
+      'plugin::ai-content-orchestrator.social-post-ticket': PluginAiContentOrchestratorSocialPostTicket;
       'plugin::ai-content-orchestrator.topic-queue-item': PluginAiContentOrchestratorTopicQueueItem;
       'plugin::ai-content-orchestrator.usage-daily': PluginAiContentOrchestratorUsageDaily;
       'plugin::ai-content-orchestrator.workflow': PluginAiContentOrchestratorWorkflow;

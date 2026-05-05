@@ -1,235 +1,402 @@
 <section class="section-container !py-14 md:!py-20">
   <div class="max-w-6xl mx-auto space-y-8">
-    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+    <div
+      class="flex flex-col md:flex-row md:items-end md:justify-between gap-4"
+    >
       <div>
-        <p class="text-xs uppercase tracking-[0.2em] text-mystic-rose/70 mb-2">Panel Użytkownika</p>
-        <h1 class="serif-display text-4xl md:text-5xl text-mystic-cocoa">Mój rytuał</h1>
+        <p class="text-xs uppercase tracking-[0.2em] text-mystic-rose mb-2">
+          Panel Użytkownika
+        </p>
+        <h1 class="serif-display text-4xl md:text-5xl text-mystic-cocoa">
+          Mój rytuał
+        </h1>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex w-full flex-wrap items-center gap-3 sm:w-auto">
         @if (shopEnabled) {
-          <a routerLink="/sklep" class="btn-outline !px-5 !py-2.5 text-sm">Sklep</a>
+        <a routerLink="/sklep" class="btn-outline !px-5 !py-2.5 text-sm"
+          >Sklep</a
+        >
         }
-        <button type="button" (click)="logout()" class="btn-outline !px-5 !py-2.5 text-sm">Wyloguj</button>
+        <button
+          type="button"
+          (click)="logout()"
+          class="btn-outline !px-5 !py-2.5 text-sm"
+        >
+          Wyloguj
+        </button>
       </div>
     </div>
 
     @if (loading()) {
-      <div class="glass-panel rounded-3xl p-10 border border-mystic-rose/10 text-mystic-cocoa/70">
-        Ładowanie panelu...
-      </div>
-    } @else {
-      @if (error()) {
-        <div class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-700 text-sm">
-          {{ error() }}
-        </div>
-      }
-
-      @if (successMessage()) {
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-700 text-sm">
-          {{ successMessage() }}
-        </div>
-      }
-
-      @let vm = dashboard();
-      @if (vm) {
-        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <article class="glass-panel rounded-3xl border border-mystic-rose/10 p-6 xl:col-span-2">
-            <div class="flex items-start justify-between gap-4 mb-5">
-              <div>
-                <h2 class="serif-display text-3xl text-mystic-cocoa">Mój dzień</h2>
-                <p class="text-sm text-mystic-cocoa/65 mt-2">
-                  {{ vm.daily.date }} @if (vm.daily.sign?.name) { · Znak: {{ vm.daily.sign?.name }} }
-                </p>
-              </div>
-              @if (subscription()) {
-                <span class="px-3 py-1 rounded-full text-xs font-semibold" [class]="subscriptionBadgeClass(subscription()!.status)">
-                  {{ subscriptionLabel(subscription()!.status) }}
-                </span>
-              }
-            </div>
-
-            <p class="text-mystic-cocoa/75 mb-6">{{ vm.daily.teaser }}</p>
-
-            <div class="grid md:grid-cols-2 gap-5">
-              <div class="bg-white/80 rounded-2xl border border-mystic-rose/10 p-5">
-                <p class="text-xs uppercase tracking-[0.2em] text-mystic-rose/70 mb-3">Horoskop</p>
-                <p class="text-sm text-mystic-cocoa/85 leading-relaxed">{{ vm.daily.horoscope.teaser }}</p>
-                @if (vm.daily.horoscope.premiumContent) {
-                  <p class="text-sm text-mystic-cocoa/85 leading-relaxed mt-4 whitespace-pre-line">
-                    {{ vm.daily.horoscope.premiumContent }}
-                  </p>
-                } @else {
-                  <p class="text-sm text-mystic-cocoa/60 mt-4">Pełna, spersonalizowana interpretacja dostępna w Premium.</p>
-                }
-                <button
-                  type="button"
-                  class="btn-outline mt-5 !px-4 !py-2 text-sm"
-                  (click)="saveTodayReading('horoscope')"
-                  [disabled]="readingSaving() === 'horoscope'"
-                >
-                  @if (readingSaving() === 'horoscope') {
-                    Zapisywanie...
-                  } @else {
-                    Zapisz horoskop
-                  }
-                </button>
-              </div>
-
-              <div class="bg-white/80 rounded-2xl border border-mystic-rose/10 p-5">
-                <p class="text-xs uppercase tracking-[0.2em] text-mystic-rose/70 mb-3">Karta dnia</p>
-                @if (vm.daily.tarot.cardName) {
-                  <p class="text-sm font-medium text-mystic-cocoa mb-2">{{ vm.daily.tarot.cardName }}</p>
-                }
-                <p class="text-sm text-mystic-cocoa/85 leading-relaxed">{{ vm.daily.tarot.teaserMessage }}</p>
-                @if (vm.daily.tarot.premiumMessage) {
-                  <p class="text-sm text-mystic-cocoa/85 leading-relaxed mt-4 whitespace-pre-line">
-                    {{ vm.daily.tarot.premiumMessage }}
-                  </p>
-                } @else {
-                  <p class="text-sm text-mystic-cocoa/60 mt-4">Pełna interpretacja karty jest dostępna w Premium.</p>
-                }
-                <button
-                  type="button"
-                  class="btn-outline mt-5 !px-4 !py-2 text-sm"
-                  (click)="saveTodayReading('tarot')"
-                  [disabled]="readingSaving() === 'tarot'"
-                >
-                  @if (readingSaving() === 'tarot') {
-                    Zapisywanie...
-                  } @else {
-                    Zapisz kartę dnia
-                  }
-                </button>
-              </div>
-            </div>
-
-            <p class="text-xs text-mystic-cocoa/55 mt-6">{{ vm.daily.disclaimer }}</p>
-          </article>
-
-          <article class="glass-panel rounded-3xl border border-mystic-rose/10 p-6">
-            <h2 class="serif-display text-2xl text-mystic-cocoa mb-4">Subskrypcja</h2>
-            <p class="text-sm text-mystic-cocoa/70 mb-3">
-              Status:
-              <span class="font-medium text-mystic-cocoa">{{ subscriptionLabel(vm.subscription.status) }}</span>
+    <div
+      class="glass-panel rounded-3xl p-10 border border-mystic-rose/10 text-mystic-cocoa"
+    >
+      Ładowanie panelu...
+    </div>
+    } @else { @if (error()) {
+    <div
+      class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-700 text-sm"
+    >
+      {{ error() }}
+    </div>
+    } @if (successMessage()) {
+    <div
+      class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-700 text-sm"
+    >
+      {{ successMessage() }}
+    </div>
+    } @let vm = dashboard(); @if (vm) {
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <article
+        class="glass-panel rounded-3xl border border-mystic-rose/10 p-5 sm:p-6 xl:col-span-2"
+      >
+        <div
+          class="flex flex-col items-start justify-between gap-4 mb-5 sm:flex-row"
+        >
+          <div>
+            <h2 class="serif-display text-3xl text-mystic-cocoa">Mój dzień</h2>
+            <p class="text-sm text-mystic-cocoa mt-2">
+              {{ vm.daily.date }} @if (vm.daily.sign?.name) { · Znak: {{
+              vm.daily.sign?.name }} }
             </p>
-            <p class="text-sm text-mystic-cocoa/70 mb-2">
-              Plan:
-              <span class="font-medium text-mystic-cocoa">{{ vm.subscription.plan || 'brak' }}</span>
-            </p>
-            @if (vm.subscription.trialEndsAt) {
-              <p class="text-sm text-mystic-cocoa/70 mb-2">
-                Koniec triala: <span class="font-medium text-mystic-cocoa">{{ vm.subscription.trialEndsAt | date: 'yyyy-MM-dd' }}</span>
-              </p>
-            }
-            @if (vm.subscription.currentPeriodEnd) {
-              <p class="text-sm text-mystic-cocoa/70 mb-2">
-                Kolejne odnowienie: <span class="font-medium text-mystic-cocoa">{{ vm.subscription.currentPeriodEnd | date: 'yyyy-MM-dd' }}</span>
-              </p>
-            }
-            @if (vm.subscription.cancelAtPeriodEnd) {
-              <p class="text-sm text-amber-700 mb-2">Subskrypcja jest ustawiona do wygaśnięcia na koniec okresu.</p>
-            }
-
-            <div class="mt-5 space-y-3">
-              <button
-                type="button"
-                class="btn-primary w-full !py-3 text-base"
-                [disabled]="billingLoading()"
-                (click)="startSubscription('monthly')"
-              >
-                Premium 19,99 zł / mies.
-              </button>
-              <button
-                type="button"
-                class="btn-outline w-full !py-3 text-base"
-                [disabled]="billingLoading()"
-                (click)="startSubscription('annual')"
-              >
-                Premium 199,99 zł / rok
-              </button>
-              <button
-                type="button"
-                class="btn-outline w-full !py-3 text-base"
-                [disabled]="billingLoading()"
-                (click)="openSubscriptionPortal()"
-              >
-                Zarządzaj subskrypcją
-              </button>
-            </div>
-          </article>
+          </div>
+          @if (subscription()) {
+          <span
+            class="px-3 py-1 rounded-full text-xs font-semibold"
+            [class]="subscriptionBadgeClass(subscription()!.status)"
+          >
+            {{ subscriptionLabel(subscription()!.status) }}
+          </span>
+          }
         </div>
 
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <article class="glass-panel rounded-3xl border border-mystic-rose/10 p-6">
-            <h2 class="serif-display text-2xl text-mystic-cocoa mb-5">Mój profil</h2>
-            <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="space-y-4">
-              <div class="grid sm:grid-cols-2 gap-4">
-                <label class="block">
-                  <span class="block text-sm text-mystic-cocoa/80 mb-2">Data urodzenia</span>
-                  <input formControlName="birthDate" type="date" class="w-full rounded-xl border border-mystic-rose/20 bg-white/80 px-3 py-2.5 outline-none focus:border-mystic-rose" />
-                </label>
-                <label class="block">
-                  <span class="block text-sm text-mystic-cocoa/80 mb-2">Godzina urodzenia</span>
-                  <input formControlName="birthTime" type="time" class="w-full rounded-xl border border-mystic-rose/20 bg-white/80 px-3 py-2.5 outline-none focus:border-mystic-rose" />
-                </label>
-              </div>
+        <p class="text-mystic-cocoa mb-6">{{ vm.daily.teaser }}</p>
 
-              <label class="block">
-                <span class="block text-sm text-mystic-cocoa/80 mb-2">Miejsce urodzenia</span>
-                <input formControlName="birthPlace" type="text" placeholder="np. Warszawa" class="w-full rounded-xl border border-mystic-rose/20 bg-white/80 px-3 py-2.5 outline-none focus:border-mystic-rose" />
-              </label>
-
-              <label class="block">
-                <span class="block text-sm text-mystic-cocoa/80 mb-2">Znak zodiaku</span>
-                <select formControlName="zodiacSignSlug" class="w-full rounded-xl border border-mystic-rose/20 bg-white/80 px-3 py-2.5 outline-none focus:border-mystic-rose">
-                  <option value="">Wybierz znak</option>
-                  @for (sign of zodiacSigns(); track sign.slug) {
-                    <option [value]="sign.slug">{{ sign.name }}</option>
-                  }
-                </select>
-              </label>
-
-              <label class="flex items-center gap-3 text-sm text-mystic-cocoa/80">
-                <input formControlName="marketingConsent" type="checkbox" class="h-4 w-4 rounded border-mystic-rose/40 text-mystic-rose focus:ring-mystic-rose" />
-                Chcę otrzymywać newsletter i materiały premium.
-              </label>
-
-              <button type="submit" class="btn-primary !py-3 text-base" [disabled]="profileSaving()">
-                @if (profileSaving()) {
-                  Zapisywanie...
-                } @else {
-                  Zapisz profil
-                }
-              </button>
-            </form>
-          </article>
-
-          <article class="glass-panel rounded-3xl border border-mystic-rose/10 p-6">
-            <h2 class="serif-display text-2xl text-mystic-cocoa mb-5">Moje odczyty</h2>
-            @if (!readings().length) {
-              <p class="text-sm text-mystic-cocoa/65">Nie masz jeszcze zapisanych odczytów. Zapisz dzisiejszy horoskop lub kartę dnia.</p>
+        <div class="grid md:grid-cols-2 gap-5">
+          <div class="bg-white/80 rounded-2xl border border-mystic-rose/10 p-5">
+            <p class="text-xs uppercase tracking-[0.2em] text-mystic-rose mb-3">
+              Horoskop
+            </p>
+            <p class="text-sm text-mystic-cocoa leading-relaxed">
+              {{ vm.daily.horoscope.teaser }}
+            </p>
+            @if (vm.daily.horoscope.premiumContent) {
+            <p
+              class="text-sm text-mystic-cocoa leading-relaxed mt-4 whitespace-pre-line"
+            >
+              {{ vm.daily.horoscope.premiumContent }}
+            </p>
             } @else {
-              <div class="space-y-3 max-h-[420px] overflow-auto pr-1">
-                @for (reading of readings(); track reading.id) {
-                  <article class="rounded-2xl bg-white/80 border border-mystic-rose/10 p-4">
-                    <div class="flex items-center justify-between gap-3 mb-2">
-                      <p class="text-sm font-medium text-mystic-cocoa">{{ reading.title }}</p>
-                      <span class="text-xs text-mystic-cocoa/55">{{ reading.readingDate || (reading.createdAt | date: 'yyyy-MM-dd') }}</span>
-                    </div>
-                    <p class="text-sm text-mystic-cocoa/75">{{ reading.summary }}</p>
-                    @if (reading.content && reading.content !== reading.summary) {
-                      <p class="text-sm text-mystic-cocoa/80 mt-2 whitespace-pre-line">{{ reading.content }}</p>
-                    }
-                    <p class="text-xs text-mystic-cocoa/55 mt-2">
-                      Typ: {{ reading.readingType }} @if (reading.isPremium) { · Premium }
-                    </p>
-                  </article>
-                }
-              </div>
+            <p class="text-sm text-mystic-cocoa mt-4">
+              Pełna, spersonalizowana interpretacja dostępna w Premium.
+            </p>
             }
-          </article>
+            <button
+              type="button"
+              class="btn-outline mt-5 !px-4 !py-2 text-sm"
+              (click)="saveTodayReading('horoscope')"
+              [disabled]="readingSaving() === 'horoscope'"
+            >
+              @if (readingSaving() === 'horoscope') { Zapisywanie... } @else {
+              Zapisz horoskop }
+            </button>
+          </div>
+
+          <div class="bg-white/80 rounded-2xl border border-mystic-rose/10 p-5">
+            <p class="text-xs uppercase tracking-[0.2em] text-mystic-rose mb-3">
+              Karta dnia
+            </p>
+            @if (vm.daily.tarot.cardName) {
+            <p class="text-sm font-medium text-mystic-cocoa mb-2">
+              {{ vm.daily.tarot.cardName }}
+            </p>
+            }
+            <p class="text-sm text-mystic-cocoa leading-relaxed">
+              {{ vm.daily.tarot.teaserMessage }}
+            </p>
+            @if (vm.daily.tarot.premiumMessage) {
+            <p
+              class="text-sm text-mystic-cocoa leading-relaxed mt-4 whitespace-pre-line"
+            >
+              {{ vm.daily.tarot.premiumMessage }}
+            </p>
+            } @else {
+            <p class="text-sm text-mystic-cocoa mt-4">
+              Pełna interpretacja karty jest dostępna w Premium.
+            </p>
+            }
+            <button
+              type="button"
+              class="btn-outline mt-5 !px-4 !py-2 text-sm"
+              (click)="saveTodayReading('tarot')"
+              [disabled]="readingSaving() === 'tarot'"
+            >
+              @if (readingSaving() === 'tarot') { Zapisywanie... } @else {
+              Zapisz kartę dnia }
+            </button>
+          </div>
         </div>
-      }
-    }
+
+        <p class="text-xs text-mystic-cocoa mt-6">{{ vm.daily.disclaimer }}</p>
+      </article>
+
+      <article class="glass-panel rounded-3xl border border-mystic-rose/10 p-6">
+        <h2 class="serif-display text-2xl text-mystic-cocoa mb-4">
+          Subskrypcja
+        </h2>
+        @if (!paidPremiumEnabled()) {
+        <div
+          class="mb-5 rounded-2xl border border-mystic-gold/30 bg-mystic-gold/10 px-4 py-3 text-left"
+        >
+          <p class="text-xs uppercase tracking-[0.18em] text-mystic-cocoa/70">
+            Otwarty dostęp Premium
+          </p>
+          <p class="mt-1 text-sm text-mystic-cocoa leading-relaxed">
+            Pełne treści są teraz dostępne bez płatności. Płatna subskrypcja nie
+            jest aktywna, dopóki nie włączymy trybu paid.
+          </p>
+        </div>
+        }
+        <p class="text-sm text-mystic-cocoa mb-3">
+          Status płatnej subskrypcji:
+          <span class="font-medium text-mystic-cocoa"
+            >{{ subscriptionLabel(vm.subscription.status) }}</span
+          >
+        </p>
+        <p class="text-sm text-mystic-cocoa mb-2">
+          Plan:
+          <span class="font-medium text-mystic-cocoa"
+            >{{ subscriptionPlanLabel(vm.subscription.plan) }}</span
+          >
+        </p>
+        @if (vm.subscription.trialEndsAt) {
+        <p class="text-sm text-mystic-cocoa mb-2">
+          Koniec triala:
+          <span class="font-medium text-mystic-cocoa"
+            >{{ vm.subscription.trialEndsAt | date: 'yyyy-MM-dd' }}</span
+          >
+        </p>
+        } @if (vm.subscription.currentPeriodEnd) {
+        <p class="text-sm text-mystic-cocoa mb-2">
+          Kolejne odnowienie:
+          <span class="font-medium text-mystic-cocoa"
+            >{{ vm.subscription.currentPeriodEnd | date: 'yyyy-MM-dd' }}</span
+          >
+        </p>
+        } @if (vm.subscription.cancelAtPeriodEnd) {
+        <p class="text-sm text-amber-700 mb-2">
+          Subskrypcja jest ustawiona do wygaśnięcia na koniec okresu.
+        </p>
+        }
+
+        <div class="mt-5 space-y-3">
+          <button
+            type="button"
+            class="btn-primary w-full !py-3 text-base"
+            [class.opacity-60]="!paidPremiumEnabled()"
+            [class.cursor-not-allowed]="!paidPremiumEnabled()"
+            [disabled]="billingLoading() || !paidPremiumEnabled()"
+            (click)="startSubscription('monthly')"
+          >
+            {{ monthlyPremiumLabel() }}
+          </button>
+          <button
+            type="button"
+            class="btn-outline w-full !py-3 text-base"
+            [class.opacity-60]="!paidPremiumEnabled()"
+            [class.cursor-not-allowed]="!paidPremiumEnabled()"
+            [disabled]="billingLoading() || !paidPremiumEnabled()"
+            (click)="startSubscription('annual')"
+          >
+            {{ annualPremiumLabel() }}
+          </button>
+          @if (!paidPremiumEnabled()) {
+          <p class="text-xs text-mystic-cocoa/70 leading-relaxed">
+            Te przyciski nie uruchamiają Stripe w trybie open. Gdy płatności
+            zostaną włączone, wróci tu pełny checkout subskrypcji.
+          </p>
+          }
+          <button
+            type="button"
+            class="btn-outline w-full !py-3 text-base"
+            [disabled]="billingLoading()"
+            (click)="openSubscriptionPortal()"
+          >
+            Zarządzaj subskrypcją
+          </button>
+        </div>
+      </article>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <article
+        id="profil"
+        class="glass-panel rounded-3xl border border-mystic-rose/10 p-5 sm:p-6"
+      >
+        <h2 class="serif-display text-2xl text-mystic-cocoa mb-5">
+          Mój profil
+        </h2>
+        <form
+          [formGroup]="profileForm"
+          (ngSubmit)="saveProfile()"
+          class="space-y-4"
+        >
+          <label class="block">
+            <span class="block text-sm text-mystic-cocoa mb-2"
+              >Data urodzenia</span
+            >
+            <input
+              formControlName="birthDate"
+              type="date"
+              [class.!border-red-400]="profileForm.controls.birthDate.invalid && profileForm.controls.birthDate.touched"
+              class="w-full rounded-xl border border-mystic-rose/20 bg-white/80 px-3 py-2.5 outline-none focus:border-mystic-rose"
+            />
+            @if (derivedZodiacSign(); as sign) {
+            <p class="text-sm text-mystic-cocoa mt-2">
+              Twój znak: <strong>{{ sign }}</strong>
+            </p>
+            } @if (profileForm.controls.birthDate.errors?.['futureDate']) {
+            <p class="text-red-500 text-[10px] mt-1">Data z przyszłości.</p>
+            } @if (profileForm.controls.birthDate.errors?.['invalidPastDate']) {
+            <p class="text-red-500 text-[10px] mt-1">
+              Podaj realistyczną datę.
+            </p>
+            }
+          </label>
+
+          <div class="space-y-4 border-t border-mystic-rose/10 pt-4">
+            <h3 class="text-sm font-semibold text-mystic-cocoa">
+              Dane do Kosmogramu (opcjonalnie)
+            </h3>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <label class="block">
+                <span class="block text-sm text-mystic-cocoa mb-2"
+                  >Godzina urodzenia (opcjonalnie)</span
+                >
+                <input
+                  formControlName="birthTime"
+                  type="time"
+                  class="w-full rounded-xl border border-mystic-rose/20 bg-white/80 px-3 py-2.5 outline-none focus:border-mystic-rose"
+                />
+              </label>
+              <label class="block">
+                <span class="block text-sm text-mystic-cocoa mb-2"
+                  >Miejsce urodzenia (opcjonalnie)</span
+                >
+                <input
+                  formControlName="birthPlace"
+                  type="text"
+                  placeholder="np. Warszawa"
+                  class="w-full rounded-xl border border-mystic-rose/20 bg-white/80 px-3 py-2.5 outline-none focus:border-mystic-rose"
+                />
+              </label>
+            </div>
+          </div>
+
+          <label class="flex items-center gap-3 text-sm text-mystic-cocoa">
+            <input
+              formControlName="marketingConsent"
+              type="checkbox"
+              class="h-4 w-4 rounded border-mystic-rose/40 text-mystic-rose focus:ring-mystic-rose"
+            />
+            Chcę otrzymywać newsletter i materiały premium.
+          </label>
+
+          <div class="flex flex-col sm:flex-row gap-3">
+            <button
+              type="submit"
+              class="btn-primary flex-1 !py-3 text-base"
+              [disabled]="profileSaving()"
+            >
+              @if (profileSaving()) { Zapisywanie... } @else { Zapisz profil }
+            </button>
+            <a
+              routerLink="/kosmogram"
+              class="btn-outline flex-1 !py-3 text-base text-center inline-flex items-center justify-center"
+            >
+              Twój Kosmogram ✦
+            </a>
+          </div>
+        </form>
+      </article>
+
+      <article class="glass-panel rounded-3xl border border-mystic-rose/10 p-6">
+        <h2 class="serif-display text-2xl text-mystic-cocoa mb-5">
+          Moje odczyty
+        </h2>
+        @if (!readings().length) {
+        <p class="text-sm text-mystic-cocoa">
+          Nie masz jeszcze zapisanych odczytów. Zapisz dzisiejszy horoskop lub
+          kartę dnia.
+        </p>
+        } @else {
+        <div class="space-y-3 max-h-[420px] overflow-auto pr-1">
+          @for (reading of readings(); track reading.id) {
+          <article
+            class="rounded-2xl bg-white/80 border border-mystic-rose/10 p-4"
+          >
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <p class="text-sm font-medium text-mystic-cocoa">
+                {{ reading.title }}
+              </p>
+              <span class="text-xs text-mystic-cocoa"
+                >{{ reading.readingDate || (reading.createdAt | date:
+                'yyyy-MM-dd') }}</span
+              >
+            </div>
+            <p class="text-sm text-mystic-cocoa">{{ reading.summary }}</p>
+            @if (reading.content && reading.content !== reading.summary) {
+            <p class="text-sm text-mystic-cocoa mt-2 whitespace-pre-line">
+              {{ reading.content }}
+            </p>
+            }
+            <p class="text-xs text-mystic-cocoa mt-2">
+              Typ: {{ readingTypeLabel(reading.readingType) }} @if
+              (reading.isPremium) { · Premium }
+            </p>
+          </article>
+          }
+        </div>
+        }
+      </article>
+    </div>
+    } @else if (!error()) {
+    <div
+      class="glass-panel rounded-3xl border border-mystic-rose/10 p-10 text-center"
+    >
+      <p class="text-mystic-gold text-4xl mb-4">✧</p>
+      <h2 class="serif-display text-3xl text-mystic-cocoa mb-3">
+        Panel jest jeszcze pusty
+      </h2>
+      <p class="text-mystic-cocoa max-w-xl mx-auto mb-6">
+        Nie znaleźliśmy jeszcze danych profilu ani zapisanych odczytów.
+        Uzupełnij profil albo zacznij od Karty Dnia.
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <a routerLink="/panel" fragment="profil" class="btn-primary">
+          Uzupełnij profil
+        </a>
+        <a routerLink="/tarot/karta-dnia" class="btn-outline"> Karta Dnia </a>
+      </div>
+    </div>
+    } }
+    <!-- Danger Zone -->
+    <div class="mt-24 pt-12 border-t border-rose-100">
+      <h3 class="serif-display text-xl text-rose-900 mb-4">
+        Strefa Niebezpieczna
+      </h3>
+      <p class="text-rose-700/60 text-sm font-light mb-8">
+        Jeśli zdecydujesz się opuścić Star Sign, możesz usunąć swoje konto.
+        Pamiętaj, że ta operacja jest nieodwracalna.
+      </p>
+      <button
+        (click)="deleteAccount()"
+        [disabled]="isDeletingAccount()"
+        class="max-w-full rounded-xl border border-rose-200 px-5 py-3 text-xs font-bold uppercase tracking-widest text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50 sm:px-6"
+      >
+        @if (isDeletingAccount()) { Usuwanie... } @else { Usuń moje konto na
+        zawsze }
+      </button>
+    </div>
   </div>
 </section>

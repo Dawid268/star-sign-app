@@ -1,12 +1,18 @@
 import { MEDIA_USAGE_LOG_UID } from '../constants';
 import type { MediaUsageLogRecord, Strapi } from '../types';
+import { getEntityService } from '../utils/entity-service';
 
 const getId = (value: unknown): number | null => {
   if (typeof value === 'number') {
     return value;
   }
 
-  if (value && typeof value === 'object' && 'id' in value && typeof (value as { id: unknown }).id === 'number') {
+  if (
+    value &&
+    typeof value === 'object' &&
+    'id' in value &&
+    typeof (value as { id: unknown }).id === 'number'
+  ) {
     return (value as { id: number }).id;
   }
 
@@ -14,7 +20,7 @@ const getId = (value: unknown): number | null => {
 };
 
 const mediaUsage = ({ strapi }: { strapi: Strapi }) => {
-  const entityService = strapi.entityService as any;
+  const entityService = getEntityService(strapi);
 
   return {
     async list(limit = 200): Promise<MediaUsageLogRecord[]> {

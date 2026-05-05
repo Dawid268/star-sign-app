@@ -5,6 +5,7 @@ import type {
   DEFAULT_MAX_COMPLETION_TOKENS,
   DEFAULT_RETRY_BACKOFF_SECONDS,
   DEFAULT_RETRY_MAX,
+  SOCIAL_CHANNELS,
   DEFAULT_TEMPERATURE,
   DEFAULT_TIMEZONE,
   WORKFLOW_TYPES,
@@ -21,6 +22,7 @@ export type RunStatus = 'running' | 'success' | 'failed' | 'blocked_budget';
 export type RunStepStatus = 'pending' | 'running' | 'success' | 'failed';
 
 export type WorkflowStatus = 'idle' | 'running' | 'failed' | 'blocked_budget';
+export type SocialPlatform = (typeof SOCIAL_CHANNELS)[number];
 
 export type TopicStatus = 'pending' | 'processing' | 'done' | 'failed';
 
@@ -36,6 +38,8 @@ export type WorkflowRecord = {
   locale?: string;
   llm_model: string;
   llm_api_token_encrypted?: string | null;
+  image_gen_model?: string;
+  image_gen_api_token_encrypted?: string | null;
   prompt_template: string;
   temperature?: number;
   max_completion_tokens?: number;
@@ -46,6 +50,10 @@ export type WorkflowRecord = {
   allow_manual_edit?: boolean;
   auto_publish?: boolean;
   force_regenerate?: boolean;
+  strategy_enabled?: boolean;
+  performance_feedback_enabled?: boolean;
+  content_cluster?: string | null;
+  auto_publish_guardrails?: Record<string, unknown> | null;
   topic_mode?: 'manual' | 'mixed';
   horoscope_period?: HoroscopePeriod;
   horoscope_type_values?: string[] | null;
@@ -56,6 +64,17 @@ export type WorkflowRecord = {
   last_generation_slot?: string | null;
   last_publish_slot?: string | null;
   last_error?: string | null;
+  enabled_channels?: SocialPlatform[] | null;
+  fb_page_id?: string | null;
+  fb_access_token_encrypted?: string | null;
+  ig_user_id?: string | null;
+  ig_access_token_encrypted?: string | null;
+  x_api_key?: string | null;
+  x_api_secret_encrypted?: string | null;
+  x_access_token_encrypted?: string | null;
+  x_access_token_secret_encrypted?: string | null;
+  tt_creator_id?: string | null;
+  tt_access_token_encrypted?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -70,14 +89,160 @@ export type TopicQueueItemRecord = {
   processed_at?: string | null;
   error_message?: string | null;
   metadata?: Record<string, unknown> | null;
+  seo_intent?: string | null;
+  target_persona?: string | null;
+  priority_score?: number | null;
   workflow?: number | { id: number } | null;
   article_category?: number | { id: number } | null;
   generated_article?: number | { id: number } | null;
+  plan_item?: number | { id: number } | null;
   createdAt?: string;
   updatedAt?: string;
 };
 
-export type MediaPurpose = 'horoscope_sign' | 'daily_card' | 'blog_article' | 'fallback_general';
+export type ContentPlanStatus =
+  | 'planned'
+  | 'approved'
+  | 'queued'
+  | 'published'
+  | 'rejected'
+  | 'failed';
+
+export type ContentPlanItemRecord = {
+  id: number;
+  title: string;
+  brief?: string | null;
+  seo_intent?: string | null;
+  seo_cluster?: string | null;
+  priority_score?: number | null;
+  target_persona?: string | null;
+  target_publish_at?: string | null;
+  status: ContentPlanStatus;
+  channels?: SocialPlatform[] | null;
+  agent_rationale?: string | null;
+  source?: 'strategy_agent' | 'manual' | 'performance_feedback' | null;
+  dedupe_key?: string | null;
+  metadata?: Record<string, unknown> | null;
+  workflow?: number | { id: number } | null;
+  article_category?: number | { id: number } | null;
+  generated_topic?: number | { id: number } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ContentPerformanceSnapshotRecord = {
+  id: number;
+  unique_key: string;
+  snapshot_day: string;
+  content_uid: string;
+  content_entry_id: number;
+  content_slug?: string | null;
+  content_title?: string | null;
+  views?: number;
+  premium_events?: number;
+  cta_clicks?: number;
+  checkout_events?: number;
+  social_published?: number;
+  social_failed?: number;
+  freshness_days?: number;
+  score?: number;
+  recommendations?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+  workflow?: number | { id: number } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type EditorialMemoryRecord = {
+  id: number;
+  key: string;
+  label: string;
+  memory_type:
+    | 'brand_voice'
+    | 'seo_rule'
+    | 'persona'
+    | 'prohibited_phrase'
+    | 'linking_rule'
+    | 'custom';
+  content: string;
+  active?: boolean;
+  priority?: number;
+  metadata?: Record<string, unknown> | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type HomepageRecommendationRecord = {
+  id: number;
+  slot: 'today_in_stars' | 'weekly_focus' | 'recommended_for_you' | 'new_premium' | 'evergreen';
+  title: string;
+  subtitle?: string | null;
+  target_url?: string | null;
+  content_uid?: string | null;
+  content_entry_id?: number | null;
+  content_slug?: string | null;
+  priority_score?: number | null;
+  starts_at?: string | null;
+  expires_at?: string | null;
+  status: 'scheduled' | 'active' | 'expired' | 'archived';
+  rationale?: string | null;
+  metadata?: Record<string, unknown> | null;
+  workflow?: number | { id: number } | null;
+  source_snapshot?: number | { id: number } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type AuditEventRecord = {
+  id: number;
+  event_key: string;
+  action: string;
+  outcome: 'success' | 'failure' | 'skipped';
+  severity?: 'info' | 'warn' | 'error';
+  occurred_at: string;
+  actor_type?: 'admin' | 'system' | 'unknown';
+  actor_id?: string | null;
+  resource_uid?: string | null;
+  resource_id?: string | null;
+  resource_label?: string | null;
+  request_id?: string | null;
+  ip_hash?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type RuntimeLockRecord = {
+  id: number;
+  lock_key: string;
+  owner_id: string;
+  status: 'active' | 'released';
+  acquired_at: string;
+  expires_at: string;
+  released_at?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type PublicHomepageRecommendation = Pick<
+  HomepageRecommendationRecord,
+  | 'slot'
+  | 'title'
+  | 'subtitle'
+  | 'target_url'
+  | 'content_slug'
+  | 'priority_score'
+  | 'starts_at'
+  | 'expires_at'
+>;
+
+export type MediaPurpose =
+  | 'horoscope_sign'
+  | 'daily_card'
+  | 'blog_article'
+  | 'zodiac_profile'
+  | 'fallback_general';
 export type MediaPeriodScope = 'any' | 'daily' | 'weekly' | 'monthly';
 
 export type MediaAssetRecord = {
@@ -170,6 +335,30 @@ export type PublicationTicketRecord = {
   updatedAt?: string;
 };
 
+export type SocialPostTicketRecord = {
+  id: number;
+  platform: SocialPlatform;
+  status: 'pending' | 'scheduled' | 'published' | 'failed' | 'canceled';
+  caption: string;
+  media_url?: string | null;
+  target_url?: string | null;
+  scheduled_at: string;
+  published_on?: string | null;
+  last_error?: string | null;
+  attempt_count?: number;
+  next_attempt_at?: string | null;
+  provider_post_id?: string | null;
+  blocked_reason?: string | null;
+  idempotency_key?: string | null;
+  provider_payload?: Record<string, unknown> | null;
+  workflow?: number | { id: number } | null;
+  source_run?: number | { id: number } | null;
+  related_content_uid?: string | null;
+  related_content_id?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type UsageDailyRecord = {
   id: number;
   day: string;
@@ -196,6 +385,8 @@ export type LlmTraceMessage = {
 };
 
 export type OpenRouterTrace = {
+  redacted?: boolean;
+  redactionReason?: string;
   request: {
     model: string;
     temperature: number;
@@ -222,6 +413,7 @@ export type HoroscopeItem = {
   sign: string;
   title?: string;
   content: string;
+  premiumContent?: string | null;
   type?: string;
 };
 
@@ -234,6 +426,8 @@ export type ArticlePayload = {
   slug?: string;
   excerpt: string;
   content: string;
+  premiumContent?: string | null;
+  isPremium?: boolean;
   author?: string;
   read_time_minutes?: number;
 };
@@ -243,6 +437,8 @@ export type DailyCardPayload = {
   slug?: string;
   excerpt: string;
   content: string;
+  premiumContent: string;
+  isPremium?: boolean;
   draw_message: string;
   author?: string;
   read_time_minutes?: number;
@@ -262,6 +458,8 @@ export type NormalizedWorkflowConfig = {
   locale: string;
   llmModel: string;
   llmTokenEncrypted: string;
+  imageGenModel: string;
+  imageGenTokenEncrypted?: string | null;
   promptTemplate: string;
   temperature: number;
   maxCompletionTokens: number;
@@ -272,6 +470,10 @@ export type NormalizedWorkflowConfig = {
   allowManualEdit: boolean;
   autoPublish: boolean;
   forceRegenerate: boolean;
+  strategyEnabled: boolean;
+  performanceFeedbackEnabled: boolean;
+  contentCluster?: string | null;
+  autoPublishGuardrails: Record<string, unknown>;
   topicMode: 'manual' | 'mixed';
   horoscopePeriod: HoroscopePeriod;
   horoscopeTypeValues: string[];
@@ -279,6 +481,17 @@ export type NormalizedWorkflowConfig = {
   articleCategoryId: number | null;
   lastGenerationSlot: string | null;
   lastPublishSlot: string | null;
+  enabledChannels: SocialPlatform[];
+  fbPageId?: string | null;
+  fbTokenEncrypted?: string | null;
+  igUserId?: string | null;
+  igTokenEncrypted?: string | null;
+  xApiKey?: string | null;
+  xApiSecretEncrypted?: string | null;
+  xAccessTokenEncrypted?: string | null;
+  xAccessTokenSecretEncrypted?: string | null;
+  ttCreatorId?: string | null;
+  ttTokenEncrypted?: string | null;
 };
 
 export type CreateRunInput = {
@@ -317,17 +530,34 @@ export type WorkflowUpdatePayload = Partial<
     | 'retry_backoff_seconds'
     | 'daily_request_limit'
     | 'daily_token_limit'
+    | 'all_signs'
+    | 'article_category'
+    | 'image_gen_model'
+    | 'enabled_channels'
     | 'allow_manual_edit'
     | 'auto_publish'
     | 'force_regenerate'
+    | 'strategy_enabled'
+    | 'performance_feedback_enabled'
+    | 'content_cluster'
+    | 'auto_publish_guardrails'
     | 'topic_mode'
     | 'horoscope_period'
     | 'horoscope_type_values'
-    | 'all_signs'
-    | 'article_category'
+    | 'fb_page_id'
+    | 'ig_user_id'
+    | 'x_api_key'
+    | 'tt_creator_id'
   >
 > & {
   apiToken?: string;
+  imageGenApiToken?: string;
+  fbAccessToken?: string;
+  igAccessToken?: string;
+  xApiSecret?: string;
+  xAccessToken?: string;
+  xAccessTokenSecret?: string;
+  ttAccessToken?: string;
 };
 
 export type BackfillPayload = {

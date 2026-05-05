@@ -4,9 +4,16 @@ export const WORKFLOW_UID = `plugin::${PLUGIN_ID}.workflow`;
 export const TOPIC_QUEUE_UID = `plugin::${PLUGIN_ID}.topic-queue-item`;
 export const RUN_LOG_UID = `plugin::${PLUGIN_ID}.run-log`;
 export const PUBLICATION_TICKET_UID = `plugin::${PLUGIN_ID}.publication-ticket`;
+export const SOCIAL_POST_TICKET_UID = `plugin::${PLUGIN_ID}.social-post-ticket`;
 export const USAGE_DAILY_UID = `plugin::${PLUGIN_ID}.usage-daily`;
 export const MEDIA_ASSET_UID = `plugin::${PLUGIN_ID}.media-asset`;
 export const MEDIA_USAGE_LOG_UID = `plugin::${PLUGIN_ID}.media-usage-log`;
+export const CONTENT_PLAN_ITEM_UID = `plugin::${PLUGIN_ID}.content-plan-item`;
+export const CONTENT_PERFORMANCE_SNAPSHOT_UID = `plugin::${PLUGIN_ID}.content-performance-snapshot`;
+export const EDITORIAL_MEMORY_UID = `plugin::${PLUGIN_ID}.editorial-memory`;
+export const HOMEPAGE_RECOMMENDATION_UID = `plugin::${PLUGIN_ID}.homepage-recommendation`;
+export const AUDIT_EVENT_UID = `plugin::${PLUGIN_ID}.audit-event`;
+export const RUNTIME_LOCK_UID = `plugin::${PLUGIN_ID}.runtime-lock`;
 
 export const CONTENT_UIDS = {
   horoscope: 'api::horoscope.horoscope',
@@ -15,6 +22,7 @@ export const CONTENT_UIDS = {
   dailyTarotDraw: 'api::daily-tarot-draw.daily-tarot-draw',
   zodiacSign: 'api::zodiac-sign.zodiac-sign',
   category: 'api::category.category',
+  analyticsEvent: 'api::analytics-event.analytics-event',
 } as const;
 
 export const DEFAULT_TIMEZONE = 'Europe/Warsaw';
@@ -52,18 +60,26 @@ export const ZODIAC_SIGNS_PL = [
 
 export const WORKFLOW_TYPES = ['horoscope', 'daily_card', 'article'] as const;
 export const RUN_TYPES = ['generate', 'publish', 'manual', 'backfill'] as const;
+export const SOCIAL_CHANNELS = ['facebook', 'instagram', 'twitter', 'tiktok'] as const;
 
-export const HOROSCOPE_PERIODS = ['Dzienny', 'Tygodniowy', 'Miesięczny'] as const;
+export const HOROSCOPE_PERIODS = ['Dzienny', 'Tygodniowy', 'Miesięczny', 'Roczny'] as const;
 
 export const RBAC_ACTIONS = {
   read: `plugin::${PLUGIN_ID}.read`,
   manageWorkflows: `plugin::${PLUGIN_ID}.manage-workflows`,
+  manageSocial: `plugin::${PLUGIN_ID}.manage-social`,
+  runAudit: `plugin::${PLUGIN_ID}.run-audit`,
   run: `plugin::${PLUGIN_ID}.run`,
   backfill: `plugin::${PLUGIN_ID}.backfill`,
   manageTopics: `plugin::${PLUGIN_ID}.manage-topics`,
   viewRuns: `plugin::${PLUGIN_ID}.view-runs`,
   manageMedia: `plugin::${PLUGIN_ID}.manage-media`,
   viewMediaUsage: `plugin::${PLUGIN_ID}.view-media-usage`,
+  manageStrategy: `plugin::${PLUGIN_ID}.manage-strategy`,
+  viewPerformance: `plugin::${PLUGIN_ID}.view-performance`,
+  managePerformance: `plugin::${PLUGIN_ID}.manage-performance`,
+  manageHomepage: `plugin::${PLUGIN_ID}.manage-homepage`,
+  viewAuditTrail: `plugin::${PLUGIN_ID}.view-audit-trail`,
 } as const;
 
 export const TICKET_STATUS = {

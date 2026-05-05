@@ -27,6 +27,30 @@
       "options": {
         "cwd": "apps/api"
       }
+    },
+    "premium-content-audit": {
+      "command": "npm run premium-content-audit",
+      "options": {
+        "cwd": "apps/api"
+      }
+    },
+    "premium-content-backfill": {
+      "command": "npm run premium-content-backfill",
+      "options": {
+        "cwd": "apps/api"
+      }
+    },
+    "aico-contract-audit": {
+      "command": "npm run aico-contract-audit",
+      "options": {
+        "cwd": "apps/api"
+      }
+    },
+    "test": {
+      "command": "npx vitest run --config vitest.config.ts",
+      "options": {
+        "cwd": "apps/api"
+      }
     }
   }
 }

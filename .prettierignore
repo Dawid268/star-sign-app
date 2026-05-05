@@ -5,3 +5,19 @@
 /.nx/workspace-data
 .nx/self-healing
 .angular
+
+# Local agent/tooling artifacts
+/.agents
+/.cursor
+/.gemini
+/.opencode
+/.playwright-mcp
+/.github/skills
+/.strapi-updater.json
+
+# Generated reports and transient command output
+coverage_summary*.txt
+cart_coverage_summary*.txt
+final_check_results*.txt
+final_coverage*.txt
+test_output*.txt

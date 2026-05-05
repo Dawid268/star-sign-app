@@ -1,0 +1,37 @@
+<section
+  class="maintenance"
+  [class.maintenance--checking]="checking()"
+  data-test="maintenance-mode"
+  aria-labelledby="maintenance-title"
+>
+  <div class="maintenance__sky" aria-hidden="true">
+    <span class="maintenance__star maintenance__star--one"></span>
+    <span class="maintenance__star maintenance__star--two"></span>
+    <span class="maintenance__star maintenance__star--three"></span>
+    <span class="maintenance__orbit maintenance__orbit--outer"></span>
+    <span class="maintenance__orbit maintenance__orbit--inner"></span>
+    <span class="maintenance__horizon"></span>
+  </div>
+
+  <div class="maintenance__content">
+    <p class="maintenance__eyebrow">Star Sign status</p>
+    <h1 id="maintenance-title" data-test="maintenance-title">{{ title() }}</h1>
+    <p class="maintenance__message" data-test="maintenance-message">
+      {{ message() }}
+    </p>
+
+    @if (!checking() && formatEta(settings().eta); as eta) {
+    <p class="maintenance__eta" data-test="maintenance-eta">
+      Planowany powrót: <strong>{{ eta }}</strong>
+    </p>
+    } @if (!checking() && settings().contactUrl; as contactUrl) {
+    <a
+      class="maintenance__link"
+      [href]="contactUrl"
+      data-test="maintenance-contact-link"
+    >
+      Kontakt z zespołem
+    </a>
+    }
+  </div>
+</section>

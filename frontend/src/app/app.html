@@ -1,8 +1,18 @@
+@if (maintenanceVisible()) {
+<app-maintenance-mode
+  [settings]="maintenanceSettings()"
+  [checking]="maintenanceChecking()"
+/>
+} @else {
+<app-loading-bar />
 <app-navbar (openCart)="openCart()" />
 <main class="min-h-screen">
   <router-outlet />
 </main>
 <app-footer />
 @if (shopEnabled) {
-  <lib-cart (checkoutRequested)="startCheckout($event)" />
+<lib-cart (checkoutRequested)="startCheckout($event)" />
+}
+<app-cookie-banner />
+<app-notification-toast />
 }

@@ -3,15 +3,20 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - '**'
   pull_request:
+  workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  main:
+  quality:
+    name: Branch quality gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,12 +24,30 @@ jobs:
           filter: tree:0
           fetch-depth: 0
 
-      # Cache node_modules
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
 
       - run: npm ci
 
-      - run: npx nx run-many -t build typecheck
+      - name: Nx sync check
+        run: npm exec -- nx sync:check
+
+      - name: Lint
+        run: npm exec -- nx run-many -t lint --projects=frontend,api,cart,@org/types,frontend-e2e,ai-content-orchestrator --outputStyle=static
+
+      - name: Typecheck
+        run: npm exec -- nx run-many -t typecheck --projects=frontend,api,cart,@org/types,frontend-e2e --outputStyle=static
+
+      - name: Unit tests
+        run: |
+          npm exec -- nx run frontend:test --configuration=coverage --outputStyle=static
+          npm exec -- nx run api:test --outputStyle=static
+          npm exec -- nx run cart:test --outputStyle=static
+
+      - name: AICO plugin checks
+        run: npm exec -- nx run-many --targets=test:unit,test:ts:back,test:ts:front,verify --projects=ai-content-orchestrator --outputStyle=static
+
+      - name: Production builds
+        run: npm exec -- nx run-many -t build --projects=frontend,api,cart,@org/types --outputStyle=static

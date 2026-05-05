@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { take } from 'rxjs';
 import { NewsletterService } from '../../core/services/newsletter.service';
@@ -12,10 +17,28 @@ type Status = 'loading' | 'success' | 'error';
   template: `
     <main class="bg-[#FFFBFB] min-h-screen pt-16 pb-24">
       <section class="section-container max-w-2xl text-center">
-        <p class="text-mystic-gold text-5xl mb-8">✦</p>
-        <h1 class="serif-display text-4xl md:text-5xl text-mystic-cocoa mb-6">{{ title() }}</h1>
-        <p class="text-mystic-cocoa/70 leading-relaxed mb-10">{{ message() }}</p>
-        <a routerLink="/" class="btn-primary inline-flex">Wróć na stronę główną</a>
+        <p class="text-mystic-gold text-5xl mb-8">{{ icon() }}</p>
+        <h1 class="serif-display text-4xl md:text-5xl text-mystic-cocoa mb-6">
+          {{ title() }}
+        </h1>
+        <p class="text-mystic-cocoa leading-relaxed mb-10">
+          {{ message() }}
+        </p>
+        <div
+          class="flex flex-col sm:flex-row items-center justify-center gap-3"
+        >
+          <a routerLink="/" class="btn-primary inline-flex"
+            >Wróć na stronę główną</a
+          >
+          @if (status() === 'error') {
+            <a
+              routerLink="/"
+              fragment="newsletter"
+              class="btn-outline inline-flex"
+              >Zapisz się ponownie</a
+            >
+          }
+        </div>
       </section>
     </main>
   `,
@@ -24,7 +47,8 @@ type Status = 'loading' | 'success' | 'error';
 export class NewsletterActionPage {
   private readonly route = inject(ActivatedRoute);
   private readonly newsletterService = inject(NewsletterService);
-  private readonly action = (this.route.snapshot.data['action'] as NewsletterAction) || 'confirm';
+  private readonly action =
+    (this.route.snapshot.data['action'] as NewsletterAction) || 'confirm';
 
   public readonly status = signal<Status>('loading');
 
@@ -55,7 +79,9 @@ export class NewsletterActionPage {
     if (this.status() === 'error') {
       return 'Link jest nieaktywny';
     }
-    return this.action === 'unsubscribe' ? 'Wypisano z newslettera' : 'Newsletter potwierdzony';
+    return this.action === 'unsubscribe'
+      ? 'Wypisano z newslettera'
+      : 'Newsletter potwierdzony';
   }
 
   public message(): string {
@@ -68,5 +94,15 @@ export class NewsletterActionPage {
     return this.action === 'unsubscribe'
       ? 'Twój adres został oznaczony jako wypisany z newslettera Star Sign.'
       : 'Dziękujemy. Od teraz możesz otrzymywać wiadomości Star Sign zgodnie z wyrażoną zgodą.';
+  }
+
+  public icon(): string {
+    if (this.status() === 'loading') {
+      return '✧';
+    }
+    if (this.status() === 'error') {
+      return '!';
+    }
+    return this.action === 'unsubscribe' ? '✓' : '✦';
   }
 }

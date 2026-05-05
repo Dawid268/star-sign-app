@@ -13,14 +13,17 @@ export default (plugin) => {
 
     if (!baseService || typeof baseService.optimize !== 'function') {
       strapi.log.error(
-        'Upload: Nie udało się zainicjalizować bazowego serwisu image-manipulation.'
+        'Upload: Nie udało się zainicjalizować bazowego serwisu image-manipulation.',
       );
       return baseService ?? {};
     }
 
     const baseOptimize = baseService.optimize.bind(baseService);
 
-    const writeStreamToFile = (stream: NodeJS.ReadableStream, targetPath: string): Promise<void> => {
+    const writeStreamToFile = (
+      stream: NodeJS.ReadableStream,
+      targetPath: string,
+    ): Promise<void> => {
       return new Promise((resolve, reject) => {
         const output = fs.createWriteStream(targetPath);
         stream.on('error', reject);
@@ -33,11 +36,21 @@ export default (plugin) => {
     return {
       ...baseService,
       async optimize(file) {
-        const allowedInputMimes = ['image/jpeg', 'image/png', 'image/tiff', 'image/avif'];
-        const reoptimizeWebp = strapi.config.get('plugin::upload.reoptimizeWebp', false);
+        const allowedInputMimes = [
+          'image/jpeg',
+          'image/png',
+          'image/tiff',
+          'image/avif',
+        ];
+        const reoptimizeWebp = strapi.config.get(
+          'plugin::upload.reoptimizeWebp',
+          false,
+        );
 
         if (file.mime === 'image/webp' && !reoptimizeWebp) {
-          strapi.log.debug(`Upload: Pomijanie re-optymalizacji WebP dla ${file.name}`);
+          strapi.log.debug(
+            `Upload: Pomijanie re-optymalizacji WebP dla ${file.name}`,
+          );
           return file;
         }
 
@@ -46,7 +59,9 @@ export default (plugin) => {
         }
 
         try {
-          const uploadSettings = (await strapi.plugin('upload').service('upload').getSettings()) ?? {};
+          const uploadSettings =
+            (await strapi.plugin('upload').service('upload').getSettings()) ??
+            {};
           const sizeOptimization = Boolean(uploadSettings.sizeOptimization);
           const autoOrientation = Boolean(uploadSettings.autoOrientation);
           const originalName = path.parse(file.name).name;
@@ -81,14 +96,18 @@ export default (plugin) => {
             transformer.on('info', (info) => {
               newInfo = info;
             });
-            await writeStreamToFile(file.getStream().pipe(transformer), outputPath);
+            await writeStreamToFile(
+              file.getStream().pipe(transformer),
+              outputPath,
+            );
           }
 
-          const outputSizeInBytes = newInfo?.size ?? fs.statSync(outputPath).size;
+          const outputSizeInBytes =
+            newInfo?.size ?? fs.statSync(outputPath).size;
 
           if (outputSizeInBytes > originalSizeInBytes) {
             strapi.log.debug(
-              `Upload: Pominięto WebP dla ${file.name} (wynik większy: ${outputSizeInBytes} > ${originalSizeInBytes}).`
+              `Upload: Pominięto WebP dla ${file.name} (wynik większy: ${outputSizeInBytes} > ${originalSizeInBytes}).`,
             );
             return file;
           }
@@ -104,12 +123,15 @@ export default (plugin) => {
           file.height = newInfo?.height ?? file.height;
 
           strapi.log.debug(
-            `Upload: Zoptymalizowano ${file.name} do WebP (${file.size.toFixed(2)} KB).`
+            `Upload: Zoptymalizowano ${file.name} do WebP (${file.size.toFixed(2)} KB).`,
           );
 
           return file;
         } catch (error) {
-          strapi.log.error('Błąd podczas optymalizacji obrazu w rozszerzeniu:', error);
+          strapi.log.error(
+            'Błąd podczas optymalizacji obrazu w rozszerzeniu:',
+            error,
+          );
           return baseOptimize(file);
         }
       },

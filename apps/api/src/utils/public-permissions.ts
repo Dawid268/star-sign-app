@@ -33,17 +33,24 @@ const BASE_PUBLIC_READ_ACTIONS = [
   'api::zodiac-sign.zodiac-sign.findOne',
 ];
 
-const SHOP_PUBLIC_READ_ACTIONS = ['api::product.product.find', 'api::product.product.findOne'];
-const MANAGED_PUBLIC_READ_ACTIONS = [...BASE_PUBLIC_READ_ACTIONS, ...SHOP_PUBLIC_READ_ACTIONS];
+const SHOP_PUBLIC_READ_ACTIONS = [
+  'api::product.product.find',
+  'api::product.product.findOne',
+];
+const MANAGED_PUBLIC_READ_ACTIONS = [
+  ...BASE_PUBLIC_READ_ACTIONS,
+  ...SHOP_PUBLIC_READ_ACTIONS,
+];
 const READ_ROLE_TYPES = ['public', 'authenticated'];
 
 const setPermission = (
   permissions: Record<string, PermissionNamespace>,
   actionId: string,
-  enabled: boolean
+  enabled: boolean,
 ): boolean => {
   const [typeName, controllerName, actionName] = actionId.split('.');
-  const action = permissions[typeName]?.controllers?.[controllerName]?.[actionName];
+  const action =
+    permissions[typeName]?.controllers?.[controllerName]?.[actionName];
 
   if (!action) {
     return false;
@@ -58,14 +65,18 @@ export const getPublicReadActions = (): string[] => [
   ...(isShopEnabled() ? SHOP_PUBLIC_READ_ACTIONS : []),
 ];
 
-export const syncContentApiReadPermissions = async (strapi: Core.Strapi): Promise<void> => {
+export const syncContentApiReadPermissions = async (
+  strapi: Core.Strapi,
+): Promise<void> => {
   const roleService = strapi.plugin('users-permissions').service('role');
   const enabledActions = new Set(getPublicReadActions());
 
   for (const roleType of READ_ROLE_TYPES) {
-    const dbRole = await strapi.db.query('plugin::users-permissions.role').findOne({
-      where: { type: roleType },
-    });
+    const dbRole = await strapi.db
+      .query('plugin::users-permissions.role')
+      .findOne({
+        where: { type: roleType },
+      });
 
     if (!dbRole) {
       throw new Error(`Brak roli "${roleType}" w users-permissions.`);
@@ -75,7 +86,11 @@ export const syncContentApiReadPermissions = async (strapi: Core.Strapi): Promis
     const missingEnabledActions: string[] = [];
 
     for (const actionId of MANAGED_PUBLIC_READ_ACTIONS) {
-      const exists = setPermission(role.permissions, actionId, enabledActions.has(actionId));
+      const exists = setPermission(
+        role.permissions,
+        actionId,
+        enabledActions.has(actionId),
+      );
       if (!exists && enabledActions.has(actionId)) {
         missingEnabledActions.push(actionId);
       }
@@ -83,7 +98,7 @@ export const syncContentApiReadPermissions = async (strapi: Core.Strapi): Promis
 
     if (missingEnabledActions.length > 0) {
       throw new Error(
-        `Nie znaleziono akcji dla roli "${roleType}": ${missingEnabledActions.join(', ')}`
+        `Nie znaleziono akcji dla roli "${roleType}": ${missingEnabledActions.join(', ')}`,
       );
     }
 

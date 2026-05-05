@@ -1,15 +1,24 @@
-<section class="section-container !py-28">
+<section class="section-container !py-16 sm:!py-24 lg:!py-28">
   <div class="max-w-xl mx-auto">
-    <div class="glass-panel border border-mystic-rose/15 rounded-3xl p-8 md:p-10 shadow-lg">
-      <p class="text-xs uppercase tracking-[0.2em] text-mystic-rose/70 mb-4">Start Premium</p>
-      <h1 class="serif-display text-4xl text-mystic-cocoa mb-3">Utwórz konto</h1>
-      <p class="text-mystic-cocoa/70 mb-10">
-        Załóż bezpłatny profil, zapisz swój rytuał dnia i odblokuj pełne interpretacje w wersji premium.
+    <div
+      class="glass-panel border border-mystic-rose/15 rounded-3xl p-5 sm:p-8 md:p-10 shadow-lg"
+    >
+      <p class="text-xs uppercase tracking-[0.2em] text-mystic-rose mb-4">
+        Start Premium
+      </p>
+      <h1 class="serif-display text-3xl sm:text-4xl text-mystic-cocoa mb-3 leading-tight">
+        Utwórz konto
+      </h1>
+      <p class="text-mystic-cocoa mb-10">
+        Załóż bezpłatny profil, zapisz swój rytuał dnia i wracaj do pełnych
+        interpretacji dostępnych teraz w otwartym Premium.
       </p>
 
       <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-5">
         <label class="block">
-          <span class="block text-sm text-mystic-cocoa/80 mb-2">Nazwa użytkownika</span>
+          <span class="block text-sm text-mystic-cocoa mb-2"
+            >Nazwa użytkownika</span
+          >
           <input
             formControlName="username"
             type="text"
@@ -20,7 +29,7 @@
         </label>
 
         <label class="block">
-          <span class="block text-sm text-mystic-cocoa/80 mb-2">E-mail</span>
+          <span class="block text-sm text-mystic-cocoa mb-2">E-mail</span>
           <input
             formControlName="email"
             type="email"
@@ -32,7 +41,7 @@
 
         <div class="grid sm:grid-cols-2 gap-4">
           <label class="block">
-            <span class="block text-sm text-mystic-cocoa/80 mb-2">Hasło</span>
+            <span class="block text-sm text-mystic-cocoa mb-2">Hasło</span>
             <input
               formControlName="password"
               type="password"
@@ -43,7 +52,9 @@
           </label>
 
           <label class="block">
-            <span class="block text-sm text-mystic-cocoa/80 mb-2">Powtórz hasło</span>
+            <span class="block text-sm text-mystic-cocoa mb-2"
+              >Powtórz hasło</span
+            >
             <input
               formControlName="confirmPassword"
               type="password"
@@ -55,21 +66,25 @@
         </div>
 
         @if (error()) {
-          <p class="text-sm text-red-600">{{ error() }}</p>
+        <p class="text-sm text-red-600">{{ error() }}</p>
         }
 
-        <button type="submit" class="btn-primary w-full !py-3.5" [disabled]="loading()">
-          @if (loading()) {
-            Tworzenie konta...
-          } @else {
-            Utwórz konto
-          }
+        <button
+          type="submit"
+          class="btn-primary w-full !py-3.5"
+          [disabled]="loading()"
+        >
+          @if (loading()) { Tworzenie konta... } @else { Utwórz konto }
         </button>
       </form>
 
-      <p class="text-sm text-mystic-cocoa/65 mt-8">
+      <p class="text-sm text-mystic-cocoa mt-8">
         Masz już konto?
-        <a routerLink="/logowanie" class="text-mystic-rose font-medium hover:underline">Zaloguj się</a>
+        <a
+          routerLink="/logowanie"
+          class="text-mystic-rose font-medium hover:underline"
+          >Zaloguj się</a
+        >
       </p>
     </div>
   </div>

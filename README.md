@@ -1,105 +1,86 @@
-# New Nx Repository
+# Star Sign ✧ Astrologia i Magia
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Platforma astrologiczna nowej generacji oferująca personalizowane horoskopy, odczyty tarota i numerologię, oparta na nowoczesnym procesie redakcyjnym i designie **Lumina Silk**.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+## 🚀 Technologie
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
-## Try the full Nx platform
-🚀 If you haven't connected to Nx Cloud yet, [complete your setup here](https://cloud.nx.app/setup/connect-workspace/guide). Get faster builds with remote caching, distributed task execution, and self-healing CI. [See how your workspace can benefit](#nx-cloud).
-## Generate a library
+- **Frontend**: Angular 19 (Standalone Components, Signals)
+- **Backend**: Strapi v5 (Headless CMS)
+- **Design**: Vanilla CSS z systemem tokenów (Glassmorphism, Serif Display)
+- **Testy**:
+  - **Unit/Integration**: Vitest
+  - **E2E**: Playwright
+- **Monorepo**: Nx
 
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
+## 🛠️ Instalacja i Uruchomienie
+
+### Wymagania
+
+- Node.js >= 20
+- npm / pnpm
+
+### Klonowanie i Instalacja
+
+```bash
+git clone <repo-url>
+cd star-sign
+npm install
 ```
 
-## Run tasks
+### Uruchamianie lokalne (Development)
 
-To build the library use:
+```bash
+# Uruchom wszystko (Frontend + API)
+npm start
 
-```sh
-npx nx build pkg1
+# Tylko Frontend
+npm run client
+
+# Tylko API (Strapi)
+npm run api
 ```
 
-To run any task with Nx use:
+## 🧪 Testowanie
 
-```sh
-npx nx <target> <project-name>
+Projekt kładzie duży nacisk na jakość i pokrycie testami (>90%).
+
+### Testy Jednostkowe i Integracyjne (Vitest)
+
+```bash
+# Uruchom testy frontendu
+npx nx test frontend
+
+# Uruchom z raportem pokrycia (coverage)
+npx nx test frontend --coverage
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+### Testy E2E (Playwright)
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```bash
+# Uruchom testy E2E
+npx nx e2e frontend-e2e
 
-## Versioning and releasing
-
-To version and release the library use
-
-```
-npx nx release
+# Uruchom w trybie UI
+npx nx e2e frontend-e2e --ui
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+## 📜 Główne Funkcje
 
-[Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- **Profile Zodiaku**: Szczegółowe opisy wszystkich 12 znaków.
+- **Horoskopy**: Dzienny, tygodniowy, miesięczny i roczny.
+- **Tarot**: Karta dnia (online).
+- **Numerologia**: Obliczanie liczby Drogi Życia.
+- **Blog**: Artykuły o tematyce ezoterycznej.
+- **Sklep (WIP)**: Produkty magiczne i akcesoria.
 
-## Keep TypeScript project references up to date
+## ⚖️ Zgodność Prawna
 
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
+Aplikacja zawiera pełną implementację:
 
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
+- Regulaminu serwisu
+- Polityki prywatności i Cookies
+- Interaktywnego bannera zgody na cookies (zapisywanego w ciasteczkach sesyjnych)
 
-```sh
-npx nx sync
-```
+---
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
-
-```sh
-npx nx sync:check
-```
-
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
-
-## Nx Cloud
-
-Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Set up CI (non-Github Actions CI)
-
-**Note:** This is only required if your CI provider is not GitHub Actions.
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
-```
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+_Created with ✨ by Zespół Star Sign_

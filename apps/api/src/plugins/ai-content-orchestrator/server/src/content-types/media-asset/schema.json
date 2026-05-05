@@ -18,7 +18,13 @@
     "label": { "type": "string", "required": true },
     "purpose": {
       "type": "enumeration",
-      "enum": ["horoscope_sign", "daily_card", "blog_article", "fallback_general"],
+      "enum": [
+        "horoscope_sign",
+        "daily_card",
+        "blog_article",
+        "zodiac_profile",
+        "fallback_general"
+      ],
       "default": "blog_article"
     },
     "sign_slug": { "type": "string" },

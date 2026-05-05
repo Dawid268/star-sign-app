@@ -7,7 +7,13 @@ type StripeEvent = {
   };
 };
 
-type SubscriptionStatus = 'inactive' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid';
+type SubscriptionStatus =
+  | 'inactive'
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'canceled'
+  | 'unpaid';
 type SubscriptionPlan = 'monthly' | 'annual' | null;
 
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
@@ -24,7 +30,11 @@ const timingSafeEquals = (left: string, right: string): boolean => {
   return crypto.timingSafeEqual(leftBuffer, rightBuffer);
 };
 
-const verifyStripeSignature = (payload: string, signatureHeader: string, secret: string): boolean => {
+const verifyStripeSignature = (
+  payload: string,
+  signatureHeader: string,
+  secret: string,
+): boolean => {
   const pairs = signatureHeader
     .split(',')
     .map((part) => part.trim())
@@ -32,7 +42,9 @@ const verifyStripeSignature = (payload: string, signatureHeader: string, secret:
     .map((part) => part.split('=') as [string, string]);
 
   const timestamp = Number(pairs.find(([key]) => key === 't')?.[1]);
-  const signatures = pairs.filter(([key]) => key === 'v1').map(([, value]) => value);
+  const signatures = pairs
+    .filter(([key]) => key === 'v1')
+    .map(([, value]) => value);
 
   if (!Number.isFinite(timestamp) || signatures.length === 0) {
     return false;
@@ -44,7 +56,10 @@ const verifyStripeSignature = (payload: string, signatureHeader: string, secret:
   }
 
   const signedPayload = `${timestamp}.${payload}`;
-  const expected = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(signedPayload)
+    .digest('hex');
 
   return signatures.some((signature) => timingSafeEquals(signature, expected));
 };
@@ -71,13 +86,21 @@ const toIsoFromUnix = (value: unknown): string | null => {
 };
 
 const normalizeSubscriptionStatus = (status: unknown): SubscriptionStatus => {
-  if (status === 'trialing' || status === 'active' || status === 'past_due' || status === 'canceled' || status === 'unpaid') {
+  if (
+    status === 'trialing' ||
+    status === 'active' ||
+    status === 'past_due' ||
+    status === 'canceled' ||
+    status === 'unpaid'
+  ) {
     return status;
   }
   return 'inactive';
 };
 
-const resolveSubscriptionPlan = (subscription: Record<string, any>): SubscriptionPlan => {
+const resolveSubscriptionPlan = (
+  subscription: Record<string, any>,
+): SubscriptionPlan => {
   const metadataPlan = subscription?.metadata?.plan;
   if (metadataPlan === 'monthly' || metadataPlan === 'annual') {
     return metadataPlan;
@@ -94,9 +117,11 @@ const resolveSubscriptionPlan = (subscription: Record<string, any>): Subscriptio
 };
 
 const ensureUserProfileForUser = async (userId: number): Promise<any> => {
-  let profile = await strapi.db.query('api::user-profile.user-profile').findOne({
-    where: { user: userId },
-  });
+  let profile = await strapi.db
+    .query('api::user-profile.user-profile')
+    .findOne({
+      where: { user: userId },
+    });
 
   if (profile) {
     return profile;
@@ -113,20 +138,27 @@ const ensureUserProfileForUser = async (userId: number): Promise<any> => {
   return profile;
 };
 
-const findUserProfileByStripe = async (input: { customerId?: string | null; subscriptionId?: string | null }) => {
+const findUserProfileByStripe = async (input: {
+  customerId?: string | null;
+  subscriptionId?: string | null;
+}) => {
   if (input.customerId) {
-    const byCustomer = await strapi.db.query('api::user-profile.user-profile').findOne({
-      where: { stripe_customer_id: input.customerId },
-    });
+    const byCustomer = await strapi.db
+      .query('api::user-profile.user-profile')
+      .findOne({
+        where: { stripe_customer_id: input.customerId },
+      });
     if (byCustomer) {
       return byCustomer;
     }
   }
 
   if (input.subscriptionId) {
-    const bySubscription = await strapi.db.query('api::user-profile.user-profile').findOne({
-      where: { stripe_subscription_id: input.subscriptionId },
-    });
+    const bySubscription = await strapi.db
+      .query('api::user-profile.user-profile')
+      .findOne({
+        where: { stripe_subscription_id: input.subscriptionId },
+      });
     if (bySubscription) {
       return bySubscription;
     }
@@ -225,7 +257,9 @@ export default {
               data: {
                 status: 'paid',
                 stripe_payment_intent_id:
-                  typeof object.payment_intent === 'string' ? object.payment_intent : null,
+                  typeof object.payment_intent === 'string'
+                    ? object.payment_intent
+                    : null,
                 paid_at: new Date().toISOString(),
               },
             });
@@ -233,16 +267,26 @@ export default {
         }
 
         if (mode === 'subscription') {
-          const customerId = typeof object.customer === 'string' ? object.customer : null;
-          const subscriptionId = typeof object.subscription === 'string' ? object.subscription : null;
-          const sessionPlan = object?.metadata?.plan === 'annual' ? 'annual' : object?.metadata?.plan === 'monthly' ? 'monthly' : null;
+          const customerId =
+            typeof object.customer === 'string' ? object.customer : null;
+          const subscriptionId =
+            typeof object.subscription === 'string'
+              ? object.subscription
+              : null;
+          const sessionPlan =
+            object?.metadata?.plan === 'annual'
+              ? 'annual'
+              : object?.metadata?.plan === 'monthly'
+                ? 'monthly'
+                : null;
           const clientReferenceId = Number(object?.client_reference_id);
           const metadataUserId = Number(object?.metadata?.userId);
-          const userId = Number.isFinite(clientReferenceId) && clientReferenceId > 0
-            ? clientReferenceId
-            : Number.isFinite(metadataUserId) && metadataUserId > 0
-              ? metadataUserId
-              : null;
+          const userId =
+            Number.isFinite(clientReferenceId) && clientReferenceId > 0
+              ? clientReferenceId
+              : Number.isFinite(metadataUserId) && metadataUserId > 0
+                ? metadataUserId
+                : null;
 
           let profile = await findUserProfileByStripe({
             customerId,
@@ -262,7 +306,9 @@ export default {
               plan: sessionPlan,
             });
           } else {
-            strapi.log.warn('Nie udało się powiązać zdarzenia checkout.session.completed z profilem użytkownika.');
+            strapi.log.warn(
+              'Nie udało się powiązać zdarzenia checkout.session.completed z profilem użytkownika.',
+            );
           }
         }
       }
@@ -289,7 +335,8 @@ export default {
       eventType === 'customer.subscription.updated' ||
       eventType === 'customer.subscription.deleted'
     ) {
-      const customerId = typeof object.customer === 'string' ? object.customer : null;
+      const customerId =
+        typeof object.customer === 'string' ? object.customer : null;
       const subscriptionId = typeof object.id === 'string' ? object.id : null;
 
       let profile = await findUserProfileByStripe({
@@ -316,7 +363,9 @@ export default {
           cancelAtPeriodEnd: Boolean(object.cancel_at_period_end),
         });
       } else {
-        strapi.log.warn(`Nie udało się powiązać zdarzenia subskrypcji Stripe (${eventType}) z profilem użytkownika.`);
+        strapi.log.warn(
+          `Nie udało się powiązać zdarzenia subskrypcji Stripe (${eventType}) z profilem użytkownika.`,
+        );
       }
     }
 

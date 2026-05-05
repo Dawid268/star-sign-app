@@ -1,0 +1,35 @@
+:host {
+  display: block;
+}
+
+.premium-preview {
+  @apply mt-10 rounded-3xl border border-mystic-gold/30 bg-gradient-to-br from-mystic-cocoa to-[#2a2024] p-5 text-white shadow-2xl sm:mt-12 sm:p-8;
+}
+
+.premium-preview__eyebrow {
+  @apply mb-4 inline-flex max-w-full rounded-full border border-mystic-gold/30 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-mystic-gold sm:tracking-[0.24em];
+}
+
+.premium-preview__title {
+  @apply serif-display mb-4 text-2xl text-white md:text-3xl;
+}
+
+.premium-preview__intro {
+  @apply mb-6 text-sm leading-relaxed text-white/70 md:text-base;
+}
+
+.premium-preview__content {
+  @apply whitespace-pre-line text-base leading-relaxed text-white/85;
+}
+
+.premium-preview__list {
+  @apply mb-8 grid gap-3 text-left text-sm text-white/80 md:grid-cols-2;
+
+  li {
+    @apply rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3;
+  }
+}
+
+.premium-preview__cta {
+  @apply inline-flex max-w-full items-center justify-center rounded-full bg-mystic-gold px-5 py-3 text-center text-sm font-bold text-mystic-cocoa transition-all hover:bg-white sm:px-7;
+}

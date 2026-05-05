@@ -19,15 +19,102 @@ export type Workflow = {
   allow_manual_edit: boolean;
   auto_publish: boolean;
   force_regenerate: boolean;
+  strategy_enabled?: boolean;
+  performance_feedback_enabled?: boolean;
+  content_cluster?: string | null;
+  auto_publish_guardrails?: Record<string, unknown> | null;
   topic_mode: 'manual' | 'mixed';
-  horoscope_period: 'Dzienny' | 'Tygodniowy' | 'Miesięczny';
+  horoscope_period: 'Dzienny' | 'Tygodniowy' | 'Miesięczny' | 'Roczny';
   horoscope_type_values: string[];
   all_signs: boolean;
   article_category: number | null;
+  enabled_channels?: SocialPlatform[];
+  fb_page_id?: string | null;
+  ig_user_id?: string | null;
+  x_api_key?: string | null;
+  tt_creator_id?: string | null;
   has_api_token: boolean;
+  has_image_gen_token?: boolean;
+  has_fb_token?: boolean;
+  has_ig_token?: boolean;
+  has_x_api_secret?: boolean;
+  has_x_access_token?: boolean;
+  has_x_access_token_secret?: boolean;
+  has_tt_token?: boolean;
+  image_gen_model?: string | null;
   last_error?: string | null;
   last_generated_at?: string | null;
   last_published_at?: string | null;
+};
+
+export type SocialPlatform = 'facebook' | 'instagram' | 'twitter' | 'tiktok';
+
+export type SocialTicket = {
+  id: number;
+  platform: SocialPlatform;
+  status: 'pending' | 'scheduled' | 'published' | 'failed' | 'canceled';
+  caption: string;
+  media_url?: string | null;
+  target_url?: string | null;
+  scheduled_at: string;
+  published_on?: string | null;
+  last_error?: string | null;
+  attempt_count?: number;
+  next_attempt_at?: string | null;
+  provider_post_id?: string | null;
+  blocked_reason?: string | null;
+  workflow?: number | { id: number; name?: string } | null;
+  source_run?: number | { id: number } | null;
+};
+
+export type SocialConnectionStatus = {
+  platform: SocialPlatform;
+  status: 'ready' | 'needs_action' | 'blocked' | 'degraded';
+  message: string;
+  details?: Record<string, unknown>;
+};
+
+export type SocialConnectionResult = {
+  workflowId: number;
+  overall: 'ready' | 'needs_action' | 'blocked' | 'degraded';
+  channels: SocialConnectionStatus[];
+};
+
+export type SocialDryRunResult = {
+  workflowId: number;
+  overall: 'ready' | 'needs_action' | 'blocked' | 'degraded';
+  channels: Array<SocialConnectionStatus & { renderedCaption: string }>;
+};
+
+export type AuditCheck = {
+  id: string;
+  area: string;
+  severity: 'critical' | 'warning';
+  status: 'pass' | 'warn' | 'fail';
+  message: string;
+  details?: Record<string, unknown>;
+};
+
+export type AuditFinding = {
+  id: string;
+  area: string;
+  message: string;
+  remediation: string;
+};
+
+export type AuditReport = {
+  decision: 'GO' | 'GO_WITH_WARNINGS' | 'NO_GO';
+  strict: boolean;
+  generatedAt: string;
+  summary: {
+    criticalFailures: number;
+    warnings: number;
+  };
+  checks: AuditCheck[];
+  failed_flows: string[];
+  failed_access_checks: string[];
+  critical_findings: AuditFinding[];
+  non_critical_findings: AuditFinding[];
 };
 
 export type Topic = {
@@ -75,6 +162,8 @@ export type LlmTrace = {
   label: string;
   workflowType?: Workflow['workflow_type'];
   createdAt: string;
+  redacted?: boolean;
+  redactionReason?: string;
   request: {
     model: string;
     temperature: number;
@@ -112,6 +201,11 @@ export type DashboardSummary = {
     scheduled: number;
     failed: number;
   };
+  social: {
+    scheduled: number;
+    failed: number;
+    published: number;
+  };
 };
 
 export type DiagnosticsSummary = {
@@ -144,6 +238,112 @@ export type DiagnosticsSummary = {
 export type SettingsPayload = {
   timezone: string;
   locale: string;
+  image_gen_model?: string;
+  imageGenApiToken?: string;
+  has_image_gen_token?: boolean;
+  aico_auto_publish_enabled?: boolean;
+  aico_strategy_autopilot_enabled?: boolean;
+};
+
+export type ContentPlanStatus =
+  | 'planned'
+  | 'approved'
+  | 'queued'
+  | 'published'
+  | 'rejected'
+  | 'failed';
+
+export type ContentPlanItem = {
+  id: number;
+  title: string;
+  brief?: string | null;
+  seo_intent?: string | null;
+  seo_cluster?: string | null;
+  priority_score?: number | null;
+  target_persona?: string | null;
+  target_publish_at?: string | null;
+  status: ContentPlanStatus;
+  channels?: SocialPlatform[] | null;
+  agent_rationale?: string | null;
+  source?: 'strategy_agent' | 'manual' | 'performance_feedback' | null;
+  dedupe_key?: string | null;
+  metadata?: Record<string, unknown> | null;
+  workflow?: number | { id: number; name?: string } | null;
+  article_category?: number | { id: number; name?: string } | null;
+  generated_topic?: number | { id: number; title?: string } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type StrategyGeneratePlanResult = {
+  created: number;
+  skipped: number;
+  items: ContentPlanItem[];
+  weekStart: string;
+};
+
+export type StrategyApprovePlanResult = {
+  queued: number;
+  skipped: number;
+  topics: Topic[];
+};
+
+export type ContentPerformanceSnapshot = {
+  id: number;
+  unique_key: string;
+  snapshot_day: string;
+  content_uid: string;
+  content_entry_id: number;
+  content_slug?: string | null;
+  content_title?: string | null;
+  views?: number;
+  premium_events?: number;
+  cta_clicks?: number;
+  checkout_events?: number;
+  social_published?: number;
+  social_failed?: number;
+  freshness_days?: number;
+  score?: number;
+  recommendations?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+  workflow?: number | { id: number; name?: string } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type PerformanceAggregateResult = {
+  day: string;
+  processed: number;
+  snapshots: ContentPerformanceSnapshot[];
+};
+
+export type HomepageRecommendation = {
+  id: number;
+  slot: 'today_in_stars' | 'weekly_focus' | 'recommended_for_you' | 'new_premium' | 'evergreen';
+  title: string;
+  subtitle?: string | null;
+  target_url?: string | null;
+  content_uid?: string | null;
+  content_entry_id?: number | null;
+  content_slug?: string | null;
+  priority_score?: number | null;
+  starts_at?: string | null;
+  expires_at?: string | null;
+  status: 'scheduled' | 'active' | 'expired' | 'archived';
+  rationale?: string | null;
+  metadata?: Record<string, unknown> | null;
+  workflow?: number | { id: number; name?: string } | null;
+  source_snapshot?: number | { id: number } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type HomepageRecommendationsRunResult = {
+  created?: number;
+  expired?: number;
+  updated?: number;
+  skipped?: number;
+  recommendations?: HomepageRecommendation[];
 };
 
 export type MediaAsset = {

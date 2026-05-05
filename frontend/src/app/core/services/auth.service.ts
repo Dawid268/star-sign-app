@@ -1,9 +1,18 @@
-import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
+import {
+  Injectable,
+  PLATFORM_ID,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { StrapiAuthResponse, StrapiAuthUser } from '@star-sign-monorepo/shared-types';
+import {
+  StrapiAuthResponse,
+  StrapiAuthUser,
+} from '@star-sign-monorepo/shared-types';
 
 type AuthSession = {
   jwt: string;
@@ -12,42 +21,70 @@ type AuthSession = {
 
 const AUTH_STORAGE_KEY = 'star-sign-auth-session';
 
+import { AnalyticsService } from './analytics.service';
+
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly analyticsService = inject(AnalyticsService);
   private readonly apiUrl = environment.apiUrl;
   private readonly browser = isPlatformBrowser(this.platformId);
 
-  private readonly sessionState = signal<AuthSession | null>(this.readSessionFromStorage());
+  private readonly sessionState = signal<AuthSession | null>(
+    this.readSessionFromStorage(),
+  );
 
   public readonly session = computed(() => this.sessionState());
   public readonly user = computed(() => this.sessionState()?.user || null);
-  public readonly isLoggedIn = computed(() => Boolean(this.sessionState()?.jwt));
+  public readonly isLoggedIn = computed(() =>
+    Boolean(this.sessionState()?.jwt),
+  );
   public readonly token = computed(() => this.sessionState()?.jwt || null);
 
-  public login(identifier: string, password: string): Observable<StrapiAuthResponse> {
+  public login(
+    identifier: string,
+    password: string,
+  ): Observable<StrapiAuthResponse> {
     return this.http
       .post<StrapiAuthResponse>(`${this.apiUrl}/auth/local`, {
         identifier,
         password,
       })
-      .pipe(tap((response) => this.persistAuth(response)));
+      .pipe(
+        tap((response) => {
+          this.persistAuth(response);
+          this.analyticsService.trackEvent('login', { method: 'local' });
+        }),
+      );
   }
 
-  public register(input: { username: string; email: string; password: string }): Observable<StrapiAuthResponse> {
-    return this.http.post<StrapiAuthResponse>(`${this.apiUrl}/auth/local/register`, input).pipe(
-      tap((response) => this.persistAuth(response))
-    );
+  public register(input: {
+    username: string;
+    email: string;
+    password: string;
+  }): Observable<StrapiAuthResponse> {
+    return this.http
+      .post<StrapiAuthResponse>(`${this.apiUrl}/auth/local/register`, input)
+      .pipe(
+        tap((response) => {
+          this.persistAuth(response);
+          this.analyticsService.trackEvent('sign_up', { method: 'local' });
+        }),
+      );
   }
 
   public logout(): void {
-    this.sessionState.set(null);
+    this.clearSession();
     if (this.browser) {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+      this.analyticsService.trackEvent('logout');
     }
+  }
+
+  public expireSession(): void {
+    this.clearSession();
   }
 
   public updateUser(user: StrapiAuthUser): void {
@@ -63,6 +100,13 @@ export class AuthService {
 
     this.sessionState.set(next);
     this.writeSessionToStorage(next);
+  }
+
+  private clearSession(): void {
+    this.sessionState.set(null);
+    if (this.browser) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
   }
 
   private persistAuth(payload: StrapiAuthResponse): void {

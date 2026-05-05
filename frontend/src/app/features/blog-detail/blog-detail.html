@@ -1,130 +1,345 @@
 @let currentArticle = article();
 
-<div class="min-h-screen bg-[#FFFBFB] selection:bg-mystic-rose selection:text-white">
+<div
+  class="min-h-screen bg-[#FFFBFB] selection:bg-mystic-rose selection:text-white"
+>
   @if (currentArticle) {
-    <!-- Article Hero -->
-    <section class="relative pt-32 pb-20 overflow-hidden bg-[#FDF4F5]">
-      <div class="absolute inset-0 bg-gradient-to-b from-transparent to-[#FFFBFB] opacity-50 z-0"></div>
-      
-      <div class="mystic-orb top-20 right-[10%] w-64 h-64 bg-mystic-rose/10 animate-float"></div>
-      <div class="mystic-orb bottom-10 left-[5%] w-48 h-48 bg-mystic-gold/10 animate-float" style="animation-delay: 2s;"></div>
+  <!-- Article Hero -->
+  <section class="relative pt-24 pb-14 sm:pt-32 sm:pb-20 overflow-hidden bg-[#FDF4F5]">
+    <div
+      class="absolute inset-0 bg-gradient-to-b from-transparent to-[#FFFBFB] opacity-50 z-0"
+    ></div>
 
-      <div class="section-container relative z-10">
-        <a routerLink="/artykuly" class="inline-flex items-center gap-2 text-mystic-rose hover:text-mystic-cocoa transition-colors mb-10 font-medium text-sm tracking-wide group">
-          <ng-icon name="heroChevronLeft" class="group-hover:-translate-x-1 transition-transform" />
-          Powrót do artykułów
-        </a>
+    <div
+      class="mystic-orb top-20 right-[10%] w-64 h-64 bg-mystic-rose/10 animate-float"
+    ></div>
+    <div
+      class="mystic-orb bottom-10 left-[5%] w-48 h-48 bg-mystic-gold/10 animate-float"
+      style="animation-delay: 2s"
+    ></div>
 
-        <div class="max-w-4xl">
-          @if (currentArticle.category) {
-            <span class="bg-white/90 backdrop-blur-sm px-4 py-1.5 rounded-full text-xs font-bold text-mystic-rose tracking-widest uppercase shadow-sm mb-6 inline-block">
-              {{ currentArticle.category.name }}
-            </span>
-          }
+    <div class="section-container relative z-10">
+      <app-breadcrumbs />
 
-          <h1 class="serif-display text-4xl sm:text-5xl md:text-6xl text-mystic-cocoa mb-8 leading-tight animate-fade-in">
-            {{ currentArticle.title }}
-          </h1>
+      <a
+        routerLink="/artykuly"
+        class="inline-flex items-center gap-2 text-mystic-rose hover:text-mystic-cocoa transition-colors mb-10 font-medium text-sm tracking-wide group"
+      >
+        <ng-icon
+          name="heroChevronLeft"
+          class="group-hover:-translate-x-1 transition-transform"
+        />
+        Powrót do artykułów
+      </a>
 
-          <div class="flex flex-wrap items-center gap-8 text-mystic-cocoa/60 text-sm font-light border-b border-mystic-rose/10 pb-8">
-            <div class="flex items-center gap-2">
-              <ng-icon name="heroUser" class="text-mystic-rose" />
-              <span>Redakcja Star Sign</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <ng-icon name="heroClock" class="text-mystic-rose" />
-              <span>{{ currentArticle.read_time_minutes || 5 }} min czytania</span>
-            </div>
-            <div class="flex items-center gap-2">
-               <span class="text-mystic-rose opacity-50">✦</span>
-               <span>Opublikowano: {{ currentArticle.publishedAt | date:'longDate' }}</span>
-            </div>
+      <div class="max-w-4xl">
+        <div class="mb-6 flex flex-wrap gap-3">
+        @if (currentArticle.category) {
+        <span
+          class="bg-white/90 backdrop-blur-sm px-4 py-1.5 rounded-full text-xs font-bold text-mystic-rose tracking-widest uppercase shadow-sm"
+        >
+          {{ currentArticle.category.name }}
+        </span>
+        } @if (hasPremiumExtension(currentArticle)) {
+        <span
+          class="bg-mystic-gold/90 backdrop-blur-sm px-4 py-1.5 rounded-full text-xs font-bold text-white tracking-[0.2em] shadow-sm inline-flex items-center gap-2"
+        >
+          ✦ PREMIUM
+        </span>
+        }
+        </div>
+
+        <h1
+          class="serif-display text-3xl sm:text-5xl md:text-6xl text-mystic-cocoa mb-8 leading-tight animate-fade-in break-words"
+        >
+          {{ currentArticle.title }}
+        </h1>
+
+        <div
+          class="flex flex-wrap items-center gap-4 sm:gap-8 text-mystic-cocoa text-sm font-light border-b border-mystic-rose/10 pb-8"
+        >
+          <div class="flex items-center gap-2">
+            <ng-icon name="heroUser" class="text-mystic-rose" />
+            <span>Redakcja Star Sign</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <ng-icon name="heroClock" class="text-mystic-rose" />
+            <span
+              >{{ currentArticle.read_time_minutes || 5 }} min czytania</span
+            >
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-mystic-rose opacity-50">✦</span>
+            <span
+              >Opublikowano: {{ currentArticle.publishedAt | date:'longDate'
+              }}</span
+            >
           </div>
         </div>
       </div>
-    </section>
-
-    <!-- Article Content -->
-    <section class="section-container py-16">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-16">
-        
-        <!-- Main Content -->
-        <div class="lg:col-span-8">
-          <div class="prose prose-mystic max-w-none">
-            <!-- Wstęp / Excerpt -->
-            @if (currentArticle.excerpt) {
-              <p class="text-xl text-mystic-cocoa font-light italic leading-relaxed mb-12 border-l-4 border-mystic-gold pl-6">
-                {{ currentArticle.excerpt }}
-              </p>
-            }
-
-            <!-- Treść właściwa -->
-            <div class="text-mystic-cocoa/80 text-lg leading-relaxed space-y-8 font-light">
-               {{ currentArticle.content || 'Tutaj znajdzie się pełna treść artykułu pobrana z CMS...' }}
-            </div>
-          </div>
-
-          <!-- Social Share -->
-          <div class="mt-16 pt-8 border-t border-mystic-rose/10 flex items-center justify-between">
-            <span class="text-mystic-cocoa/40 text-sm uppercase tracking-widest font-medium">Podziel się wiedzą</span>
-            <div class="flex gap-4">
-              <button class="icon-circle w-10 h-10 bg-white border border-mystic-rose/10 text-mystic-cocoa hover:text-mystic-rose hover:border-mystic-rose transition-all">
-                <ng-icon name="heroShare" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Sidebar -->
-        <aside class="lg:col-span-4 space-y-12">
-          @if (shopEnabled) {
-            <!-- Banner Reklamowy -->
-            <div class="glass-panel p-8 rounded-2xl border border-mystic-rose/15 bg-mystic-cocoa text-white relative overflow-hidden group cursor-pointer">
-              <div class="relative z-10">
-                <span class="text-mystic-gold text-[10px] uppercase tracking-widest font-bold mb-4 block">Polecamy</span>
-                <h3 class="serif-display text-2xl mb-4">Osobisty Portret Numerologiczny</h3>
-                <p class="text-white/70 text-sm font-light mb-6">Odkryj przeznaczenie zapisane w Twojej dacie urodzenia.</p>
-                <a routerLink="/sklep" class="inline-block border-b border-mystic-gold text-mystic-gold pb-1 font-medium text-sm hover:text-white hover:border-white transition-colors">
-                  Sprawdź w sklepie →
-                </a>
-              </div>
-              <div class="absolute -right-4 -bottom-4 text-7xl opacity-5 group-hover:scale-110 transition-transform">☯</div>
-            </div>
-          } @else {
-            <div class="glass-panel p-8 rounded-2xl border border-mystic-rose/15 bg-mystic-cocoa text-white relative overflow-hidden group">
-              <div class="relative z-10">
-                <span class="text-mystic-gold text-[10px] uppercase tracking-widest font-bold mb-4 block">Polecamy</span>
-                <h3 class="serif-display text-2xl mb-4">Osobisty Portret Numerologiczny</h3>
-                <p class="text-white/70 text-sm font-light mb-6">Odkryj przeznaczenie zapisane w Twojej dacie urodzenia.</p>
-                <a routerLink="/numerologia" class="inline-block border-b border-mystic-gold text-mystic-gold pb-1 font-medium text-sm hover:text-white hover:border-white transition-colors">
-                  Oblicz numerologię →
-                </a>
-              </div>
-              <div class="absolute -right-4 -bottom-4 text-7xl opacity-5 group-hover:scale-110 transition-transform">☯</div>
-            </div>
-          }
-
-          <!-- Newsletter Mini -->
-          <div class="bg-[#fbf5f7] p-8 rounded-2xl border border-mystic-rose/20">
-            <h3 class="serif-display text-xl text-mystic-cocoa mb-4">Magiczny Newsletter</h3>
-            <p class="text-mystic-cocoa/70 text-sm font-light mb-6">Zapisz się i otrzymuj horoskopy prosto na e-mail.</p>
-            <form class="space-y-4">
-              <input type="email" placeholder="Twój e-mail" class="w-full px-4 py-3 rounded-xl border border-mystic-rose/20 focus:outline-none focus:border-mystic-rose bg-white text-sm">
-              <button class="w-full btn-primary !py-3 !text-sm">Dołączam ✦</button>
-            </form>
-          </div>
-        </aside>
-
-      </div>
-    </section>
-
-  } @else {
-    <!-- Loading State -->
-    <div class="min-h-screen flex items-center justify-center bg-[#FDF4F5]">
-       <div class="flex flex-col items-center gap-6">
-         <div class="text-6xl text-mystic-gold animate-pulse">✦</div>
-         <p class="text-mystic-cocoa/60 text-sm tracking-widest uppercase font-medium">Odczytywanie gwiazd...</p>
-       </div>
     </div>
+  </section>
+
+  @if (currentArticle.image) {
+  <div class="section-container -mt-10 mb-10">
+    <div
+      class="relative w-full aspect-[4/3] sm:aspect-[16/9] lg:aspect-[21/9] rounded-3xl lg:rounded-[2.5rem] overflow-hidden border border-mystic-rose/10 bg-[#fbf5f7] shadow-2xl"
+    >
+      <img
+        [src]="currentArticle.image.url | strapiImage"
+        [srcset]="currentArticle.image | strapiSrcset"
+        sizes="(max-width: 1024px) 100vw, 1200px"
+        [alt]="currentArticle.image.alternativeText || currentArticle.title"
+        class="absolute inset-0 w-full h-full object-cover"
+      />
+      <div
+        class="absolute inset-0 bg-gradient-to-t from-mystic-rose/20 to-transparent"
+      ></div>
+    </div>
+  </div>
+  }
+
+  <!-- Article Content -->
+  <section class="section-container py-16">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
+      <!-- Main Content -->
+      <div class="lg:col-span-8">
+        <div class="prose prose-mystic max-w-none">
+          <!-- Wstęp / Excerpt -->
+          @if (currentArticle.excerpt) {
+          <p
+            class="text-lg sm:text-xl text-mystic-cocoa font-light italic leading-relaxed mb-10 sm:mb-12 border-l-4 border-mystic-gold pl-4 sm:pl-6"
+          >
+            {{ currentArticle.excerpt }}
+          </p>
+          }
+
+          <!-- Treść właściwa -->
+          <div class="relative">
+            <div
+              class="text-mystic-cocoa text-base sm:text-lg leading-relaxed space-y-8 font-light break-words"
+            >
+              {{ currentArticle.content || 'Treść jest chwilowo niedostępna.
+              Wróć za moment albo sprawdź Kartę Dnia.' }}
+            </div>
+
+            <app-premium-preview-block
+              variant="article"
+              [isPremium]="canDisplayPremiumContent(currentArticle)"
+              [premiumContent]="currentArticle.premiumContent"
+              [hasPremiumContent]="hasPremiumExtension(currentArticle)"
+              title="Rozszerzenie Premium do artykułu"
+              intro="Publiczna część jest dostępna dla wszystkich. Premium dodaje ćwiczenie, rytuał i pytanie do pracy z tematem."
+              ctaLabel="Dołącz do Kręgu"
+              testId="article-premium-preview"
+              (ctaClick)="trackPremiumCta(currentArticle)"
+            />
+          </div>
+        </div>
+
+        <div
+          class="mt-16 pt-8 border-t border-mystic-rose/10 flex flex-col sm:flex-row sm:items-center justify-between gap-6"
+        >
+          <span
+            class="text-mystic-cocoa text-sm uppercase tracking-widest font-medium"
+            >Podziel się wiedzą</span
+          >
+          <app-social-share
+            [url]="getSiteUrl() + '/artykuly/' + currentArticle.slug"
+            [title]="currentArticle.title"
+            [excerpt]="currentArticle.excerpt || ''"
+          />
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <aside class="lg:col-span-4 space-y-12">
+        @if (shopEnabled) {
+        <!-- Banner Reklamowy -->
+        <div
+          class="glass-panel p-6 sm:p-8 rounded-2xl border border-mystic-rose/15 bg-mystic-cocoa text-white relative overflow-hidden group"
+        >
+          <div class="relative z-10">
+            <span
+              class="text-mystic-gold text-[10px] uppercase tracking-widest font-bold mb-4 block"
+              >Polecamy</span
+            >
+            <h3 class="serif-display text-2xl mb-4">
+              Osobisty Portret Numerologiczny
+            </h3>
+            <p class="text-white/70 text-sm font-light mb-6">
+              Odkryj przeznaczenie zapisane w Twojej dacie urodzenia.
+            </p>
+            <a
+              routerLink="/sklep"
+              class="inline-block border-b border-mystic-gold text-mystic-gold pb-1 font-medium text-sm hover:text-white hover:border-white transition-colors"
+            >
+              Sprawdź w sklepie →
+            </a>
+          </div>
+          <div
+            class="absolute -right-4 -bottom-4 text-7xl opacity-5 group-hover:scale-110 transition-transform"
+          >
+            ☯
+          </div>
+        </div>
+        } @else {
+        <div
+          class="glass-panel p-6 sm:p-8 rounded-2xl border border-mystic-rose/15 bg-mystic-cocoa text-white relative overflow-hidden group"
+        >
+          <div class="relative z-10">
+            <span
+              class="text-mystic-gold text-[10px] uppercase tracking-widest font-bold mb-4 block"
+              >Polecamy</span
+            >
+            <h3 class="serif-display text-2xl mb-4">
+              Osobisty Portret Numerologiczny
+            </h3>
+            <p class="text-white/70 text-sm font-light mb-6">
+              Odkryj przeznaczenie zapisane w Twojej dacie urodzenia.
+            </p>
+            <a
+              routerLink="/numerologia"
+              class="inline-block border-b border-mystic-gold text-mystic-gold pb-1 font-medium text-sm hover:text-white hover:border-white transition-colors"
+            >
+              Oblicz numerologię →
+            </a>
+          </div>
+          <div
+            class="absolute -right-4 -bottom-4 text-7xl opacity-5 group-hover:scale-110 transition-transform"
+          >
+            ☯
+          </div>
+        </div>
+        }
+
+        <!-- Newsletter Mini -->
+        <div class="bg-[#fbf5f7] p-6 sm:p-8 rounded-2xl border border-mystic-rose/20">
+          <h3 class="serif-display text-xl text-mystic-cocoa mb-4">
+            Codzienny horoskop na e-mail
+          </h3>
+          <p class="text-mystic-cocoa text-sm font-light mb-6">
+            Zapisz się, jeśli chcesz wracać po krótką codzienną wskazówkę.
+          </p>
+          <a
+            routerLink="/"
+            fragment="newsletter"
+            class="btn-primary w-full justify-center !py-3 !text-sm"
+            data-test="blog-newsletter-link"
+          >
+            Przejdź do zapisu ✦
+          </a>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Related Articles -->
+  @let related = relatedArticles(); @if (related.length > 0) {
+  <section class="section-container pb-24 border-t border-mystic-rose/10 pt-16">
+    <h2 class="serif-display text-3xl text-mystic-cocoa mb-12">
+      Może Cię również zainteresować
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      @for (item of related; track item.documentId) {
+      <a
+        [routerLink]="['/artykuly', item.slug]"
+        class="group block bg-white rounded-2xl overflow-hidden border border-mystic-rose/10 hover:shadow-xl transition-all h-full"
+      >
+        <div class="relative aspect-video overflow-hidden">
+          <img
+            [src]="item.image?.url | strapiImage"
+            [alt]="item.title"
+            class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+          <div class="absolute top-4 left-4 flex flex-col gap-2">
+            <span
+              class="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold text-mystic-rose tracking-wider uppercase"
+            >
+              {{ item.category?.name }}
+            </span>
+            @if (hasPremiumExtension(item)) {
+            <span
+              class="bg-mystic-gold/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold text-white tracking-[0.2em] uppercase"
+            >
+              ✦ PREMIUM
+            </span>
+            }
+          </div>
+        </div>
+        <div class="p-6">
+          <h3
+            class="serif-display text-xl text-mystic-cocoa mb-3 line-clamp-2 group-hover:text-mystic-rose transition-colors"
+          >
+            {{ item.title }}
+          </h3>
+          <p class="text-mystic-cocoa text-sm font-light line-clamp-3 mb-4">
+            {{ item.excerpt }}
+          </p>
+          <span
+            class="text-xs text-mystic-gold font-medium uppercase tracking-widest"
+            >Czytaj więcej →</span
+          >
+        </div>
+      </a>
+      }
+    </div>
+  </section>
+  } } @else {
+  <!-- Skeleton Loading State -->
+  <div class="min-h-screen bg-[#FFFBFB] pt-32 pb-20">
+    <div class="section-container">
+      <app-skeleton
+        width="150px"
+        height="30px"
+        borderRadius="20px"
+        class="mb-10"
+      />
+      <app-skeleton
+        width="120px"
+        height="20px"
+        borderRadius="10px"
+        class="mb-6"
+      />
+      <app-skeleton width="80%" height="60px" borderRadius="8px" class="mb-8" />
+      <app-skeleton
+        width="200px"
+        height="20px"
+        borderRadius="4px"
+        class="mb-12"
+      />
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-16">
+        <div class="lg:col-span-8">
+          <app-skeleton
+            width="100%"
+            height="400px"
+            borderRadius="2.5rem"
+            class="mb-12"
+          />
+          <div class="space-y-4">
+            <app-skeleton width="100%" height="20px" />
+            <app-skeleton width="95%" height="20px" />
+            <app-skeleton width="98%" height="20px" />
+            <app-skeleton width="40%" height="20px" />
+          </div>
+          <div class="mt-12 space-y-4">
+            <app-skeleton width="100%" height="20px" />
+            <app-skeleton width="90%" height="20px" />
+            <app-skeleton width="92%" height="20px" />
+          </div>
+        </div>
+        <aside class="lg:col-span-4">
+          <app-skeleton
+            width="100%"
+            height="200px"
+            borderRadius="1rem"
+            class="mb-8"
+          />
+          <app-skeleton width="100%" height="300px" borderRadius="1rem" />
+        </aside>
+      </div>
+    </div>
+  </div>
   }
 </div>

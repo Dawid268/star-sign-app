@@ -1,0 +1,59 @@
+<main
+  class="min-h-screen bg-[#FFFBFB] flex items-center justify-center pt-20 pb-24 overflow-hidden relative"
+>
+  <!-- Mystic Background Elements -->
+  <div
+    class="absolute top-1/4 -left-20 w-96 h-96 bg-mystic-rose/5 rounded-full blur-[100px] animate-pulse"
+  ></div>
+  <div
+    class="absolute bottom-1/4 -right-20 w-96 h-96 bg-mystic-gold/5 rounded-full blur-[100px] animate-pulse"
+    style="animation-delay: 2s"
+  ></div>
+
+  <section class="section-container max-w-2xl text-center relative z-10">
+    <!-- Star Symbol -->
+    <div class="text-mystic-gold text-7xl mb-10 select-none animate-float">
+      ✦
+    </div>
+
+    <h1
+      class="serif-display text-8xl md:text-9xl text-mystic-cocoa mb-4 opacity-10 leading-none"
+      data-test="not-found-title"
+    >
+      404
+    </h1>
+
+    <div class="-mt-12 md:-mt-16 relative">
+      <h2 class="serif-display text-4xl md:text-5xl text-mystic-cocoa mb-6">
+        Zagubiony w kosmosie?
+      </h2>
+      <p
+        class="text-mystic-cocoa leading-relaxed mb-12 max-w-lg mx-auto font-light text-lg"
+      >
+        Wygląda na to, że układ gwiazd zaprowadził Cię w miejsce, które jeszcze
+        nie istnieje. Wróć na właściwą ścieżkę przeznaczenia.
+      </p>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a
+          routerLink="/"
+          class="btn-primary min-w-[200px]"
+          data-test="not-found-home-button"
+          >Wróć do domu</a
+        >
+        <a routerLink="/horoskopy" class="btn-outline min-w-[200px]"
+          >Sprawdź swój horoskop</a
+        >
+      </div>
+    </div>
+
+    <!-- Decorative Symbols -->
+    <div
+      class="mt-20 flex justify-center gap-12 text-mystic-gold opacity-20 text-xl"
+    >
+      <span>☽</span>
+      <span>✧</span>
+      <span>☉</span>
+    </div>
+  </section>
+</main>

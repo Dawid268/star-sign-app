@@ -3,12 +3,15 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError, map, timeout } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { StrapiCollectionResponse, Product } from '@star-sign-monorepo/shared-types';
+import {
+  StrapiCollectionResponse,
+  Product,
+} from '@star-sign-monorepo/shared-types';
 import { API_REQUEST_TIMEOUT_MS } from './api-timeout';
 import { featureFlags } from '../feature-flags';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ProductService {
   private readonly http = inject(HttpClient);
@@ -21,27 +24,29 @@ export class ProductService {
 
     let url = `${this.apiUrl}/products?populate=*`;
     if (category && category !== 'Wszystko') {
-      url += `&filters[category][$eq]=${category}`;
+      url += `&filters[category][$eq]=${encodeURIComponent(category)}`;
     }
-    return this.http
-      .get<StrapiCollectionResponse<Product>>(url)
-      .pipe(
-        timeout(API_REQUEST_TIMEOUT_MS),
-        map((response) => response.data),
-        catchError(() => of([]))
-      );
+    return this.http.get<StrapiCollectionResponse<Product>>(url).pipe(
+      timeout(API_REQUEST_TIMEOUT_MS),
+      map((response) => response.data),
+      catchError(() => of([])),
+    );
   }
 
   public getProductById(documentId: string): Observable<Product> {
     if (!featureFlags.shopEnabled) {
-      return throwError(() => new Error('Shop feature is disabled.'));
+      return throwError(
+        () => new Error('Funkcja sklepu jest tymczasowo wyłączona.'),
+      );
     }
 
     return this.http
-      .get<{ data: Product }>(`${this.apiUrl}/products/${documentId}?populate=*`)
+      .get<{
+        data: Product;
+      }>(`${this.apiUrl}/products/${documentId}?populate=*`)
       .pipe(
         timeout(API_REQUEST_TIMEOUT_MS),
-        map((response) => response.data)
+        map((response) => response.data),
       );
   }
 }

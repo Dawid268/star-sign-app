@@ -1,5 +1,6 @@
 import { MEDIA_ASSET_UID, WORKFLOW_STATUS, WORKFLOW_UID } from '../constants';
 import type { MediaAssetRecord, Strapi, WorkflowRecord } from '../types';
+import { getEntityService } from '../utils/entity-service';
 import { generateMediaAssetIdentity, suggestMediaMapping } from '../utils/media-mapping';
 
 type MediaAssetPayload = Partial<
@@ -37,7 +38,12 @@ const getId = (value: unknown): number | null => {
     return value;
   }
 
-  if (value && typeof value === 'object' && 'id' in value && typeof (value as { id: unknown }).id === 'number') {
+  if (
+    value &&
+    typeof value === 'object' &&
+    'id' in value &&
+    typeof (value as { id: unknown }).id === 'number'
+  ) {
     return (value as { id: number }).id;
   }
 
@@ -75,7 +81,15 @@ const normalizeStringArray = (value: unknown): string[] => {
 
 const normalizeUploadAsset = (
   value: unknown
-): { id: number; name?: string; url?: string; mime?: string; width?: number; height?: number; createdAt?: string } | null => {
+): {
+  id: number;
+  name?: string;
+  url?: string;
+  mime?: string;
+  width?: number;
+  height?: number;
+  createdAt?: string;
+} | null => {
   if (!value || typeof value !== 'object') {
     return null;
   }
@@ -106,7 +120,12 @@ const clampInt = (value: unknown, fallback: number, min: number, max: number): n
   return Math.max(min, Math.min(max, Math.round(value)));
 };
 
-const clampFloat = (value: unknown, fallback: number | null, min: number, max: number): number | null => {
+const clampFloat = (
+  value: unknown,
+  fallback: number | null,
+  min: number,
+  max: number
+): number | null => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return fallback;
   }
@@ -124,7 +143,7 @@ const parseOptionalString = (value: unknown): string | null => {
 };
 
 const mediaAssets = ({ strapi }: { strapi: Strapi }) => {
-  const entityService = strapi.entityService as any;
+  const entityService = getEntityService(strapi);
 
   const assertMappingCoherence = (payload: {
     purpose: MediaAssetRecord['purpose'];
@@ -171,7 +190,10 @@ const mediaAssets = ({ strapi }: { strapi: Strapi }) => {
     };
   };
 
-  const applyUpdateData = (existing: MediaAssetRecord, payload: MediaAssetPayload): Record<string, unknown> => {
+  const applyUpdateData = (
+    existing: MediaAssetRecord,
+    payload: MediaAssetPayload
+  ): Record<string, unknown> => {
     const data: Record<string, unknown> = {};
 
     if (typeof payload.asset_key !== 'undefined') {
@@ -236,12 +258,14 @@ const mediaAssets = ({ strapi }: { strapi: Strapi }) => {
       data.asset = getId(payload.asset);
     }
 
-    const finalPurpose = (typeof data.purpose === 'string'
-      ? data.purpose
-      : existing.purpose) as MediaAssetRecord['purpose'];
-    const finalSignSlug = (typeof data.sign_slug === 'string' || data.sign_slug === null
-      ? (data.sign_slug as string | null)
-      : parseOptionalString(existing.sign_slug)) as string | null;
+    const finalPurpose = (
+      typeof data.purpose === 'string' ? data.purpose : existing.purpose
+    ) as MediaAssetRecord['purpose'];
+    const finalSignSlug = (
+      typeof data.sign_slug === 'string' || data.sign_slug === null
+        ? (data.sign_slug as string | null)
+        : parseOptionalString(existing.sign_slug)
+    ) as string | null;
 
     assertMappingCoherence({
       purpose: finalPurpose,
@@ -268,11 +292,17 @@ const mediaAssets = ({ strapi }: { strapi: Strapi }) => {
   };
 
   const getUploadFileById = async (fileId: number): Promise<Record<string, unknown> | null> => {
-    const file = (await entityService.findOne('plugin::upload.file', fileId)) as Record<string, unknown> | null;
+    const file = (await entityService.findOne('plugin::upload.file', fileId)) as Record<
+      string,
+      unknown
+    > | null;
     return file ?? null;
   };
 
-  const getUploadFileName = (fileId: number, uploadFile: Record<string, unknown> | null): string => {
+  const getUploadFileName = (
+    fileId: number,
+    uploadFile: Record<string, unknown> | null
+  ): string => {
     if (uploadFile && typeof uploadFile.name === 'string' && uploadFile.name.trim().length > 0) {
       return uploadFile.name;
     }
@@ -373,7 +403,10 @@ const mediaAssets = ({ strapi }: { strapi: Strapi }) => {
       return existing;
     },
 
-    async upsertByAssetKey(assetKey: string, payload: MediaAssetPayload): Promise<MediaAssetRecord> {
+    async upsertByAssetKey(
+      assetKey: string,
+      payload: MediaAssetPayload
+    ): Promise<MediaAssetRecord> {
       const existing = await this.getByAssetKey(assetKey);
 
       if (!existing) {
@@ -439,14 +472,16 @@ const mediaAssets = ({ strapi }: { strapi: Strapi }) => {
         throw new Error(`Media-asset #${id} nie istnieje.`);
       }
 
-      const finalPurpose = (payload.purpose ?? existing.purpose ?? 'blog_article') as MediaAssetRecord['purpose'];
+      const finalPurpose = (payload.purpose ??
+        existing.purpose ??
+        'blog_article') as MediaAssetRecord['purpose'];
       const finalSignSlug =
         typeof payload.sign_slug !== 'undefined'
           ? parseOptionalString(payload.sign_slug)
           : parseOptionalString(existing.sign_slug);
-      const finalPeriodScope = (payload.period_scope ?? existing.period_scope ?? 'any') as NonNullable<
-        MediaAssetRecord['period_scope']
-      >;
+      const finalPeriodScope = (payload.period_scope ??
+        existing.period_scope ??
+        'any') as NonNullable<MediaAssetRecord['period_scope']>;
       const finalFileId =
         typeof payload.asset !== 'undefined' ? getId(payload.asset) : getId(existing.asset);
 
@@ -534,18 +569,13 @@ const mediaAssets = ({ strapi }: { strapi: Strapi }) => {
             existingAssetKeys: new Set(existingAssetKeys),
           });
 
-          const resolvedPurpose =
-            rawItem.purpose ??
-            existingByFile?.purpose ??
-            suggestion.purpose;
+          const resolvedPurpose = rawItem.purpose ?? existingByFile?.purpose ?? suggestion.purpose;
           const resolvedSign =
             typeof rawItem.sign_slug !== 'undefined'
               ? parseOptionalString(rawItem.sign_slug)
-              : existingByFile?.sign_slug ?? suggestion.sign_slug;
+              : (existingByFile?.sign_slug ?? suggestion.sign_slug);
           const resolvedPeriodScope =
-            rawItem.period_scope ??
-            existingByFile?.period_scope ??
-            suggestion.period_scope;
+            rawItem.period_scope ?? existingByFile?.period_scope ?? suggestion.period_scope;
           const keyPool = new Set(existingAssetKeys);
           if (existingByFile?.asset_key) {
             keyPool.delete(existingByFile.asset_key);
@@ -571,26 +601,28 @@ const mediaAssets = ({ strapi }: { strapi: Strapi }) => {
             keywords:
               typeof rawItem.keywords !== 'undefined'
                 ? rawItem.keywords
-                : existingByFile?.keywords ?? suggestion.keywords,
+                : (existingByFile?.keywords ?? suggestion.keywords),
             priority:
               typeof rawItem.priority !== 'undefined'
                 ? rawItem.priority
-                : existingByFile?.priority ?? 0,
+                : (existingByFile?.priority ?? 0),
             active:
               typeof rawItem.active !== 'undefined'
                 ? rawItem.active
-                : existingByFile?.active ?? true,
+                : (existingByFile?.active ?? true),
             cooldown_days:
               typeof rawItem.cooldown_days !== 'undefined'
                 ? rawItem.cooldown_days
-                : existingByFile?.cooldown_days ?? 3,
-            mapping_source: existingByFile ? existingByFile.mapping_source ?? 'bulk_suggestion' : 'bulk_suggestion',
+                : (existingByFile?.cooldown_days ?? 3),
+            mapping_source: existingByFile
+              ? (existingByFile.mapping_source ?? 'bulk_suggestion')
+              : 'bulk_suggestion',
             mapping_confidence: suggestion.confidence,
             mapping_reasons: suggestion.reasons,
             notes:
               typeof rawItem.notes !== 'undefined'
                 ? rawItem.notes
-                : existingByFile?.notes ?? null,
+                : (existingByFile?.notes ?? null),
             asset: fileId,
           };
 
@@ -686,17 +718,21 @@ const mediaAssets = ({ strapi }: { strapi: Strapi }) => {
       };
     },
 
-    async validateCoverage(input?: { applyWorkflowDisabling?: boolean }): Promise<Record<string, unknown>> {
+    async validateCoverage(input?: {
+      applyWorkflowDisabling?: boolean;
+    }): Promise<Record<string, unknown>> {
       const applyWorkflowDisabling = Boolean(input?.applyWorkflowDisabling);
 
       const [assets, workflows] = await Promise.all([
         this.list(),
-        (entityService.findMany(WORKFLOW_UID, {
+        entityService.findMany(WORKFLOW_UID, {
           sort: [{ id: 'asc' }],
-        }) as Promise<WorkflowRecord[]>),
+        }) as Promise<WorkflowRecord[]>,
       ]);
 
-      const linkedAssets = assets.filter((item) => Boolean(item.active) && Boolean(getId(item.asset)));
+      const linkedAssets = assets.filter(
+        (item) => Boolean(item.active) && Boolean(getId(item.asset))
+      );
 
       const hasPurpose = (purposes: string[]): boolean => {
         return linkedAssets.some((item) => purposes.includes(item.purpose));
@@ -741,16 +777,19 @@ const mediaAssets = ({ strapi }: { strapi: Strapi }) => {
         }
       }
 
-      const byPurpose = assets.reduce<Record<string, { total: number; linked: number }>>((acc, item) => {
-        const key = item.purpose || 'unknown';
-        const current = acc[key] ?? { total: 0, linked: 0 };
-        current.total += 1;
-        if (Boolean(item.active) && Boolean(getId(item.asset))) {
-          current.linked += 1;
-        }
-        acc[key] = current;
-        return acc;
-      }, {});
+      const byPurpose = assets.reduce<Record<string, { total: number; linked: number }>>(
+        (acc, item) => {
+          const key = item.purpose || 'unknown';
+          const current = acc[key] ?? { total: 0, linked: 0 };
+          current.total += 1;
+          if (Boolean(item.active) && Boolean(getId(item.asset))) {
+            current.linked += 1;
+          }
+          acc[key] = current;
+          return acc;
+        },
+        {}
+      );
 
       return {
         ok: missingWorkflows.length === 0,
@@ -762,7 +801,12 @@ const mediaAssets = ({ strapi }: { strapi: Strapi }) => {
         },
         checkedWorkflows: workflows
           .filter((item) => item.workflow_type === 'article' || item.workflow_type === 'daily_card')
-          .map((item) => ({ id: item.id, name: item.name, workflow_type: item.workflow_type, enabled: item.enabled })),
+          .map((item) => ({
+            id: item.id,
+            name: item.name,
+            workflow_type: item.workflow_type,
+            enabled: item.enabled,
+          })),
         missingWorkflows,
       };
     },

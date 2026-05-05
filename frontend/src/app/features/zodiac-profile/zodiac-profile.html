@@ -1,135 +1,267 @@
-@let currentSign = sign();
+@let currentSign = sign(); @if (currentSign) {
+<div class="pt-0">
+  <!-- Hero Section -->
+  <section
+    class="relative bg-[#FDF4F5] overflow-hidden border-b border-mystic-rose/10 min-h-[52vh] md:min-h-[60vh] flex items-center"
+  >
+    <div
+      class="mystic-orb top-1/4 left-1/4 w-64 h-64 bg-mystic-rose/10 animate-float"
+    ></div>
+    <div
+      class="mystic-orb bottom-1/4 right-1/4 w-80 h-80 bg-mystic-gold/10 animate-float"
+      style="animation-delay: 3s"
+    ></div>
 
-@if (currentSign) {
-  <div class="pt-0">
-
-    <!-- Hero Section -->
-    <section class="relative bg-[#FDF4F5] overflow-hidden border-b border-mystic-rose/10 min-h-[60vh] flex items-center">
-      <div class="mystic-orb top-1/4 left-1/4 w-64 h-64 bg-mystic-rose/10 animate-float"></div>
-      <div class="mystic-orb bottom-1/4 right-1/4 w-80 h-80 bg-mystic-gold/10 animate-float" style="animation-delay: 3s;"></div>
-
-      <div class="section-container relative z-10 py-24 text-center w-full">
-        <div class="text-6xl md:text-8xl text-mystic-gold opacity-50 mb-8 animate-[float_4s_ease-in-out_infinite] select-none">
+    <div class="section-container relative z-10 py-14 sm:py-20 lg:py-24 text-center w-full">
+      <div class="mb-8 select-none">
+        @if (currentSign.image) {
+        <div class="relative w-36 h-36 sm:w-48 sm:h-48 md:w-64 md:h-64 mx-auto animate-float">
+          <img
+            [src]="currentSign.image.url | strapiImage"
+            [srcset]="currentSign.image | strapiSrcset"
+            sizes="(max-width: 768px) 192px, 256px"
+            [alt]="currentSign.name"
+            class="w-full h-full object-contain filter drop-shadow-2xl"
+          />
+          <div
+            class="absolute inset-0 bg-gradient-to-t from-[#FDF4F5] to-transparent opacity-20"
+          ></div>
+        </div>
+        } @else {
+        <div
+          class="text-6xl md:text-8xl text-mystic-gold opacity-50 animate-[float_4s_ease-in-out_infinite]"
+        >
           {{ currentSign.symbol || '✦' }}
         </div>
-        <h1 class="serif-display text-5xl md:text-7xl text-mystic-cocoa mb-4 uppercase tracking-tight">{{ currentSign.name }}</h1>
-        <p class="text-xl md:text-2xl text-mystic-rose font-medium tracking-widest uppercase mb-12">
-          {{ currentSign.date_range }}
-        </p>
+        }
+      </div>
+      <h1
+        class="serif-display text-4xl sm:text-5xl md:text-7xl text-mystic-cocoa mb-4 uppercase tracking-tight leading-tight break-words"
+      >
+        {{ currentSign.name }}
+      </h1>
+      <p
+        class="text-base sm:text-xl md:text-2xl text-mystic-rose font-medium tracking-widest uppercase mb-8 sm:mb-12"
+      >
+        {{ currentSign.date_range }}
+      </p>
 
-        <div class="flex flex-wrap justify-center gap-6 max-w-2xl mx-auto">
-          <div class="bg-white/60 backdrop-blur-md px-6 py-3 rounded-full border border-mystic-rose/20 text-mystic-cocoa shadow-sm">
-            <span class="block text-[10px] opacity-50 uppercase tracking-widest mb-1">Żywioł</span>
-            <span class="font-semibold">{{ currentSign.element }}</span>
+      <div class="flex flex-wrap justify-center gap-3 sm:gap-6 max-w-2xl mx-auto">
+        <div
+          class="bg-white/60 backdrop-blur-md px-5 sm:px-6 py-3 rounded-full border border-mystic-rose/20 text-mystic-cocoa shadow-sm"
+        >
+          <span
+            class="block text-[10px] opacity-50 uppercase tracking-widest mb-1"
+            >Żywioł</span
+          >
+          <span class="font-semibold">{{ currentSign.element }}</span>
+        </div>
+
+        @if (currentSign.planet) {
+        <div
+          class="bg-white/60 backdrop-blur-md px-6 py-3 rounded-full border border-mystic-rose/20 text-mystic-cocoa shadow-sm"
+        >
+          <span
+            class="block text-[10px] opacity-50 uppercase tracking-widest mb-1"
+            >Planeta</span
+          >
+          <span class="font-semibold">{{ currentSign.planet }}</span>
+        </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Detailed Profile -->
+  <section class="section-container py-16 md:py-24 animate-fade-in">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16">
+      <!-- Main Bio -->
+      <div class="lg:col-span-7 space-y-12">
+        <div
+          class="glass-panel p-6 md:p-12 rounded-3xl md:rounded-[2rem] shadow-xl shadow-mystic-rose/5 animate-scale-in"
+        >
+          <h2 class="serif-display text-3xl text-mystic-cocoa mb-8">
+            Charakterystyka
+          </h2>
+          <p
+            class="text-mystic-cocoa text-lg sm:text-xl leading-relaxed font-light italic"
+          >
+            {{ currentSign.description || 'Ładowanie opisu Twojego znaku...' }}
+          </p>
+
+          <div class="mt-8 pt-8 border-t border-mystic-rose/10">
+            <app-social-share
+              [url]="getSiteUrl() + '/znaki/' + currentSign.slug"
+              [title]="'Mój znak zodiaku to ' + currentSign.name + '! ✦ Sprawdź swój profil na Star Sign.'"
+              [excerpt]="currentSign.description || ''"
+            />
+          </div>
+        </div>
+
+        <!-- Strengths & Challenges -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-10">
+          <div
+            class="bg-[#fbf5f7] p-6 sm:p-8 rounded-3xl border border-mystic-rose/10 hover:shadow-lg transition-shadow"
+          >
+            <h3
+              class="serif-display text-xl text-mystic-cocoa mb-6 flex items-center gap-3"
+            >
+              <span class="text-mystic-rose">✦</span> Mocne Strony
+            </h3>
+            <ul class="space-y-4">
+              @for (item of currentSign.strengths || []; track item) {
+              <li
+                class="flex items-center gap-3 text-mystic-cocoa font-light text-sm"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-mystic-rose/30"></div>
+                {{ item }}
+              </li>
+              } @empty {
+              <li class="text-mystic-cocoa text-sm italic">
+                Analizowanie mocnych stron...
+              </li>
+              }
+            </ul>
           </div>
 
-          @if (currentSign.planet) {
-            <div class="bg-white/60 backdrop-blur-md px-6 py-3 rounded-full border border-mystic-rose/20 text-mystic-cocoa shadow-sm">
-              <span class="block text-[10px] opacity-50 uppercase tracking-widest mb-1">Planeta</span>
-              <span class="font-semibold">{{ currentSign.planet }}</span>
-            </div>
-          }
+          <div
+            class="bg-white p-6 sm:p-8 rounded-3xl border border-mystic-rose/10 hover:shadow-lg transition-shadow"
+          >
+            <h3
+              class="serif-display text-xl text-mystic-cocoa mb-6 flex items-center gap-3"
+            >
+              <span class="text-mystic-gold">✦</span> Wyzwania
+            </h3>
+            <ul class="space-y-4">
+              @for (item of currentSign.challenges || []; track item) {
+              <li
+                class="flex items-center gap-3 text-mystic-cocoa font-light text-sm"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-mystic-gold/30"></div>
+                {{ item }}
+              </li>
+              } @empty {
+              <li class="text-mystic-cocoa text-sm italic">
+                Badanie wyzwań losu...
+              </li>
+              }
+            </ul>
+          </div>
         </div>
       </div>
-    </section>
 
-    <!-- Detailed Profile -->
-    <section class="section-container py-16 md:py-24">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-16">
-        
-        <!-- Main Bio -->
-        <div class="lg:col-span-7 space-y-12">
-          <div>
-            <h2 class="serif-display text-3xl text-mystic-cocoa mb-8">Charakterystyka</h2>
-            <p class="text-mystic-cocoa/80 text-xl leading-relaxed font-light italic">
-              {{ currentSign.description || 'Baran to pierwszy znak zodiaku, symbolizujący początek, energię i odwagę. Osoby spod tego znaku są naturalnymi liderami, pełnymi entuzjazmu i gotowości do działania.' }}
-            </p>
-          </div>
-
-          <!-- Strengths & Challenges -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-            <div class="bg-[#fbf5f7] p-8 rounded-3xl border border-mystic-rose/10">
-              <h3 class="serif-display text-xl text-mystic-cocoa mb-6 flex items-center gap-3">
-                <span class="text-mystic-rose">✦</span> Mocne Strony
-              </h3>
-              <ul class="space-y-4">
-                @for (item of currentSign.strengths || ['Odwaga', 'Niezależność', 'Entuzjazm', 'Szczerość']; track item) {
-                  <li class="flex items-center gap-3 text-mystic-cocoa/70 font-light text-sm">
-                    <div class="w-1.5 h-1.5 rounded-full bg-mystic-rose/30"></div>
-                    {{ item }}
-                  </li>
-                }
-              </ul>
-            </div>
-
-            <div class="bg-white p-8 rounded-3xl border border-mystic-rose/10">
-              <h3 class="serif-display text-xl text-mystic-cocoa mb-6 flex items-center gap-3">
-                <span class="text-mystic-gold">✦</span> Wyzwania
-              </h3>
-              <ul class="space-y-4">
-                @for (item of currentSign.challenges || ['Niecierpliwość', 'Impulsywność', 'Uparcie', 'Brawura']; track item) {
-                  <li class="flex items-center gap-3 text-mystic-cocoa/70 font-light text-sm">
-                    <div class="w-1.5 h-1.5 rounded-full bg-mystic-gold/30"></div>
-                    {{ item }}
-                  </li>
-                }
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        <!-- Sidebar Info -->
-        <aside class="lg:col-span-5 space-y-12">
-          <!-- Compatibility -->
-          <div class="border border-mystic-rose/20 p-10 rounded-3xl text-center relative overflow-hidden group">
-            <div class="relative z-10">
-              <h3 class="serif-display text-2xl text-mystic-cocoa mb-8">Kompatybilność</h3>
-              <div class="flex flex-wrap justify-center gap-4">
-                @for (comp of currentSign.compatibility || ['Lew', 'Strzelec', 'Bliźnięta']; track comp) {
-                  <div class="bg-[#FDF4F5] px-6 py-2 rounded-full text-mystic-rose font-medium text-sm border border-mystic-rose/10">
-                    {{ comp }}
-                  </div>
-                }
+      <!-- Sidebar Info -->
+      <aside class="lg:col-span-5 space-y-12">
+        <!-- Compatibility -->
+        <div
+          class="glass-panel p-6 sm:p-10 rounded-3xl text-center relative overflow-hidden group hover:shadow-2xl transition-all duration-500"
+        >
+          <div class="relative z-10">
+            <h3 class="serif-display text-2xl text-mystic-cocoa mb-8">
+              Kompatybilność
+            </h3>
+            <div class="flex flex-wrap justify-center gap-4">
+              @for (comp of currentSign.compatibility || []; track comp) {
+              <div
+                class="bg-[#FDF4F5] px-6 py-2 rounded-full text-mystic-rose font-medium text-sm border border-mystic-rose/10 hover:scale-105 transition-transform cursor-default"
+              >
+                {{ comp }}
               </div>
-              <p class="mt-8 text-xs text-mystic-cocoa/40 italic">Najlepsze dopasowanie w miłości i przyjaźni.</p>
-            </div>
-            <div class="absolute inset-0 bg-gradient-to-tr from-mystic-rose/5 to-transparent"></div>
-          </div>
-
-          <!-- Quick Horoscopes Hub -->
-          <div class="bg-mystic-cocoa p-10 rounded-3xl text-white">
-            <h3 class="serif-display text-2xl mb-8">Czytaj Horoskop</h3>
-            <div class="space-y-4">
-              @for (link of horoscopeLinks; track link.type) {
-                <a [routerLink]="['/horoskopy', link.type, currentSign.slug]"
-                   class="flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all group">
-                  <div class="flex items-center gap-4">
-                    <span class="text-2xl">{{ link.icon }}</span>
-                    <span class="font-medium tracking-wide">{{ link.label }}</span>
-                  </div>
-                  <span class="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
-                </a>
+              } @empty {
+              <div class="text-mystic-cocoa text-sm italic">
+                Szukanie przeznaczenia...
+              </div>
               }
             </div>
+            <p
+              class="mt-8 text-[10px] text-mystic-cocoa uppercase tracking-widest"
+            >
+              Najlepsze dopasowanie
+            </p>
           </div>
-        </aside>
-      </div>
-    </section>
+          <div
+            class="absolute inset-0 bg-gradient-to-tr from-mystic-rose/5 to-transparent"
+          ></div>
+        </div>
 
-    <!-- Back Link -->
-    <div class="section-container py-12 text-center border-t border-mystic-rose/10">
-      <a routerLink="/" class="text-mystic-rose hover:text-mystic-cocoa transition-colors font-medium text-sm tracking-widest uppercase inline-flex items-center gap-2">
-        ← Wszystkie Znaki
-      </a>
+        <!-- Quick Horoscopes Hub -->
+        <div
+          class="bg-mystic-cocoa p-6 sm:p-10 rounded-3xl sm:rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group"
+        >
+          <div
+            class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/10 transition-colors"
+          ></div>
+          <h3 class="serif-display text-2xl mb-8 relative z-10">
+            Czytaj Horoskop
+          </h3>
+          <div class="space-y-4 relative z-10">
+            @for (link of horoscopeLinks; track link.type) {
+            <a
+              [routerLink]="['/horoskopy', link.type, currentSign.slug]"
+              class="flex items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all hover:-translate-x-1 group/item"
+            >
+              <div class="flex min-w-0 items-center gap-3 sm:gap-5">
+                <span
+                  class="text-2xl group-hover/item:scale-125 transition-transform"
+                  >{{ link.icon }}</span
+                >
+                <div class="flex min-w-0 flex-col">
+                  <span class="font-medium tracking-wide text-sm uppercase"
+                    >{{ link.label }}</span
+                  >
+                  <span class="text-[10px] text-white/50"
+                    >{{ link.description }}</span
+                  >
+                </div>
+              </div>
+              <span
+                class="text-mystic-gold opacity-0 group-hover/item:opacity-100 transition-opacity"
+                >→</span
+              >
+            </a>
+            }
+          </div>
+        </div>
+      </aside>
     </div>
-  </div>
+  </section>
 
+  <!-- Back Link -->
+  <div
+    class="section-container py-12 text-center border-t border-mystic-rose/10"
+  >
+    <a
+      routerLink="/"
+      class="text-mystic-rose hover:text-mystic-cocoa transition-colors font-medium text-sm tracking-widest uppercase inline-flex items-center gap-2"
+    >
+      ← Wszystkie Znaki
+    </a>
+  </div>
+</div>
+
+} @else if (isLoading()) {
+<!-- Loading state -->
+<div class="min-h-screen flex items-center justify-center bg-[#FDF4F5]">
+  <div class="flex flex-col items-center gap-6">
+    <div class="text-6xl text-mystic-gold animate-pulse select-none">✦</div>
+    <p class="text-mystic-cocoa text-sm tracking-widest uppercase font-medium">
+      Odczytywanie nieba...
+    </p>
+  </div>
+</div>
 } @else {
-  <!-- Loading state -->
-  <div class="min-h-screen flex items-center justify-center bg-[#FDF4F5]">
-    <div class="flex flex-col items-center gap-6">
-      <div class="text-6xl text-mystic-gold animate-pulse select-none">✦</div>
-      <p class="text-mystic-cocoa/60 text-sm tracking-widest uppercase font-medium">Odczytywanie nieba...</p>
-    </div>
+<!-- Not Found / Error state -->
+<div class="min-h-screen flex items-center justify-center bg-white px-4">
+  <div class="text-center max-w-md">
+    <div class="text-mystic-gold text-5xl mb-8">✧</div>
+    <h1 class="serif-display text-3xl text-mystic-cocoa mb-4">
+      Problem z odczytem gwiazd
+    </h1>
+    <p class="text-mystic-cocoa mb-10 font-light">
+      {{ error() || 'Nie mogliśmy znaleźć tego znaku zodiaku w naszej
+      konstelacji.' }}
+    </p>
+    <a routerLink="/" class="btn-primary">Wróć do strony głównej</a>
   </div>
+</div>
 }

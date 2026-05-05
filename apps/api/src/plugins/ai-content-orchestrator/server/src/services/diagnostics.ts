@@ -6,13 +6,19 @@ import {
   WORKFLOW_STATUS,
 } from '../constants';
 import type { MediaAssetRecord, Strapi, TopicQueueItemRecord, WorkflowRecord } from '../types';
+import { getEntityService } from '../utils/entity-service';
 
 const getId = (value: unknown): number | null => {
   if (typeof value === 'number') {
     return value;
   }
 
-  if (value && typeof value === 'object' && 'id' in value && typeof (value as { id: unknown }).id === 'number') {
+  if (
+    value &&
+    typeof value === 'object' &&
+    'id' in value &&
+    typeof (value as { id: unknown }).id === 'number'
+  ) {
     return (value as { id: number }).id;
   }
 
@@ -20,7 +26,7 @@ const getId = (value: unknown): number | null => {
 };
 
 const diagnostics = ({ strapi }: { strapi: Strapi }) => {
-  const entityService = strapi.entityService as any;
+  const entityService = getEntityService(strapi);
 
   return {
     async getSummary(): Promise<Record<string, unknown>> {
@@ -47,15 +53,23 @@ const diagnostics = ({ strapi }: { strapi: Strapi }) => {
           populate: ['workflow'],
           limit: 10,
         }),
-      ])) as [WorkflowRecord[], MediaAssetRecord[], TopicQueueItemRecord[], Array<Record<string, unknown>>];
+      ])) as [
+        WorkflowRecord[],
+        MediaAssetRecord[],
+        TopicQueueItemRecord[],
+        Array<Record<string, unknown>>,
+      ];
 
-      const linkedActiveAssets = mediaAssets.filter((asset) => Boolean(asset.active) && Boolean(getId(asset.asset)));
+      const linkedActiveAssets = mediaAssets.filter(
+        (asset) => Boolean(asset.active) && Boolean(getId(asset.asset))
+      );
       const hasLinkedPurpose = (purposes: string[]): boolean =>
         linkedActiveAssets.some((asset) => purposes.includes(asset.purpose));
 
       const workflowIssues = workflows.flatMap((workflow) => {
         const issues: string[] = [];
-        const needsCategory = workflow.workflow_type === 'article' || workflow.workflow_type === 'daily_card';
+        const needsCategory =
+          workflow.workflow_type === 'article' || workflow.workflow_type === 'daily_card';
 
         if (workflow.enabled && !workflow.llm_api_token_encrypted?.trim()) {
           issues.push('enabled workflow nie ma tokena OpenRouter');
@@ -65,11 +79,17 @@ const diagnostics = ({ strapi }: { strapi: Strapi }) => {
           issues.push('brak kategorii dla article/daily_card');
         }
 
-        if (workflow.workflow_type === 'daily_card' && !hasLinkedPurpose(['daily_card', 'fallback_general'])) {
+        if (
+          workflow.workflow_type === 'daily_card' &&
+          !hasLinkedPurpose(['daily_card', 'fallback_general'])
+        ) {
           issues.push('brak aktywnego obrazu daily_card/fallback_general');
         }
 
-        if (workflow.workflow_type === 'article' && !hasLinkedPurpose(['blog_article', 'fallback_general'])) {
+        if (
+          workflow.workflow_type === 'article' &&
+          !hasLinkedPurpose(['blog_article', 'fallback_general'])
+        ) {
           issues.push('brak aktywnego obrazu blog_article/fallback_general');
         }
 
@@ -86,16 +106,19 @@ const diagnostics = ({ strapi }: { strapi: Strapi }) => {
         }));
       });
 
-      const byPurpose = mediaAssets.reduce<Record<string, { total: number; linkedActive: number }>>((acc, asset) => {
-        const key = asset.purpose || 'unknown';
-        const current = acc[key] ?? { total: 0, linkedActive: 0 };
-        current.total += 1;
-        if (asset.active && getId(asset.asset)) {
-          current.linkedActive += 1;
-        }
-        acc[key] = current;
-        return acc;
-      }, {});
+      const byPurpose = mediaAssets.reduce<Record<string, { total: number; linkedActive: number }>>(
+        (acc, asset) => {
+          const key = asset.purpose || 'unknown';
+          const current = acc[key] ?? { total: 0, linkedActive: 0 };
+          current.total += 1;
+          if (asset.active && getId(asset.asset)) {
+            current.linkedActive += 1;
+          }
+          acc[key] = current;
+          return acc;
+        },
+        {}
+      );
 
       return {
         ok: workflowIssues.length === 0,

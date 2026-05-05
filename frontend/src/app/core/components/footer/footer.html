@@ -1,62 +1,114 @@
 <footer class="bg-[#fbf5f7] border-t border-mystic-rose/20 pt-16 pb-8 mt-auto">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-
       <!-- Brand & About -->
       <div class="col-span-1 md:col-span-2">
         <a routerLink="/" class="flex items-center gap-2 mb-6 group">
-          <div class="text-3xl text-mystic-gold opacity-80 group-hover:rotate-180 transition-transform duration-700">✦</div>
-          <span class="serif-display text-2xl tracking-wide text-mystic-cocoa group-hover:text-mystic-rose transition-colors">Star Sign</span>
+          <div
+            class="text-3xl text-mystic-gold opacity-80 group-hover:rotate-180 transition-transform duration-700"
+          >
+            ✦
+          </div>
+          <span
+            class="serif-display text-2xl tracking-wide text-mystic-cocoa group-hover:text-mystic-rose transition-colors"
+            >Star Sign</span
+          >
         </a>
-        <p class="text-mystic-cocoa/70 leading-relaxed font-light max-w-sm">
-          Twój cyfrowy przewodnik po astrologii, numerologii i tajemnicach Tarota. Odkryj z nami kosmiczne powiązania.
+        <p class="text-mystic-cocoa leading-relaxed font-light max-w-sm">
+          Twój cyfrowy przewodnik po astrologii, numerologii i tajemnicach
+          Tarota. Odkryj z nami kosmiczne powiązania.
         </p>
       </div>
 
       <!-- Quick Links -->
       <div>
-        <h4 class="serif-display text-lg text-mystic-cocoa mb-6">Nawigacja</h4>
+        <h2 class="serif-display text-lg text-mystic-cocoa mb-6">Nawigacja</h2>
         <ul class="space-y-4">
           @for (link of navLinks; track link.path) {
-            <li>
-              <a [routerLink]="link.path" class="text-mystic-cocoa/70 hover:text-mystic-rose transition-colors text-sm">
-                {{ link.label }}
-              </a>
-            </li>
+          <li>
+            <a
+              [routerLink]="link.path"
+              class="text-mystic-cocoa hover:text-mystic-rose transition-colors text-sm"
+            >
+              {{ link.label }}
+            </a>
+          </li>
           }
         </ul>
       </div>
 
       <!-- Legal -->
       <div>
-        <h4 class="serif-display text-lg text-mystic-cocoa mb-6">Informacje</h4>
+        <h2 class="serif-display text-lg text-mystic-cocoa mb-6">Informacje</h2>
         <ul class="space-y-4 text-sm">
-          <li><a href="#" class="text-mystic-cocoa/70 hover:text-mystic-rose transition-colors">O nas</a></li>
-          <li><a href="#" class="text-mystic-cocoa/70 hover:text-mystic-rose transition-colors">Kontakt</a></li>
-          <li><a routerLink="/regulamin" class="text-mystic-cocoa/70 hover:text-mystic-rose transition-colors">Regulamin serwisu</a></li>
-          <li><a routerLink="/polityka-prywatnosci" class="text-mystic-cocoa/70 hover:text-mystic-rose transition-colors">Polityka prywatności</a></li>
-          <li><a routerLink="/cookies" class="text-mystic-cocoa/70 hover:text-mystic-rose transition-colors">Cookies</a></li>
-          <li><a routerLink="/disclaimer" class="text-mystic-cocoa/70 hover:text-mystic-rose transition-colors">Disclaimer</a></li>
+          <li>
+            <a
+              routerLink="/o-nas"
+              class="text-mystic-cocoa hover:text-mystic-rose transition-colors"
+              >O nas</a
+            >
+          </li>
+          <li>
+            <a
+              routerLink="/kontakt"
+              class="text-mystic-cocoa hover:text-mystic-rose transition-colors"
+              >Kontakt</a
+            >
+          </li>
+          <li>
+            <a
+              routerLink="/regulamin"
+              class="text-mystic-cocoa hover:text-mystic-rose transition-colors"
+              >Regulamin serwisu</a
+            >
+          </li>
+          <li>
+            <a
+              routerLink="/polityka-prywatnosci"
+              class="text-mystic-cocoa hover:text-mystic-rose transition-colors"
+              >Polityka prywatności</a
+            >
+          </li>
+          <li>
+            <a
+              routerLink="/cookies"
+              class="text-mystic-cocoa hover:text-mystic-rose transition-colors"
+              >Cookies</a
+            >
+          </li>
+          <li>
+            <a
+              routerLink="/disclaimer"
+              class="text-mystic-cocoa hover:text-mystic-rose transition-colors"
+              >Disclaimer</a
+            >
+          </li>
         </ul>
       </div>
     </div>
 
     <!-- Bottom line -->
-    <div class="border-t border-mystic-rose/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-      <p class="text-mystic-cocoa/60 text-sm">
+    <div
+      class="border-t border-mystic-rose/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4"
+    >
+      <p class="text-mystic-cocoa text-sm">
         &copy; {{ currentYear }} Star Sign. Wszelkie prawa zastrzeżone.
       </p>
+      @if (socials.length > 0) {
       <div class="flex items-center gap-4">
         @for (social of socials; track social.label) {
-          <a [href]="social.href"
-             [attr.aria-label]="social.label"
-             target="_blank"
-             rel="noopener noreferrer"
-             class="w-9 h-9 flex items-center justify-center rounded-full border border-mystic-rose/20 text-mystic-cocoa/50 hover:text-mystic-rose hover:border-mystic-rose transition-all duration-300 hover:-translate-y-0.5">
-            <ng-icon [name]="social.icon" class="text-base" />
-          </a>
+        <a
+          [href]="social.href"
+          [attr.aria-label]="social.label"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="w-9 h-9 flex items-center justify-center rounded-full border border-mystic-rose/20 text-mystic-cocoa hover:text-mystic-rose hover:border-mystic-rose transition-all duration-300 hover:-translate-y-0.5"
+        >
+          <ng-icon [name]="social.icon" class="text-base" />
+        </a>
         }
       </div>
+      }
     </div>
   </div>
 </footer>

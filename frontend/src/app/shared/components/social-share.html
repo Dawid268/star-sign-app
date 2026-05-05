@@ -1,0 +1,68 @@
+<div class="flex flex-wrap items-center gap-3">
+  <!-- Facebook -->
+  <button
+    type="button"
+    (click)="shareOnFacebook()"
+    class="share-btn group bg-[#1877F2]/5 hover:bg-[#1877F2] text-[#1877F2] hover:text-white"
+    title="Udostępnij na Facebooku"
+    aria-label="Udostępnij na Facebooku"
+  >
+    <ng-icon name="simpleFacebook" />
+  </button>
+
+  <!-- X / Twitter -->
+  <button
+    type="button"
+    (click)="shareOnX()"
+    class="share-btn group bg-black/5 hover:bg-black text-black hover:text-white"
+    title="Udostępnij na X"
+    aria-label="Udostępnij na X"
+  >
+    <ng-icon name="simpleX" />
+  </button>
+
+  <!-- Pinterest -->
+  <button
+    type="button"
+    (click)="shareOnPinterest()"
+    class="share-btn group bg-[#E60023]/5 hover:bg-[#E60023] text-[#E60023] hover:text-white"
+    title="Przypnij na Pinterest"
+    aria-label="Przypnij na Pinterest"
+  >
+    <ng-icon name="simplePinterest" />
+  </button>
+
+  <!-- WhatsApp -->
+  <button
+    type="button"
+    (click)="shareOnWhatsapp()"
+    class="share-btn group bg-[#25D366]/5 hover:bg-[#25D366] text-[#25D366] hover:text-white"
+    title="Wyślij przez WhatsApp"
+    aria-label="Wyślij przez WhatsApp"
+  >
+    <ng-icon name="simpleWhatsapp" />
+  </button>
+
+  <!-- Divider -->
+  <div class="w-px h-6 bg-mystic-rose/10 mx-1"></div>
+
+  <!-- Instagram / TikTok (Copy Link style) -->
+  <div class="flex items-center gap-2">
+    <button
+      type="button"
+      (click)="copyLink()"
+      class="share-btn group bg-mystic-rose/5 hover:bg-mystic-rose text-mystic-rose hover:text-white relative"
+      [title]="copied() ? 'Skopiowano!' : 'Kopiuj link'"
+      [attr.aria-label]="copied() ? 'Link skopiowany' : 'Kopiuj link'"
+    >
+      <ng-icon [name]="copied() ? 'heroCheck' : 'heroLink'" />
+
+      <!-- Label for Instagram/TikTok hint -->
+      <div
+        class="absolute -top-12 left-1/2 hidden -translate-x-1/2 bg-mystic-cocoa text-white text-[10px] py-1 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-xl lg:block"
+      >
+        Idealne na Bio / Stories ✦
+      </div>
+    </button>
+  </div>
+</div>
