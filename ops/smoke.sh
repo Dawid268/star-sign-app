@@ -19,6 +19,13 @@ check() {
 }
 
 check "api health" "$API_BASE_URL/health/ready"
+check "public app settings" "$API_BASE_URL/app-settings/public"
+if grep -Eiq 'STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|STRIPE_.*PRICE_ID|sk_live_|sk_test_|whsec_|secretKey|webhookSecret|priceId' /tmp/star-sign-smoke.json; then
+  echo "FAIL public app settings: response contains a secret-looking field or value"
+  cat /tmp/star-sign-smoke.json
+  exit 1
+fi
+echo "OK   public app settings redaction"
 check "zodiac signs" "$API_BASE_URL/zodiac-signs?sort=id:asc"
 check "articles" "$API_BASE_URL/articles?sort=publishedAt:desc&pagination[limit]=20&populate=category"
 check "numerology" "$API_BASE_URL/numerology-profiles?filters[number][\$eq]=3&pagination[limit]=1"

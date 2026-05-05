@@ -33,6 +33,7 @@ Sekrety z lokalnych `.env` należy rotować przed produkcją.
 ## Komendy weryfikacji
 
 ```bash
+npm run ops:predeploy:local
 npm exec nx sync:check
 npm exec nx run api:typecheck
 npm exec nx run api:build
@@ -43,19 +44,44 @@ npm exec nx run frontend:build
 Smoke lokalny po uruchomieniu API i frontendu:
 
 ```bash
-API_BASE_URL=http://localhost:1337/api FRONTEND_BASE_URL=http://localhost:4200 ./ops/smoke.sh
+API_BASE_URL=http://localhost:1337/api FRONTEND_BASE_URL=http://localhost:4200 npm run ops:smoke
 ```
 
 Smoke VPS po deployu:
 
 ```bash
-API_BASE_URL=https://api.example.com/api FRONTEND_BASE_URL=https://example.com ./ops/smoke.sh
+API_BASE_URL=https://api.example.com/api FRONTEND_BASE_URL=https://example.com npm run ops:smoke
 ```
 
 Audit gate przed promocją deploya:
 
 ```bash
+PREDEPLOY_SCOPE=staging \
+RUN_ENV_GUARD=true \
+RUN_FRONTEND_FULL=true \
+RUN_E2E=true \
+RUN_DOMAIN_AUDITS=true \
+RUN_AICO_PREFLIGHT=true \
+RUN_SECURITY_HEADERS=true \
+FRONTEND_BASE_URL=https://star-sign.pl \
+API_BASE_URL=https://api.star-sign.pl/api \
+AICO_AUDIT_URL=https://api.star-sign.pl \
+AICO_AUDIT_BEARER=*** \
+npm run ops:predeploy:local
+
 gh workflow run "AICO Predeploy Audit" -f audit_url=https://api.star-sign.pl
+```
+
+Same nagłówki edge można sprawdzić osobno:
+
+```bash
+SECURITY_HEADER_URLS=https://star-sign.pl,https://api.star-sign.pl/api/health/ready npm run ops:headers
+```
+
+Produkcyjny plik env można sprawdzić osobno bez startu kontenerów:
+
+```bash
+PRODUCTION_ENV_FILE=.env npm run ops:env
 ```
 
 ## Smoke checklist frontendu przed launchem
@@ -75,14 +101,22 @@ gh workflow run "AICO Predeploy Audit" -f audit_url=https://api.star-sign.pl
 
 ## Deployment VPS, kiedy przyjdzie pora
 
-```bash
-cp .env.example .env
-# uzupełnić .env realnymi sekretami
-docker compose build
-docker compose up -d postgres
-docker compose up -d api frontend caddy
-docker compose logs -f api frontend caddy
-```
+Docelowy deploy produkcyjny idzie przez GitHub Actions, GHCR i Portainer Swarm:
+
+- stack: `ops/portainer/star-sign-production-stack.yml`
+- API image: `ghcr.io/subscribe-it/star-sign-api:main`
+- frontend image: `ghcr.io/subscribe-it/star-sign-frontend:main`
+- reverse proxy: istniejący Traefik `traefik-load-balancer`
+- media: Cloudflare R2, bez trwałego lokalnego wolumenu `uploads`
+
+Przed pierwszym deployem ustaw w GitHub:
+
+- secret `STAR_SIGN_PRODUCTION_ENV`
+- secret `PORTAINER_WEBHOOK_URL`
+- secret `AICO_AUDIT_BEARER`
+- variables `FRONTEND_BASE_URL`, `API_BASE_URL`
+
+W Portainerze ustaw realne zmienne środowiskowe i registry credentials dla GHCR.
 
 Seed produkcyjny tylko świadomie:
 

@@ -38,7 +38,7 @@ services:
     environment:
       POSTGRES_DB: bugsink
       POSTGRES_USER: bugsink
-      POSTGRES_PASSWORD: ${BUGSINK_POSTGRES_PASSWORD:-replace_me}
+      POSTGRES_PASSWORD: ${BUGSINK_POSTGRES_PASSWORD:?BUGSINK_POSTGRES_PASSWORD is required}
     volumes:
       - bugsink_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -54,10 +54,10 @@ services:
     expose:
       - '8000'
     environment:
-      SECRET_KEY: ${BUGSINK_SECRET_KEY:-replace_me_50_chars_minimum}
+      SECRET_KEY: ${BUGSINK_SECRET_KEY:?BUGSINK_SECRET_KEY is required}
       CREATE_SUPERUSER: ${BUGSINK_CREATE_SUPERUSER:-}
       PORT: 8000
-      DATABASE_URL: postgresql://bugsink:${BUGSINK_POSTGRES_PASSWORD:-replace_me}@bugsink-db:5432/bugsink
+      DATABASE_URL: postgresql://bugsink:${BUGSINK_POSTGRES_PASSWORD:?BUGSINK_POSTGRES_PASSWORD is required}@bugsink-db:5432/bugsink
       BASE_URL: ${BUGSINK_BASE_URL:-https://bugsink.localhost}
       SITE_TITLE: ${BUGSINK_SITE_TITLE:-Star Sign Bugsink}
       BEHIND_HTTPS_PROXY: 'True'
@@ -128,6 +128,7 @@ services:
       TURNSTILE_ENABLED: ${TURNSTILE_ENABLED:-false}
       TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
       GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
+      GTM_CONTAINER_ID: ${GTM_CONTAINER_ID:-}
       FRONTEND_SENTRY_DSN: ${FRONTEND_SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}

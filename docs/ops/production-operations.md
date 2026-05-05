@@ -66,11 +66,40 @@ Important limitation: the local watcher cannot alert if the whole VPS or network
 Before marking production `GO`:
 
 ```bash
-npm exec -- nx run-many --targets=build,typecheck,lint --projects=api,frontend,cart,@org/types --outputStyle=static
-npm exec -- nx run-many --target=test --projects=api,frontend,cart --outputStyle=static
-npm exec -- nx run frontend-e2e:e2e --outputStyle=static
-docker compose config --quiet
+COMPOSE_ENV_FILE=.env \
+COMPOSE_FILE=ops/portainer/star-sign-production-stack.yml \
+PREDEPLOY_SCOPE=staging \
+RUN_ENV_GUARD=true \
+RUN_FRONTEND_FULL=true \
+RUN_E2E=true \
+RUN_DOMAIN_AUDITS=true \
+RUN_AICO_PREFLIGHT=true \
+RUN_SECURITY_HEADERS=true \
+FRONTEND_BASE_URL=https://star-sign.pl \
+API_BASE_URL=https://api.star-sign.pl/api \
+AICO_AUDIT_URL=https://api.star-sign.pl \
+AICO_AUDIT_BEARER=*** \
+npm run ops:predeploy:local
 ```
+
+## Portainer Swarm
+
+Produkcyjny stack dla VPS 2 vCPU / 4 GB jest w `ops/portainer/star-sign-production-stack.yml`.
+
+- Traefik obsługuje HTTPS i routing, więc stack produkcyjny nie używa Caddy.
+- Bugsink nie jest częścią tego stacka; zostanie wdrożony osobno.
+- API i frontend są osobnymi obrazami GHCR budowanymi z targetów `api-runtime` i `frontend-runtime`.
+- Uploady produkcyjne używają Cloudflare R2; nie montować trwałego wolumenu `public/uploads`.
+- Resource cap stacka Star Sign: 1.8 vCPU i 2752M RAM.
+
+Wymagane obrazy:
+
+```text
+ghcr.io/subscribe-it/star-sign-api:main
+ghcr.io/subscribe-it/star-sign-frontend:main
+```
+
+Rollback: ustaw w Portainerze `STAR_SIGN_IMAGE_TAG` na konkretny `git sha`, zaktualizuj stack i uruchom smoke/e2e.
 
 Then run:
 

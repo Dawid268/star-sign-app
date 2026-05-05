@@ -1,0 +1,388 @@
+# Star Sign production stack for Portainer Swarm behind Traefik.
+# Images are built by GitHub Actions from the Nx monorepo and pushed to GHCR.
+
+services:
+  frontend:
+    image: ghcr.io/${GHCR_OWNER:-subscribe-it}/star-sign-frontend:${STAR_SIGN_IMAGE_TAG:-main}
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      API_URL: http://api:1337/api
+      FRONTEND_URL: https://${PRODUCTION_DOMAIN:?PRODUCTION_DOMAIN is required}
+      SHOP_ENABLED: ${SHOP_ENABLED:-false}
+      FRONTEND_SHOP_ENABLED: ${FRONTEND_SHOP_ENABLED:-false}
+      TURNSTILE_ENABLED: ${TURNSTILE_ENABLED:-false}
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
+      GTM_CONTAINER_ID: ${GTM_CONTAINER_ID:-}
+      FRONTEND_SENTRY_DSN: ${FRONTEND_SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+    networks:
+      - traefik-public
+      - star_sign_backend
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:4000/healthz'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: 3
+        compress: 'true'
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        reservations:
+          cpus: '0.10'
+          memory: 160M
+        limits:
+          cpus: '0.35'
+          memory: 384M
+      update_config:
+        order: start-first
+        delay: 10s
+        failure_action: rollback
+        monitor: 60s
+        max_failure_ratio: 0
+        parallelism: 1
+      rollback_config:
+        order: start-first
+        delay: 5s
+        failure_action: pause
+        monitor: 30s
+        max_failure_ratio: 0
+        parallelism: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 120s
+      labels:
+        - 'traefik.enable=true'
+        - 'traefik.docker.network=traefik-public'
+        - 'traefik.http.routers.star-sign-frontend.rule=Host(`${PRODUCTION_DOMAIN}`)'
+        - 'traefik.http.routers.star-sign-frontend.entrypoints=websecure'
+        - 'traefik.http.routers.star-sign-frontend.tls=true'
+        - 'traefik.http.routers.star-sign-frontend.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.star-sign-frontend.middlewares=real-ip@file,geo-block@file,rate-limit@file,inflight-req@file,star-sign-frontend-headers'
+        - 'traefik.http.routers.star-sign-frontend.service=star-sign-frontend'
+        - 'traefik.http.services.star-sign-frontend.loadbalancer.server.port=4000'
+        - 'traefik.http.routers.star-sign-frontend-http.rule=Host(`${PRODUCTION_DOMAIN}`) && !PathPrefix(`/.well-known/acme-challenge`)'
+        - 'traefik.http.routers.star-sign-frontend-http.entrypoints=web'
+        - 'traefik.http.routers.star-sign-frontend-http.middlewares=star-sign-https-redirect'
+        - 'traefik.http.routers.star-sign-frontend-http.priority=20'
+        - 'traefik.http.middlewares.star-sign-https-redirect.redirectscheme.scheme=https'
+        - 'traefik.http.middlewares.star-sign-https-redirect.redirectscheme.permanent=true'
+        - 'traefik.http.middlewares.star-sign-frontend-headers.headers.stsSeconds=31536000'
+        - 'traefik.http.middlewares.star-sign-frontend-headers.headers.stsIncludeSubdomains=true'
+        - 'traefik.http.middlewares.star-sign-frontend-headers.headers.contentTypeNosniff=true'
+        - 'traefik.http.middlewares.star-sign-frontend-headers.headers.frameDeny=true'
+        - 'traefik.http.middlewares.star-sign-frontend-headers.headers.referrerPolicy=strict-origin-when-cross-origin'
+        - 'traefik.http.middlewares.star-sign-frontend-headers.headers.permissionsPolicy=accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()'
+        - "traefik.http.middlewares.star-sign-frontend-headers.headers.contentSecurityPolicy=frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+
+  api:
+    image: ghcr.io/${GHCR_OWNER:-subscribe-it}/star-sign-api:${STAR_SIGN_IMAGE_TAG:-main}
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 1337
+      FRONTEND_URL: https://${PRODUCTION_DOMAIN:?PRODUCTION_DOMAIN is required}
+      SERVER_URL: https://${API_DOMAIN:?API_DOMAIN is required}
+      API_PUBLIC_URL: https://${API_DOMAIN:?API_DOMAIN is required}
+      CORS_ORIGIN: https://${PRODUCTION_DOMAIN:?PRODUCTION_DOMAIN is required}
+      UPLOAD_ASSET_CSP_ORIGINS: ${UPLOAD_ASSET_CSP_ORIGINS:-https://cdn.star-sign.pl}
+      SHOP_ENABLED: ${SHOP_ENABLED:-false}
+      PREMIUM_MODE: ${PREMIUM_MODE:-open}
+      TURNSTILE_ENABLED: ${TURNSTILE_ENABLED:-false}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      TURNSTILE_FAIL_OPEN: ${TURNSTILE_FAIL_OPEN:-false}
+      GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
+      GTM_CONTAINER_ID: ${GTM_CONTAINER_ID:-}
+      APP_KEYS: ${APP_KEYS:?APP_KEYS is required}
+      API_TOKEN_SALT: ${API_TOKEN_SALT:?API_TOKEN_SALT is required}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:?ADMIN_JWT_SECRET is required}
+      TRANSFER_TOKEN_SALT: ${TRANSFER_TOKEN_SALT:?TRANSFER_TOKEN_SALT is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${POSTGRES_DB:?POSTGRES_DB is required}
+      DATABASE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER is required}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_REDIS_URL: ${RATE_LIMIT_REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379}
+      RATE_LIMIT_KEY_PREFIX: ${RATE_LIMIT_KEY_PREFIX:-star-sign:rate-limit:}
+      RATE_LIMIT_PATHS: ${RATE_LIMIT_PATHS:-/api/auth/local,/api/auth/local/register,/api/contact,/api/newsletter,/api/checkout/session,/api/account/subscription}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-80}
+      RATE_LIMIT_FAIL_OPEN: ${RATE_LIMIT_FAIL_OPEN:-false}
+      RATE_LIMIT_TRUST_PROXY: ${RATE_LIMIT_TRUST_PROXY:-true}
+      HTTP_CACHE_ENABLED: ${HTTP_CACHE_ENABLED:-true}
+      HTTP_CACHE_REDIS_URL: ${HTTP_CACHE_REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379}
+      HTTP_CACHE_KEY_PREFIX: ${HTTP_CACHE_KEY_PREFIX:-star-sign:http-cache:}
+      HTTP_CACHE_ARTICLES_TTL_SECONDS: ${HTTP_CACHE_ARTICLES_TTL_SECONDS:-300}
+      HTTP_CACHE_ARTICLES_STALE_SECONDS: ${HTTP_CACHE_ARTICLES_STALE_SECONDS:-86400}
+      HTTP_CACHE_HOROSCOPES_TTL_SECONDS: ${HTTP_CACHE_HOROSCOPES_TTL_SECONDS:-900}
+      HTTP_CACHE_HOROSCOPES_STALE_SECONDS: ${HTTP_CACHE_HOROSCOPES_STALE_SECONDS:-3600}
+      HTTP_CACHE_ZODIAC_SIGNS_TTL_SECONDS: ${HTTP_CACHE_ZODIAC_SIGNS_TTL_SECONDS:-86400}
+      HTTP_CACHE_ZODIAC_SIGNS_STALE_SECONDS: ${HTTP_CACHE_ZODIAC_SIGNS_STALE_SECONDS:-604800}
+      BODY_JSON_LIMIT: ${BODY_JSON_LIMIT:-1mb}
+      BODY_FORM_LIMIT: ${BODY_FORM_LIMIT:-1mb}
+      BODY_TEXT_LIMIT: ${BODY_TEXT_LIMIT:-1mb}
+      UPLOAD_MAX_FILE_SIZE: ${UPLOAD_MAX_FILE_SIZE:-10485760}
+      R2_UPLOAD_ENABLED: ${R2_UPLOAD_ENABLED:-true}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID is required}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY is required}
+      R2_S3_ENDPOINT: ${R2_S3_ENDPOINT:?R2_S3_ENDPOINT is required}
+      R2_BUCKET: ${R2_BUCKET:?R2_BUCKET is required}
+      R2_REGION: ${R2_REGION:-auto}
+      R2_FORCE_PATH_STYLE: ${R2_FORCE_PATH_STYLE:-true}
+      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL:-https://cdn.star-sign.pl}
+      R2_ROOT_PATH: ${R2_ROOT_PATH:-production}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_LIST_ID: ${BREVO_LIST_ID:-}
+      BREVO_SMTP_HOST: ${BREVO_SMTP_HOST:-smtp-relay.brevo.com}
+      BREVO_SMTP_PORT: ${BREVO_SMTP_PORT:-587}
+      BREVO_SMTP_SECURE: ${BREVO_SMTP_SECURE:-false}
+      BREVO_SMTP_USER: ${BREVO_SMTP_USER:-}
+      BREVO_SMTP_PASSWORD: ${BREVO_SMTP_PASSWORD:-}
+      BREVO_FROM_EMAIL: ${BREVO_FROM_EMAIL:-Star Sign <noreply@star-sign.pl>}
+      BREVO_REPLY_TO: ${BREVO_REPLY_TO:-kontakt@star-sign.pl}
+      NEWSLETTER_DOUBLE_OPT_IN: ${NEWSLETTER_DOUBLE_OPT_IN:-true}
+      BREVO_WEBHOOK_SECRET: ${BREVO_WEBHOOK_SECRET:-}
+      AICO_OPENROUTER_TOKEN: ${AICO_OPENROUTER_TOKEN:-}
+      AICO_OPENROUTER_MODEL: ${AICO_OPENROUTER_MODEL:-openai/gpt-4.1-mini}
+      AICO_ENABLE_WORKFLOWS: ${AICO_ENABLE_WORKFLOWS:-true}
+      AICO_ALLOW_MISSING_TOKEN: ${AICO_ALLOW_MISSING_TOKEN:-false}
+      AICO_BACKUP_ENABLED: ${AICO_BACKUP_ENABLED:-true}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+      STRAPI_DOCUMENTATION_ENABLED: ${STRAPI_DOCUMENTATION_ENABLED:-false}
+      STRAPI_SEO_PLUGIN_ENABLED: ${STRAPI_SEO_PLUGIN_ENABLED:-true}
+      SECURITY_HSTS_ENABLED: ${SECURITY_HSTS_ENABLED:-true}
+      ALLOW_PRODUCTION_SEED: ${ALLOW_PRODUCTION_SEED:-false}
+      STRIPE_REQUIRED: ${STRIPE_REQUIRED:-false}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PREMIUM_MONTHLY_PRICE_ID: ${STRIPE_PREMIUM_MONTHLY_PRICE_ID:-}
+      STRIPE_PREMIUM_ANNUAL_PRICE_ID: ${STRIPE_PREMIUM_ANNUAL_PRICE_ID:-}
+    networks:
+      - traefik-public
+      - star_sign_backend
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:1337/api/health/ready'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    stop_grace_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: 100m
+        max-file: 5
+        compress: 'true'
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        reservations:
+          cpus: '0.35'
+          memory: 640M
+        limits:
+          cpus: '0.85'
+          memory: 1152M
+      update_config:
+        order: stop-first
+        delay: 20s
+        failure_action: rollback
+        monitor: 120s
+        max_failure_ratio: 0
+        parallelism: 1
+      rollback_config:
+        order: stop-first
+        delay: 10s
+        failure_action: pause
+        monitor: 60s
+        max_failure_ratio: 0
+        parallelism: 1
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 3
+        window: 180s
+      labels:
+        - 'traefik.enable=true'
+        - 'traefik.docker.network=traefik-public'
+        - 'traefik.http.routers.star-sign-api-path.rule=Host(`${PRODUCTION_DOMAIN}`) && PathPrefix(`/api`)'
+        - 'traefik.http.routers.star-sign-api-path.entrypoints=websecure'
+        - 'traefik.http.routers.star-sign-api-path.tls=true'
+        - 'traefik.http.routers.star-sign-api-path.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.star-sign-api-path.priority=100'
+        - 'traefik.http.routers.star-sign-api-path.middlewares=real-ip@file,rate-limit@file,inflight-req@file,star-sign-api-headers'
+        - 'traefik.http.routers.star-sign-api-path.service=star-sign-api'
+        - 'traefik.http.routers.star-sign-api-domain.rule=Host(`${API_DOMAIN}`)'
+        - 'traefik.http.routers.star-sign-api-domain.entrypoints=websecure'
+        - 'traefik.http.routers.star-sign-api-domain.tls=true'
+        - 'traefik.http.routers.star-sign-api-domain.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.star-sign-api-domain.middlewares=real-ip@file,rate-limit@file,inflight-req@file,star-sign-api-headers'
+        - 'traefik.http.routers.star-sign-api-domain.service=star-sign-api'
+        - 'traefik.http.services.star-sign-api.loadbalancer.server.port=1337'
+        - 'traefik.http.routers.star-sign-api-http.rule=Host(`${API_DOMAIN}`) && !PathPrefix(`/.well-known/acme-challenge`)'
+        - 'traefik.http.routers.star-sign-api-http.entrypoints=web'
+        - 'traefik.http.routers.star-sign-api-http.middlewares=star-sign-https-redirect'
+        - 'traefik.http.middlewares.star-sign-api-headers.headers.stsSeconds=31536000'
+        - 'traefik.http.middlewares.star-sign-api-headers.headers.stsIncludeSubdomains=true'
+        - 'traefik.http.middlewares.star-sign-api-headers.headers.contentTypeNosniff=true'
+        - 'traefik.http.middlewares.star-sign-api-headers.headers.frameDeny=true'
+        - 'traefik.http.middlewares.star-sign-api-headers.headers.referrerPolicy=strict-origin-when-cross-origin'
+        - 'traefik.http.middlewares.star-sign-api-headers.headers.permissionsPolicy=accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()'
+        - "traefik.http.middlewares.star-sign-api-headers.headers.contentSecurityPolicy=frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      TZ: ${TZ:-Europe/Warsaw}
+    command:
+      - postgres
+      - -c
+      - max_connections=50
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=768MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=64MB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - star_sign_backend
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    stop_grace_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: 100m
+        max-file: 5
+        compress: 'true'
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+        limits:
+          cpus: '0.50'
+          memory: 1024M
+      update_config:
+        order: stop-first
+        delay: 60s
+        failure_action: rollback
+        monitor: 180s
+        max_failure_ratio: 0
+        parallelism: 1
+      restart_policy:
+        condition: on-failure
+        delay: 30s
+        max_attempts: 2
+        window: 300s
+
+  redis:
+    image: redis:7-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      TZ: ${TZ:-Europe/Warsaw}
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --appendonly
+      - 'no'
+      - --save
+      - ''
+      - --loglevel
+      - notice
+    networks:
+      - star_sign_backend
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping | grep PONG']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: 3
+        compress: 'true'
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        reservations:
+          cpus: '0.03'
+          memory: 64M
+        limits:
+          cpus: '0.10'
+          memory: 192M
+      update_config:
+        order: stop-first
+        delay: 10s
+        failure_action: rollback
+        monitor: 60s
+        max_failure_ratio: 0
+        parallelism: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+volumes:
+  postgres_data:
+
+networks:
+  traefik-public:
+    external: true
+  star_sign_backend:
+    driver: overlay
+    internal: true
