@@ -64,7 +64,7 @@ const openRouter = ({ strapi }: { strapi: Strapi }) => ({
     const raw = (await response.text()).trim();
 
     if (!response.ok) {
-      throw new Error(`OpenRouter HTTP ${response.status}: ${raw.slice(0, 500)}`);
+      throw new Error(`OpenRouter HTTP ${response.status}: response body redacted chars=${raw.length}`);
     }
 
     let parsed: OpenRouterResponse;
@@ -76,7 +76,7 @@ const openRouter = ({ strapi }: { strapi: Strapi }) => ({
     }
 
     if (parsed.error?.message) {
-      throw new Error(`OpenRouter error: ${parsed.error.message}`);
+      throw new Error('OpenRouter error: provider_error_message_redacted');
     }
 
     const content = this.extractContent(parsed);

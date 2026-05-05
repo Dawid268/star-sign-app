@@ -43,9 +43,20 @@ import {
   PREMIUM_CONTENT_RETRY_MAX,
   type PremiumContentKind,
 } from '../utils/premium-quality';
+import {
+  evaluatePolishContentQuality,
+  formatPolishContentQualityIssues,
+  POLISH_STYLE_REPAIR_MAX_ATTEMPTS,
+  type PolishContentKind,
+} from '../utils/polish-content-quality';
 import { getAicoPromptTemplate, renderAicoPromptTemplate } from '../utils/aico-contract';
+import {
+  sanitizeLlmTraceForStorage,
+  shouldStoreRawLlmTrace,
+} from '../utils/diagnostic-redaction';
 import { getPluginService } from '../utils/plugin';
 import { slugify } from '../utils/slug';
+import type { SeoGuardrailReport } from './seo-guardrails';
 
 type WorkflowService = {
   getByIdOrThrow: (id: number) => Promise<WorkflowRecord>;
@@ -152,6 +163,49 @@ type MediaSelectorService = {
   }) => Promise<void>;
 };
 
+type SeoGuardrailsService = {
+  evaluateArticleDraft: (input: {
+    payload: ArticlePayload | DailyCardPayload;
+    slug: string;
+    categoryId: number | null;
+    currentId?: number;
+    autoPublish?: boolean;
+    guardrails?: Record<string, unknown>;
+  }) => Promise<SeoGuardrailReport>;
+};
+
+type RuntimeLocksService = {
+  withLock: <T>(
+    key: string,
+    input: { ttlMs?: number; metadata?: Record<string, unknown>; now?: Date },
+    runner: () => Promise<T>
+  ) => Promise<T | undefined>;
+};
+
+type PolishRepairValidator<TPayload> = (payload: unknown) => TPayload;
+
+const DEFAULT_WORKFLOW_LOCK_TTL_MS = 30 * 60_000;
+const MAX_WORKFLOW_LOCK_TTL_MS = 6 * 60 * 60_000;
+
+const emptyUsage = (): OpenRouterUsage => ({
+  prompt_tokens: 0,
+  completion_tokens: 0,
+  total_tokens: 0,
+});
+
+const resolveWorkflowLockTtlMs = (): number => {
+  const configured = Number(process.env.AICO_WORKFLOW_LOCK_TTL_MS);
+  const ttlMs = Number.isFinite(configured) ? configured : DEFAULT_WORKFLOW_LOCK_TTL_MS;
+
+  return Math.max(60_000, Math.min(MAX_WORKFLOW_LOCK_TTL_MS, ttlMs));
+};
+
+const addUsage = (target: OpenRouterUsage, usage: OpenRouterUsage): void => {
+  target.prompt_tokens += usage.prompt_tokens;
+  target.completion_tokens += usage.completion_tokens;
+  target.total_tokens += usage.total_tokens;
+};
+
 const sleep = async (ms: number, signal?: AbortSignal): Promise<void> => {
   assertNotAborted(signal);
   await new Promise((resolve) => {
@@ -186,12 +240,14 @@ const updateStep = (
   output?: unknown
 ): RunStepLog[] => {
   const timestamp = new Date().toISOString();
+  let found = false;
 
-  return steps.map((step) => {
+  const nextSteps = steps.map((step) => {
     if (step.id !== id) {
       return step;
     }
 
+    found = true;
     return {
       ...step,
       status,
@@ -200,6 +256,25 @@ const updateStep = (
       ...(typeof output === 'undefined' ? {} : { output }),
     };
   });
+
+  if (found) {
+    return nextSteps;
+  }
+
+  return [
+    ...nextSteps,
+    {
+      id,
+      label: id
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' '),
+      status,
+      message: message ?? null,
+      timestamp,
+      ...(typeof output === 'undefined' ? {} : { output }),
+    },
+  ];
 };
 
 const normalizeName = (value: string): string => {
@@ -259,14 +334,227 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
   const mediaSelectorService = (): MediaSelectorService =>
     getPluginService<MediaSelectorService>(strapi, 'media-selector');
   const socialPublisherService = (): any => getPluginService<any>(strapi, 'social-publisher');
+  const strategyPlannerService = (): any => getPluginService<any>(strapi, 'strategy-planner');
+  const runtimeLocksService = (): Partial<RuntimeLocksService> | undefined =>
+    getPluginService<Partial<RuntimeLocksService> | undefined>(strapi, 'runtime-locks');
+  const seoGuardrailsService = (): SeoGuardrailsService =>
+    getPluginService<SeoGuardrailsService>(strapi, 'seo-guardrails');
 
   const api = {
     async tick(): Promise<void> {
       const now = new Date();
+      const executeTick = async (): Promise<void> => {
+        await this.processStrategyAutomationTick(now);
+        await this.processGenerationTick(now);
+        await this.processPublicationTick(now);
+        if (await this.isAutoPublishGloballyEnabled()) {
+          await socialPublisherService().publishPending(now);
+        }
+      };
+      const locks = runtimeLocksService();
 
-      await this.processGenerationTick(now);
-      await this.processPublicationTick(now);
-      await socialPublisherService().publishPending(now);
+      if (typeof locks?.withLock === 'function') {
+        await locks.withLock(
+          'orchestrator.tick',
+          {
+            ttlMs: 55_000,
+            metadata: { source: 'cron', tickStartedAt: now.toISOString() },
+            now,
+          },
+          executeTick
+        );
+        return;
+      }
+
+      await executeTick();
+    },
+
+    async processStrategyAutomationTick(now: Date): Promise<void> {
+      try {
+        if (!(await this.isStrategyAutopilotGloballyEnabled())) {
+          return;
+        }
+
+        const planner = strategyPlannerService();
+        if (planner && typeof planner.runAutopilot === 'function') {
+          await planner.runAutopilot({ now });
+        }
+      } catch (error) {
+        strapi.log.warn(`[AICO] Strategy autopilot failed: ${toSafeErrorMessage(error)}`);
+      }
+    },
+
+    async isAutoPublishGloballyEnabled(): Promise<boolean> {
+      if (typeof strapi.store !== 'function') {
+        return true;
+      }
+
+      const store = strapi.store({
+        type: 'plugin',
+        name: 'ai-content-orchestrator',
+        key: 'settings',
+      });
+      const saved = ((await store.get()) as Record<string, unknown> | null) ?? {};
+      return saved.aico_auto_publish_enabled !== false;
+    },
+
+    async isStrategyAutopilotGloballyEnabled(): Promise<boolean> {
+      if (typeof strapi.store !== 'function') {
+        return false;
+      }
+
+      const store = strapi.store({
+        type: 'plugin',
+        name: 'ai-content-orchestrator',
+        key: 'settings',
+      });
+      const saved = ((await store.get()) as Record<string, unknown> | null) ?? {};
+      return saved.aico_strategy_autopilot_enabled === true;
+    },
+
+    async shouldSchedulePublication(config: NormalizedWorkflowConfig): Promise<boolean> {
+      if (!config.autoPublish) {
+        return false;
+      }
+
+      return this.isAutoPublishGloballyEnabled();
+    },
+
+    async evaluateArticleSeo(input: {
+      payload: ArticlePayload | DailyCardPayload;
+      slug: string;
+      categoryId: number | null;
+      currentId?: number;
+      config: NormalizedWorkflowConfig;
+      onStep?: (
+        stepId: string,
+        status: 'running' | 'success' | 'failed',
+        message?: string,
+        output?: any
+      ) => Promise<void>;
+    }): Promise<SeoGuardrailReport> {
+      const report = await seoGuardrailsService().evaluateArticleDraft({
+        payload: input.payload,
+        slug: input.slug,
+        categoryId: input.categoryId,
+        currentId: input.currentId,
+        autoPublish: input.config.autoPublish,
+        guardrails: input.config.autoPublishGuardrails,
+      });
+
+      await input.onStep?.(
+        'seo_guardrails',
+        report.decision === 'fail' ? 'failed' : 'success',
+        `SEO guardrails: ${report.decision}, score ${report.score}`,
+        report
+      );
+
+      return report;
+    },
+
+    async ensurePolishContentQuality<TPayload>(input: {
+      payload: TPayload;
+      kind: PolishContentKind;
+      schemaDescription: string;
+      apiToken: string;
+      llmModel: string;
+      workflowType: WorkflowRecord['workflow_type'];
+      label: string;
+      validate: PolishRepairValidator<TPayload>;
+      maxCompletionTokens?: number;
+      abortSignal?: AbortSignal;
+      onLlmTrace?: LlmTraceLogger;
+      onStep?: (
+        stepId: string,
+        status: RunStepStatus,
+        message?: string,
+        output?: unknown
+      ) => Promise<void>;
+    }): Promise<{ payload: TPayload; usage: OpenRouterUsage; repaired: boolean }> {
+      const usage = emptyUsage();
+      let currentPayload = input.payload;
+      let report = evaluatePolishContentQuality({
+        kind: input.kind,
+        payload: currentPayload,
+      });
+
+      if (report.valid) {
+        return { payload: currentPayload, usage, repaired: false };
+      }
+
+      let lastIssueSummary = formatPolishContentQualityIssues(report.issues);
+      let lastErrorMessage: string | null = null;
+
+      await input.onStep?.(
+        'polish_quality',
+        'running',
+        `Korekta polszczyzny: ${input.label}`,
+        { issues: lastIssueSummary }
+      );
+
+      for (let attempt = 1; attempt <= POLISH_STYLE_REPAIR_MAX_ATTEMPTS; attempt += 1) {
+        assertNotAborted(input.abortSignal);
+
+        try {
+          const repairPrompt = renderAicoPromptTemplate(getAicoPromptTemplate('polishStyleRepair'), {
+            payloadKind: input.kind,
+            schemaDescription: input.schemaDescription,
+            payloadJson: JSON.stringify(currentPayload),
+            qualityIssues: lastIssueSummary,
+          });
+          const response = await llmService().requestJson({
+            model: input.llmModel,
+            apiToken: input.apiToken,
+            prompt: repairPrompt,
+            schemaDescription: input.schemaDescription,
+            temperature: 0.25,
+            maxCompletionTokens: input.maxCompletionTokens,
+            signal: input.abortSignal,
+          });
+
+          addUsage(usage, response.usage);
+          await input.onLlmTrace?.(response.trace, {
+            label: `${input.label} / Polish repair ${attempt}`,
+            workflowType: input.workflowType,
+          });
+
+          currentPayload = input.validate(response.payload);
+          report = evaluatePolishContentQuality({
+            kind: input.kind,
+            payload: currentPayload,
+          });
+
+          if (report.valid) {
+            await input.onStep?.(
+              'polish_quality',
+              'success',
+              `Korekta polszczyzny zakończona: ${input.label}`,
+              { attempts: attempt }
+            );
+            return { payload: currentPayload, usage, repaired: true };
+          }
+
+          lastIssueSummary = formatPolishContentQualityIssues(report.issues);
+          lastErrorMessage = null;
+        } catch (error) {
+          if (input.abortSignal?.aborted) {
+            throw error;
+          }
+
+          lastErrorMessage = toSafeErrorMessage(error);
+        }
+      }
+
+      await input.onStep?.(
+        'polish_quality',
+        'failed',
+        `Korekta polszczyzny nie powiodła się: ${input.label}`,
+        { issues: lastIssueSummary }
+      );
+
+      throw new Error(
+        `quality_failed_polish_style ${input.kind} (${lastErrorMessage ?? lastIssueSummary})`
+      );
     },
 
     async runNow(workflowId: number, reason = 'manual'): Promise<Record<string, unknown>> {
@@ -303,7 +591,8 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
 
     async backfill(
       workflowId: number,
-      payload: { startDate: string; endDate: string; dryRun?: boolean }
+      payload: { startDate: string; endDate: string; dryRun?: boolean },
+      options: { skipBackfillLock?: boolean } = {}
     ): Promise<Record<string, unknown>> {
       const workflow = await workflowsService().getByIdOrThrow(workflowId);
       const normalized = await workflowsService().normalizeRuntime(workflow);
@@ -327,10 +616,45 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         endDate: end,
         processed: 0,
         succeeded: 0,
+        skipped: 0,
         failed: 0,
         dryRun: Boolean(payload.dryRun),
         errors: [] as string[],
       };
+
+      if (!payload.dryRun && !options.skipBackfillLock) {
+        const locks = runtimeLocksService();
+
+        if (typeof locks?.withLock === 'function') {
+          const lockKey = `orchestrator.backfill.workflow.${workflowId}`;
+          const lockedResult = await locks.withLock(
+            lockKey,
+            {
+              ttlMs: resolveWorkflowLockTtlMs(),
+              metadata: {
+                source: 'backfill',
+                workflowId,
+                startDate: start,
+                endDate: end,
+              },
+              now: new Date(),
+            },
+            () => this.backfill(workflowId, payload, { skipBackfillLock: true })
+          );
+
+          if (lockedResult) {
+            return lockedResult;
+          }
+
+          return {
+            ...summary,
+            processed: rangeDays + 1,
+            skipped: rangeDays + 1,
+            reason: 'runtime_lock_held',
+            lockKey,
+          };
+        }
+      }
 
       let cursor = start;
 
@@ -349,7 +673,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         }
 
         try {
-          await this.executeGeneration(workflow, {
+          const result = await this.executeGeneration(workflow, {
             runType: 'backfill',
             reason: `backfill:${cursor}`,
             now: new Date(),
@@ -357,7 +681,11 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
             skipSlotMutation: true,
           });
           summary.processed += 1;
-          summary.succeeded += 1;
+          if (result.skipped === true) {
+            summary.skipped += 1;
+          } else {
+            summary.succeeded += 1;
+          }
         } catch (error) {
           summary.processed += 1;
           summary.failed += 1;
@@ -407,6 +735,10 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
     },
 
     async processPublicationTick(now: Date): Promise<void> {
+      if (!(await this.isAutoPublishGloballyEnabled())) {
+        return;
+      }
+
       const dueTickets = (await entityService.findMany(PUBLICATION_TICKET_UID, {
         filters: {
           status: TICKET_STATUS.scheduled,
@@ -558,9 +890,47 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         generationSlotKey?: string;
         forcedPublishAt?: Date;
         skipSlotMutation?: boolean;
+        skipWorkflowLock?: boolean;
       }
     ): Promise<Record<string, unknown>> {
       const workflowId = workflow.id;
+
+      if (!options.skipWorkflowLock) {
+        const locks = runtimeLocksService();
+
+        if (typeof locks?.withLock === 'function') {
+          const lockKey = `orchestrator.generation.workflow.${workflowId}`;
+          const lockedResult = await locks.withLock(
+            lockKey,
+            {
+              ttlMs: resolveWorkflowLockTtlMs(),
+              metadata: {
+                source: 'generation',
+                workflowId,
+                runType: options.runType,
+                reason: options.reason,
+              },
+              now: options.now,
+            },
+            () =>
+              this.executeGeneration(workflow, {
+                ...options,
+                skipWorkflowLock: true,
+              })
+          );
+
+          if (lockedResult) {
+            return lockedResult;
+          }
+
+          return {
+            workflowId,
+            skipped: true,
+            reason: 'runtime_lock_held',
+            lockKey,
+          };
+        }
+      }
 
       if (inProgress.has(workflowId)) {
         return {
@@ -612,8 +982,11 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
       };
 
       const logLlmTrace: LlmTraceLogger = async (trace, meta) => {
+        const storageTrace = sanitizeLlmTraceForStorage(trace, {
+          storeRaw: shouldStoreRawLlmTrace(),
+        });
         const nextTrace: LlmTraceLog = {
-          ...trace,
+          ...storageTrace,
           id: `${run.id}-${llmTraces.length + 1}`,
           label: meta.label,
           workflowType: meta.workflowType,
@@ -874,7 +1247,10 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
 
           lastError = error instanceof Error ? error : new Error(String(error));
 
-          if (lastError.message.includes('quality_failed_final')) {
+          if (
+            lastError.message.includes('quality_failed_final') ||
+            lastError.message.includes('quality_failed_polish_style')
+          ) {
             break;
           }
 
@@ -963,7 +1339,22 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
           workflowType: config.workflowType,
         });
 
-        const payload = this.validateHoroscopePayload(llmResponse.payload, horoscopeType);
+        const repairResult = await this.ensurePolishContentQuality({
+          payload: this.validateHoroscopePayload(llmResponse.payload, horoscopeType),
+          kind: 'horoscope',
+          schemaDescription: schema,
+          apiToken,
+          llmModel: config.llmModel,
+          workflowType: config.workflowType,
+          label: `Horoscope ${config.horoscopePeriod} / ${horoscopeType}`,
+          validate: (candidate) => this.validateHoroscopePayload(candidate, horoscopeType),
+          maxCompletionTokens: config.maxCompletionTokens,
+          abortSignal,
+          onLlmTrace,
+          onStep,
+        });
+        addUsage(usageAcc, repairResult.usage);
+        const payload = repairResult.payload;
         const premiumKind: PremiumContentKind =
           config.horoscopePeriod === 'Dzienny' ? 'horoscope-daily' : 'horoscope-periodic';
 
@@ -1084,7 +1475,21 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         workflowType: config.workflowType,
       });
 
-      const payload = this.validateDailyCardPayload(llmResponse.payload);
+      const repairResult = await this.ensurePolishContentQuality({
+        payload: this.validateDailyCardPayload(llmResponse.payload),
+        kind: 'daily_card',
+        schemaDescription: schema,
+        apiToken,
+        llmModel: config.llmModel,
+        workflowType: config.workflowType,
+        label: `Daily card / ${targetDate}`,
+        validate: (candidate) => this.validateDailyCardPayload(candidate),
+        maxCompletionTokens: config.maxCompletionTokens,
+        abortSignal,
+        onLlmTrace,
+        onStep,
+      });
+      const payload = repairResult.payload;
       assertPremiumContentQuality({
         label: `Daily card / ${targetDate}`,
         content: payload.content,
@@ -1145,7 +1550,12 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         created: upsertResult.created,
         updated: upsertResult.updated,
         skipped: upsertResult.skipped,
-        usage: llmResponse.usage,
+        usage: {
+          prompt_tokens: llmResponse.usage.prompt_tokens + repairResult.usage.prompt_tokens,
+          completion_tokens:
+            llmResponse.usage.completion_tokens + repairResult.usage.completion_tokens,
+          total_tokens: llmResponse.usage.total_tokens + repairResult.usage.total_tokens,
+        },
       };
     },
 
@@ -1187,8 +1597,6 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         if (!categoryId) {
           throw new Error('Workflow article wymaga kategorii (workflow lub topic item).');
         }
-
-        const imageAssetKey = getOptionalString(topic.image_asset_key);
 
         const context = {
           targetDate,
@@ -1280,15 +1688,32 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
               workflowType: config.workflowType,
             });
 
+            const polishRepair = await this.ensurePolishContentQuality({
+              payload: candidatePayload,
+              kind: 'article',
+              schemaDescription: schema,
+              apiToken,
+              llmModel: config.llmModel,
+              workflowType: config.workflowType,
+              label: `Article topic #${topic.id} / ${topic.title}`,
+              validate: (candidate) => this.validateArticlePayload(candidate),
+              maxCompletionTokens: config.maxCompletionTokens,
+              abortSignal,
+              onLlmTrace,
+              onStep,
+            });
+            addUsage(finalUsage, polishRepair.usage);
+            const polishedPayload = polishRepair.payload;
+
             assertPremiumContentQuality({
               label: `Article topic #${topic.id} / ${topic.title}`,
-              content: candidatePayload.content,
-              premiumContent: candidatePayload.premiumContent,
+              content: polishedPayload.content,
+              premiumContent: polishedPayload.premiumContent,
               kind: 'article',
             });
 
-            candidatePayload.isPremium = true;
-            payload = candidatePayload;
+            polishedPayload.isPremium = true;
+            payload = polishedPayload;
             lastQualityError = null;
             await onStep?.(
               'article_review',
@@ -1307,10 +1732,18 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
               attempt >= PREMIUM_CONTENT_RETRY_MAX ? 'failed' : 'running',
               `Kontrola Premium nie przeszła próby ${attempt}/${PREMIUM_CONTENT_RETRY_MAX}: ${lastQualityError.message}`
             );
+
+            if (lastQualityError.message.includes('quality_failed_polish_style')) {
+              break;
+            }
           }
         }
 
         if (!payload) {
+          if (lastQualityError?.message.includes('quality_failed_polish_style')) {
+            throw lastQualityError;
+          }
+
           throw new Error(
             `quality_failed_final premiumContent after ${PREMIUM_CONTENT_RETRY_MAX} attempts: ${
               lastQualityError?.message ?? 'unknown quality error'
@@ -1464,7 +1897,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
             },
           });
 
-          if (input.config.autoPublish && !existingEntry.publishedAt) {
+          if ((await this.shouldSchedulePublication(input.config)) && !existingEntry.publishedAt) {
             await this.upsertPublicationTicket({
               businessKey: input.businessKey,
               workflowId: input.workflow.id,
@@ -1489,7 +1922,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         },
       })) as { id: number };
 
-      if (input.config.autoPublish) {
+      if (await this.shouldSchedulePublication(input.config)) {
         await this.upsertPublicationTicket({
           businessKey: input.businessKey,
           workflowId: input.workflow.id,
@@ -1558,7 +1991,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
 
             updatedCount++;
           }
-        } catch (e) {
+        } catch {
           // ignore failures
         }
       }
@@ -1642,6 +2075,16 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
             input.explicitSlug || input.payload.slug || slugify(input.payload.title),
             existing.id
           );
+          const seoReport = await this.evaluateArticleSeo({
+            payload: input.payload,
+            slug,
+            categoryId: input.categoryId,
+            currentId: existing.id,
+            config: input.config,
+            onStep: input.onStep,
+          });
+          const canSchedulePublication =
+            (await this.shouldSchedulePublication(input.config)) && seoReport.decision !== 'fail';
 
           await entityService.update(CONTENT_UIDS.article, existing.id, {
             data: {
@@ -1674,7 +2117,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
             targetDate: input.targetDate,
           });
 
-          if (input.config.autoPublish && !existing.publishedAt) {
+          if (canSchedulePublication && !existing.publishedAt) {
             await this.upsertPublicationTicket({
               businessKey: input.businessKey,
               workflowId: input.workflow.id,
@@ -1691,6 +2134,15 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
       const slug = await this.ensureUniqueArticleSlug(
         input.explicitSlug || input.payload.slug || slugify(input.payload.title)
       );
+      const seoReport = await this.evaluateArticleSeo({
+        payload: input.payload,
+        slug,
+        categoryId: input.categoryId,
+        config: input.config,
+        onStep: input.onStep,
+      });
+      const canSchedulePublication =
+        (await this.shouldSchedulePublication(input.config)) && seoReport.decision !== 'fail';
       const workflowService = () => getPluginService<any>(strapi, 'workflows');
       const apiToken = await workflowService().decryptTokenForRuntime(input.workflow);
       const imageGenToken = await workflowService().decryptImageTokenForRuntime(input.workflow);
@@ -1743,7 +2195,7 @@ const orchestrator = ({ strapi }: { strapi: Strapi }) => {
         targetDate: input.targetDate,
       });
 
-      if (input.config.autoPublish) {
+      if (canSchedulePublication) {
         await this.upsertPublicationTicket({
           businessKey: input.businessKey,
           workflowId: input.workflow.id,

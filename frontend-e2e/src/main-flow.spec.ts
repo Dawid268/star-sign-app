@@ -1,6 +1,42 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { waitForAppReady } from './support/app-ready';
 import { mockApi } from './support/mock-api';
+
+const navbarLinkSelector = (slug: string) => `[data-test="navbar-link-${slug}"]`;
+
+const openMobileNavigation = async (
+  page: Page,
+): Promise<{ mobileToggle: Locator; mobileNav: Locator }> => {
+  const mobileToggle = page.locator('[data-test="navbar-mobile-toggle"]');
+  await expect(mobileToggle).toBeVisible();
+
+  await mobileToggle.click();
+  await expect(mobileToggle).toHaveAttribute('aria-expanded', 'true');
+
+  const mobileNav = page.getByRole('navigation', {
+    name: 'Nawigacja mobilna',
+  });
+  await expect(mobileNav).toBeVisible();
+
+  return { mobileToggle, mobileNav };
+};
+
+const locateNavbarLink = async (
+  page: Page,
+  slug: string,
+  isMobile: boolean,
+): Promise<Locator> => {
+  if (isMobile) {
+    const { mobileNav } = await openMobileNavigation(page);
+    return mobileNav.locator(navbarLinkSelector(slug));
+  }
+
+  const desktopNav = page.getByRole('navigation', {
+    name: 'Nawigacja główna',
+  });
+  await expect(desktopNav).toBeVisible();
+  return desktopNav.locator(navbarLinkSelector(slug));
+};
 
 test.describe('Star Sign - Main Flow', () => {
   test.beforeEach(async ({ page }) => {
@@ -22,11 +58,10 @@ test.describe('Star Sign - Main Flow', () => {
     await expect(startButton).toBeVisible();
   });
 
-  test('should navigate to Blog and back', async ({ page }) => {
+  test('should navigate to Blog and back', async ({ page, isMobile }) => {
     // Click Blog link in Navbar
-    const blogLink = page
-      .locator('[data-test="navbar-link-artykuly"]')
-      .filter({ visible: true });
+    const blogLink = await locateNavbarLink(page, 'artykuly', isMobile);
+    await expect(blogLink).toBeVisible();
     await blogLink.click();
 
     // Check URL
@@ -60,22 +95,16 @@ test.describe('Star Sign - Main Flow', () => {
   test('should work with mobile navigation', async ({ page, isMobile }) => {
     if (!isMobile) return;
 
-    // Mobile menu toggle should be visible
-    const mobileToggle = page.locator('[data-test="navbar-mobile-toggle"]');
-    await expect(mobileToggle).toBeVisible();
-
-    // Open menu
-    await mobileToggle.click();
+    const { mobileToggle, mobileNav } = await openMobileNavigation(page);
 
     // Check if links are visible in mobile menu
-    const blogLink = page
-      .locator('[data-test="navbar-link-artykuly"]')
-      .filter({ visible: true });
+    const blogLink = mobileNav.locator(navbarLinkSelector('artykuly'));
     await expect(blogLink).toBeVisible();
 
-    // Close menu (click outside or toggle again)
+    // Close menu
     await mobileToggle.click();
-    // In some implementations, visibility might change or be hidden by CSS
+    await expect(mobileToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(mobileNav).toBeHidden();
   });
 
   test('should filter blog articles by category', async ({ page }) => {

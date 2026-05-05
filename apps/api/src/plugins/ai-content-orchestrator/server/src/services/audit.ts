@@ -55,6 +55,32 @@ type AdminRouteDefinition = {
   };
 };
 
+type SafeRunSummary = {
+  id?: unknown;
+  run_type?: unknown;
+  status?: unknown;
+  started_at?: unknown;
+  finished_at?: unknown;
+  attempts?: unknown;
+  workflow?: unknown;
+};
+
+const toSafeRunSummary = (run: Record<string, unknown> | null | undefined): SafeRunSummary | null => {
+  if (!run) {
+    return null;
+  }
+
+  return {
+    id: run.id,
+    run_type: run.run_type,
+    status: run.status,
+    started_at: run.started_at,
+    finished_at: run.finished_at,
+    attempts: run.attempts,
+    workflow: run.workflow,
+  };
+};
+
 const OPERATOR_ACCESS_EXPECTATIONS: AccessExpectation[] = [
   {
     id: 'access.dashboard-read',
@@ -99,12 +125,12 @@ const OPERATOR_ACCESS_EXPECTATIONS: AccessExpectation[] = [
     remediation: 'Nadaj akcję Manage social dla operatora i sprawdź route POST /social/dry-run.',
   },
   {
-    id: 'access.audit-read',
+    id: 'access.audit-preflight',
     flow: 'audit',
     method: 'GET',
     path: '/audit/preflight',
-    action: RBAC_ACTIONS.read,
-    remediation: 'Utrzymaj odczyt preflight pod akcją Read.',
+    action: RBAC_ACTIONS.runAudit,
+    remediation: 'Preflight wykonuje sprawdzenia operacyjne, więc wymaga akcji Run audit.',
   },
   {
     id: 'access.audit-run',
@@ -114,6 +140,48 @@ const OPERATOR_ACCESS_EXPECTATIONS: AccessExpectation[] = [
     action: RBAC_ACTIONS.runAudit,
     remediation: 'Nadaj akcję Run audit i potwierdź route POST /audit/preflight.',
   },
+  {
+    id: 'access.audit-events',
+    flow: 'audit',
+    method: 'GET',
+    path: '/audit/events',
+    action: RBAC_ACTIONS.viewAuditTrail,
+    remediation: 'Nadaj akcję View audit trail i potwierdź route GET /audit/events.',
+  },
+  {
+    id: 'access.strategy-plan',
+    flow: 'strategy',
+    method: 'GET',
+    path: '/strategy/plan',
+    action: RBAC_ACTIONS.manageStrategy,
+    remediation: 'Nadaj akcję Manage strategy planning i potwierdź route GET /strategy/plan.',
+  },
+  {
+    id: 'access.performance-read',
+    flow: 'performance',
+    method: 'GET',
+    path: '/performance',
+    action: RBAC_ACTIONS.viewPerformance,
+    remediation: 'Nadaj akcję View performance feedback i potwierdź route GET /performance.',
+  },
+  {
+    id: 'access.performance-aggregate',
+    flow: 'performance',
+    method: 'POST',
+    path: '/performance/aggregate',
+    action: RBAC_ACTIONS.managePerformance,
+    remediation:
+      'Nadaj akcję Manage performance feedback i potwierdź route POST /performance/aggregate.',
+  },
+  {
+    id: 'access.homepage-recommendations',
+    flow: 'homepage',
+    method: 'POST',
+    path: '/homepage/recommendations/run',
+    action: RBAC_ACTIONS.manageHomepage,
+    remediation:
+      'Nadaj akcję Manage homepage recommendations i potwierdź route POST /homepage/recommendations/run.',
+  },
 ];
 
 const CHECK_REMEDIATION: Record<string, string> = {
@@ -121,6 +189,10 @@ const CHECK_REMEDIATION: Record<string, string> = {
   'config.server-url': 'Ustaw publiczne SERVER_URL (server.url) dostępne z internetu.',
   'social.credentials': 'Uzupełnij wszystkie credentiale kanałów FB/IG/X dla włączonych workflow.',
   'social.connectivity': 'Uruchom Test Connection i popraw tokeny/uprawnienia kanałów z błędami.',
+  'config.auto-publish-kill-switch':
+    'Zweryfikuj ustawienie aico_auto_publish_enabled w AICO Settings przed live auto-publish.',
+  'config.auto-publish-guardrails':
+    'Uzupełnij auto_publish_guardrails dla workflow auto-publish lub świadomie zaakceptuj domyślne progi.',
   'queues.social-failed': 'Przejrzyj failed tickety social i uruchom retry po poprawie przyczyny.',
   'queues.social-stale':
     'Usuń blokadę kolejki: ponów lub anuluj przeterminowane tickety scheduled.',
@@ -194,7 +266,7 @@ const audit = ({ strapi }: { strapi: Strapi }) => {
   const entityService = getEntityService(strapi);
 
   return {
-    async preflight(input?: { strict?: boolean }): Promise<{
+    async preflight(input?: { strict?: boolean; includeConnectivity?: boolean }): Promise<{
       decision: AuditDecision;
       strict: boolean;
       generatedAt: string;
@@ -209,6 +281,7 @@ const audit = ({ strapi }: { strapi: Strapi }) => {
       non_critical_findings: AuditFinding[];
     }> {
       const strict = Boolean(input?.strict);
+      const includeConnectivity = input?.includeConnectivity === true;
 
       const [
         workflows,
@@ -259,8 +332,18 @@ const audit = ({ strapi }: { strapi: Strapi }) => {
 
       const checks: AuditCheck[] = [];
       const enabledWorkflows = workflows.filter((workflow) => Boolean(workflow.enabled));
+      const autoPublishWorkflows = enabledWorkflows.filter((workflow) =>
+        Boolean(workflow.auto_publish)
+      );
       const flowFailures = new Set<string>();
       const accessFailures = new Set<string>();
+      const settingsStore = strapi.store({
+        type: 'plugin',
+        name: 'ai-content-orchestrator',
+        key: 'settings',
+      });
+      const pluginSettings = ((await settingsStore.get()) as Record<string, unknown> | null) ?? {};
+      const autoPublishEnabled = pluginSettings.aico_auto_publish_enabled !== false;
 
       if (enabledWorkflows.length === 0) {
         checks.push({
@@ -278,6 +361,55 @@ const audit = ({ strapi }: { strapi: Strapi }) => {
           severity: 'critical',
           status: 'pass',
           message: `Włączone workflow: ${enabledWorkflows.length}.`,
+        });
+      }
+
+      checks.push({
+        id: 'config.auto-publish-kill-switch',
+        area: 'Configuration',
+        severity: 'warning',
+        status: 'pass',
+        message: autoPublishEnabled
+          ? 'Globalny kill switch auto-publish jest włączony; system może planować publikacje po guardrails.'
+          : 'Globalny kill switch auto-publish jest wyłączony; workflow nie będą planować publikacji.',
+        details: {
+          aico_auto_publish_enabled: autoPublishEnabled,
+          autoPublishWorkflows: autoPublishWorkflows.length,
+        },
+      });
+
+      const workflowsWithoutGuardrails = autoPublishWorkflows.filter((workflow) => {
+        const guardrails = workflow.auto_publish_guardrails;
+        return !isRecord(guardrails) || Object.keys(guardrails).length === 0;
+      });
+
+      if (workflowsWithoutGuardrails.length > 0) {
+        checks.push({
+          id: 'config.auto-publish-guardrails',
+          area: 'Configuration',
+          severity: strict ? 'critical' : 'warning',
+          status: strict ? 'fail' : 'warn',
+          message: strict
+            ? 'Workflow auto-publish bez jawnych guardrails blokują strict preflight.'
+            : 'Część workflow auto-publish używa domyślnych guardrails.',
+          details: {
+            workflows: workflowsWithoutGuardrails.map((workflow) => ({
+              id: workflow.id,
+              name: workflow.name,
+            })),
+          },
+        });
+
+        if (strict) {
+          flowFailures.add('publish-flow: auto-publish bez jawnych guardrails.');
+        }
+      } else {
+        checks.push({
+          id: 'config.auto-publish-guardrails',
+          area: 'Configuration',
+          severity: 'warning',
+          status: 'pass',
+          message: 'Workflow auto-publish mają jawne guardrails lub nie ma aktywnego auto-publish.',
         });
       }
 
@@ -370,7 +502,6 @@ const audit = ({ strapi }: { strapi: Strapi }) => {
         });
       }
 
-      const socialService = strapi.plugin('ai-content-orchestrator').service('social-publisher');
       const connectivityChecks: Array<{
         workflowId: number;
         workflow: string;
@@ -378,27 +509,45 @@ const audit = ({ strapi }: { strapi: Strapi }) => {
         channels: unknown;
       }> = [];
 
-      for (const workflow of enabledWorkflows.slice(0, 10)) {
-        try {
-          const result = await socialService.testConnection({
-            workflowId: workflow.id,
-            channels: toEnabledChannels(workflow),
-          });
+      if (includeConnectivity) {
+        const socialService = strapi.plugin('ai-content-orchestrator').service('social-publisher');
 
-          connectivityChecks.push({
-            workflowId: workflow.id,
-            workflow: workflow.name,
-            overall: result.overall,
-            channels: result.channels,
-          });
-        } catch (error) {
-          connectivityChecks.push({
-            workflowId: workflow.id,
-            workflow: workflow.name,
-            overall: 'degraded',
-            channels: [{ error: String(error) }],
-          });
+        for (const workflow of enabledWorkflows.slice(0, 10)) {
+          try {
+            const result = await socialService.testConnection({
+              workflowId: workflow.id,
+              channels: toEnabledChannels(workflow),
+            });
+
+            connectivityChecks.push({
+              workflowId: workflow.id,
+              workflow: workflow.name,
+              overall: result.overall,
+              channels: result.channels,
+            });
+          } catch (error) {
+            connectivityChecks.push({
+              workflowId: workflow.id,
+              workflow: workflow.name,
+              overall: 'degraded',
+              channels: [{ error: String(error) }],
+            });
+          }
         }
+      } else {
+        checks.push({
+          id: 'social.connectivity',
+          area: 'Social Connectivity',
+          severity: 'warning',
+          status: 'warn',
+          message:
+            'Pominięto live connectivity checks. Uruchom jawny audyt z includeConnectivity=true, gdy masz zgodę na requesty do providerów.',
+          details: {
+            skipped: true,
+            reason: 'offline_default',
+            enabledWorkflowCount: enabledWorkflows.length,
+          },
+        });
       }
 
       const blockedConnectivity = connectivityChecks.filter((item) => item.overall === 'blocked');
@@ -407,7 +556,9 @@ const audit = ({ strapi }: { strapi: Strapi }) => {
         (item) => item.overall === 'needs_action'
       );
 
-      if (blockedConnectivity.length > 0) {
+      if (!includeConnectivity) {
+        // Offline default already added a warning check above.
+      } else if (blockedConnectivity.length > 0) {
         checks.push({
           id: 'social.connectivity',
           area: 'Social Connectivity',
@@ -494,7 +645,7 @@ const audit = ({ strapi }: { strapi: Strapi }) => {
           status: 'warn',
           message: 'Brak świeżych runów w ostatnich 24h.',
           details: {
-            latestRun: recentRuns[0] || null,
+            latestRun: toSafeRunSummary(recentRuns[0]),
           },
         });
       } else {
@@ -515,7 +666,7 @@ const audit = ({ strapi }: { strapi: Strapi }) => {
           status: 'fail',
           message: `Wykryto runy "running" starsze niż 3h: ${staleRunningRuns.length}.`,
           details: {
-            runs: staleRunningRuns,
+            runs: staleRunningRuns.map((run) => toSafeRunSummary(run)),
           },
         });
         flowFailures.add('execution-flow: runy utknęły w statusie running > 3h.');

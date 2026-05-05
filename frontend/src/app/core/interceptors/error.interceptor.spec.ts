@@ -83,4 +83,29 @@ describe('errorInterceptor', () => {
     expect(router.navigate).not.toHaveBeenCalled();
     expect(notificationService.error).not.toHaveBeenCalled();
   });
+
+  it('skips auth side effects and notifications for analytics requests', () => {
+    http
+      .post(
+        '/api/analytics/events',
+        {},
+        {
+          headers: {
+            'X-Skip-Error-Notification': 'true',
+            'X-Skip-Loading': 'true',
+          },
+        },
+      )
+      .subscribe({ error: () => undefined });
+
+    const req = httpMock.expectOne('/api/analytics/events');
+    req.flush(
+      { error: { message: 'Unauthorized' } },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+
+    expect(authService.expireSession).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(notificationService.error).not.toHaveBeenCalled();
+  });
 });

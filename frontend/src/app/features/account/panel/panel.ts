@@ -24,6 +24,10 @@ import { AstrologyService } from '../../../core/services/astrology.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { AccountService } from '../../../core/services/account.service';
 import { AnalyticsService } from '../../../core/services/analytics.service';
+import {
+  AppSettingsService,
+  DEFAULT_PUBLIC_APP_SETTINGS,
+} from '../../../core/services/app-settings.service';
 import { SeoService } from '../../../core/services/seo.service';
 import { featureFlags } from '../../../core/feature-flags';
 import {
@@ -35,6 +39,7 @@ import {
   AccountReading,
   AccountSubscription,
   Ga4Item,
+  PublicAppSettingsResponse,
 } from '@star-sign-monorepo/shared-types';
 
 @Component({
@@ -46,6 +51,7 @@ import {
 })
 export class AccountPanel implements OnInit {
   private readonly accountService = inject(AccountService);
+  private readonly appSettingsService = inject(AppSettingsService);
   private readonly authService = inject(AuthService);
   private readonly astrologyService = inject(AstrologyService);
   private readonly analyticsService = inject(AnalyticsService);
@@ -66,15 +72,27 @@ export class AccountPanel implements OnInit {
 
   public readonly dashboard = signal<AccountDashboardResponse | null>(null);
   public readonly readings = signal<AccountReading[]>([]);
+  public readonly appSettings = signal(DEFAULT_PUBLIC_APP_SETTINGS);
 
   public readonly isPremium = computed(() =>
     Boolean(
       this.dashboard()?.subscription.hasPremiumAccess ??
-        this.dashboard()?.subscription.isPremium,
+      this.dashboard()?.subscription.isPremium,
     ),
   );
   public readonly subscription = computed<AccountSubscription | null>(
     () => this.dashboard()?.subscription || null,
+  );
+  public readonly paidPremiumEnabled = computed(
+    () => this.appSettings().paidPremiumEnabled,
+  );
+  public readonly monthlyPremiumLabel = computed(
+    () =>
+      `Premium ${this.formatPrice(this.appSettings().monthlyPrice, this.appSettings().currency)} / mies.`,
+  );
+  public readonly annualPremiumLabel = computed(
+    () =>
+      `Premium ${this.formatPrice(this.appSettings().annualPrice, this.appSettings().currency)} / rok`,
   );
 
   public readonly profileForm = this.formBuilder.nonNullable.group({
@@ -174,6 +192,7 @@ export class AccountPanel implements OnInit {
 
           return forkJoin({
             me: of(me),
+            appSettings: this.appSettingsService.getPublicAppSettings(),
             dashboard: this.accountService.getDashboard(),
             readings: this.accountService.getReadings(30),
           });
@@ -194,6 +213,7 @@ export class AccountPanel implements OnInit {
           return;
         }
 
+        this.appSettings.set(payload.appSettings);
         this.dashboard.set(payload.dashboard);
         this.readings.set(payload.readings.data);
 
@@ -296,6 +316,13 @@ export class AccountPanel implements OnInit {
 
   public startSubscription(plan: 'monthly' | 'annual'): void {
     if (this.billingLoading()) {
+      return;
+    }
+
+    if (!this.paidPremiumEnabled()) {
+      this.successMessage.set(
+        'Premium jest obecnie otwarte. Płatności subskrypcyjne nie są uruchomione.',
+      );
       return;
     }
 
@@ -470,7 +497,8 @@ export class AccountPanel implements OnInit {
       return;
     }
 
-    const planDetails = premiumPlanDetails[plan];
+    const settings = this.appSettings();
+    const planDetails = this.getPlanDetails(plan, settings);
     const item = {
       item_id: `premium_${plan}`,
       item_name: planDetails.itemName,
@@ -481,23 +509,63 @@ export class AccountPanel implements OnInit {
     } satisfies Ga4Item;
 
     this.analyticsService.trackProductEvent('purchase', {
-      transaction_id: sessionId,
-      currency: 'PLN',
-      value: planDetails.price,
-      price: planDetails.price,
-      checkout_type: 'premium',
-      plan,
-      items: [item],
+      ...this.buildPremiumAnalyticsParams(settings, {
+        transaction_id: sessionId,
+        value: planDetails.price,
+        price: planDetails.price,
+        checkout_type: 'premium',
+        ui_surface: 'account_panel',
+        funnel_step: 'purchase',
+        plan,
+        items: [item],
+      }),
     });
-    this.analyticsService.trackPremiumSubscriptionConversion({
-      transaction_id: sessionId,
-      currency: 'PLN',
-      value: planDetails.price,
-      price: planDetails.price,
-      plan,
-      status: subscription.status,
-    });
+    this.analyticsService.trackPremiumSubscriptionConversion(
+      this.buildPremiumAnalyticsParams(settings, {
+        transaction_id: sessionId,
+        value: planDetails.price,
+        price: planDetails.price,
+        plan,
+        status: subscription.status,
+        ui_surface: 'account_panel',
+        funnel_step: 'subscription_conversion',
+      }),
+    );
     window.sessionStorage.setItem(this.premiumPurchaseKey(sessionId), 'true');
+  }
+
+  private getPlanDetails(
+    plan: 'monthly' | 'annual',
+    settings: PublicAppSettingsResponse,
+  ): { itemName: string; price: number } {
+    return {
+      itemName: premiumPlanDetails[plan].itemName,
+      price: plan === 'annual' ? settings.annualPrice : settings.monthlyPrice,
+    };
+  }
+
+  private buildPremiumAnalyticsParams(
+    settings: PublicAppSettingsResponse,
+    params: Record<string, unknown>,
+  ): Record<string, unknown> {
+    return {
+      ...params,
+      premium_mode: settings.premiumMode,
+      access_state: settings.premiumMode === 'open' ? 'open' : 'paid',
+      currency: settings.currency,
+    };
+  }
+
+  private formatPrice(
+    price: number,
+    currency: PublicAppSettingsResponse['currency'],
+  ): string {
+    return new Intl.NumberFormat('pl-PL', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: Number.isInteger(price) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(price);
   }
 
   private wasPremiumPurchaseTracked(sessionId: string): boolean {

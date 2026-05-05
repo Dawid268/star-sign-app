@@ -1,6 +1,8 @@
 import type { Context } from 'koa';
 
+import { SOCIAL_POST_TICKET_UID } from '../constants';
 import type { Strapi } from '../types';
+import { recordAdminAuditEvent } from '../utils/audit-trail';
 import { toSafeErrorMessage } from '../utils/json';
 
 const socialController = ({ strapi }: { strapi: Strapi }) => ({
@@ -95,9 +97,30 @@ const socialController = ({ strapi }: { strapi: Strapi }) => ({
         .plugin('ai-content-orchestrator')
         .service('social-publisher')
         .retryTicket(id);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'social.ticket.retry',
+        outcome: 'success',
+        resourceUid: SOCIAL_POST_TICKET_UID,
+        resourceId: id,
+        metadata: {
+          platform: ticket.platform,
+          status: ticket.status,
+          workflowId:
+            typeof ticket.workflow === 'object' && ticket.workflow ? ticket.workflow.id : ticket.workflow,
+        },
+      });
       ctx.body = { data: ticket };
     } catch (error) {
-      ctx.badRequest(toSafeErrorMessage(error));
+      const message = toSafeErrorMessage(error);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'social.ticket.retry',
+        outcome: 'failure',
+        severity: 'error',
+        resourceUid: SOCIAL_POST_TICKET_UID,
+        resourceId: ctx.params.id,
+        metadata: { error: message },
+      });
+      ctx.badRequest(message);
     }
   },
 
@@ -113,9 +136,30 @@ const socialController = ({ strapi }: { strapi: Strapi }) => ({
         .plugin('ai-content-orchestrator')
         .service('social-publisher')
         .cancelTicket(id);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'social.ticket.cancel',
+        outcome: 'success',
+        resourceUid: SOCIAL_POST_TICKET_UID,
+        resourceId: id,
+        metadata: {
+          platform: ticket.platform,
+          status: ticket.status,
+          workflowId:
+            typeof ticket.workflow === 'object' && ticket.workflow ? ticket.workflow.id : ticket.workflow,
+        },
+      });
       ctx.body = { data: ticket };
     } catch (error) {
-      ctx.badRequest(toSafeErrorMessage(error));
+      const message = toSafeErrorMessage(error);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'social.ticket.cancel',
+        outcome: 'failure',
+        severity: 'error',
+        resourceUid: SOCIAL_POST_TICKET_UID,
+        resourceId: ctx.params.id,
+        metadata: { error: message },
+      });
+      ctx.badRequest(message);
     }
   },
 });

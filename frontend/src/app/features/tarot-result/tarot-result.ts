@@ -76,6 +76,7 @@ export class TarotResult implements OnInit {
             content_slug: draw.card.slug,
             premium_mode: 'open',
             access_state: 'open',
+            ui_surface: 'tarot_daily_result',
             route: '/tarot/karta-dnia',
           });
           this.analyticsService.trackPremiumContentView({
@@ -84,6 +85,7 @@ export class TarotResult implements OnInit {
             content_slug: draw.card.slug,
             premium_mode: 'open',
             access_state: 'open',
+            ui_surface: 'tarot_daily_result',
             route: '/tarot/karta-dnia',
           });
         } else {

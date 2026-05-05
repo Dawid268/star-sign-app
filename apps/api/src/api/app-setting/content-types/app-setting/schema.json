@@ -52,6 +52,37 @@
     "allow_promotion_codes": {
       "type": "boolean",
       "default": true
+    },
+    "maintenance_mode_enabled": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
+    "maintenance_title": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "maintenance_message": {
+      "type": "text",
+      "maxLength": 500
+    },
+    "maintenance_eta": {
+      "type": "datetime"
+    },
+    "maintenance_contact_url": {
+      "type": "string",
+      "maxLength": 300
+    },
+    "maintenance_allowed_paths": {
+      "type": "json",
+      "default": [
+        "/regulamin",
+        "/polityka-prywatnosci",
+        "/cookies",
+        "/disclaimer",
+        "/newsletter/potwierdz",
+        "/newsletter/wypisz"
+      ]
     }
   }
 }

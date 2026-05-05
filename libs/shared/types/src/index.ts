@@ -7,3 +7,4 @@ export * from './lib/numerology.types';
 export * from './lib/newsletter.types';
 export * from './lib/user-account.types';
 export * from './lib/analytics.types';
+export * from './lib/app-settings.types';

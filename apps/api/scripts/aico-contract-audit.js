@@ -1,6 +1,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const aicoContract = require('../src/bootstrap/aico-content-contract.json');
+const {
+  resolveSqliteDatabaseFilename,
+} = require('./audit-sqlite');
 
 const loadEnv = (filePath) => {
   if (!fs.existsSync(filePath)) return;
@@ -205,10 +208,7 @@ const auditPostgres = async () => {
 
 const auditSqlite = () => {
   const Database = require('better-sqlite3');
-  const filename = path.resolve(
-    process.cwd(),
-    process.env.DATABASE_FILENAME || '.tmp/data.db',
-  );
+  const filename = resolveSqliteDatabaseFilename();
   const db = new Database(filename);
   try {
     const columns = db

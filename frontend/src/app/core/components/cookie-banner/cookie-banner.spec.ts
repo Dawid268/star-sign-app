@@ -82,6 +82,33 @@ describe('CookieBanner', () => {
     expect(analyticsService.onConsentGranted).not.toHaveBeenCalled();
   });
 
+  it('should expose optional decline on the first banner layer', () => {
+    component.isVisible.set(true);
+    fixture.detectChanges();
+
+    const declineButton = (
+      fixture.nativeElement as HTMLElement
+    ).querySelector<HTMLButtonElement>('[data-test="cookie-decline-button"]');
+
+    expect(declineButton?.textContent).toContain('Odrzuć opcjonalne');
+    declineButton?.click();
+
+    expect(cookieService.set).toHaveBeenCalledWith(
+      'cookie-consent-v2',
+      JSON.stringify({ necessary: true, analytics: false, marketing: false }),
+      365,
+      '/',
+    );
+  });
+
+  it('should leave optional consent disabled by default in settings', () => {
+    expect(component.consent()).toEqual({
+      necessary: true,
+      analytics: false,
+      marketing: false,
+    });
+  });
+
   it('should toggle settings and update selected options', () => {
     expect(component.showSettings()).toBe(false);
     component.toggleSettings();
@@ -141,8 +168,10 @@ describe('CookieBanner', () => {
     component.isVisible.set(true);
     fixture.detectChanges();
 
-    const settingsButton = fixture.nativeElement.querySelector('button');
-    settingsButton.click();
+    const settingsButton = (
+      fixture.nativeElement as HTMLElement
+    ).querySelector<HTMLButtonElement>('[data-test="cookie-settings-button"]');
+    settingsButton?.click();
     fixture.detectChanges();
 
     expect(component.showSettings()).toBe(true);

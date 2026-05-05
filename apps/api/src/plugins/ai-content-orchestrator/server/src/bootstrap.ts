@@ -3,6 +3,8 @@ import type { Core } from '@strapi/strapi';
 import { CRON_TICK_RULE, DEFAULT_TIMEZONE, PLUGIN_ID, RBAC_ACTIONS } from './constants';
 import { pluginActions } from './permissions/actions';
 
+type AicoRbacAction = (typeof RBAC_ACTIONS)[keyof typeof RBAC_ACTIONS];
+
 type PermissionService = {
   actionProvider: {
     registerMany: (actions: ReadonlyArray<Record<string, unknown>>) => Promise<void>;
@@ -10,7 +12,37 @@ type PermissionService = {
   createMany: (permissions: Array<Record<string, unknown>>) => Promise<unknown>;
 };
 
-const syncEditorRolePermissions = async (strapi: Core.Strapi): Promise<void> => {
+const DEFAULT_EDITOR_PERMISSION_ACTIONS = [RBAC_ACTIONS.read] as const;
+
+export const resolveEditorRolePermissionActions = (
+  env: NodeJS.ProcessEnv = process.env
+): string[] => {
+  if (env.AICO_SYNC_EDITOR_ROLE_PERMISSIONS !== 'true') {
+    return [];
+  }
+
+  const validActions = new Set<string>(Object.values(RBAC_ACTIONS));
+  const requestedActions =
+    env.AICO_EDITOR_PERMISSION_ACTIONS?.split(',')
+      .map((action) => action.trim())
+      .filter(Boolean) ?? [...DEFAULT_EDITOR_PERMISSION_ACTIONS];
+
+  return [...new Set(requestedActions)].filter((action): action is AicoRbacAction =>
+    validActions.has(action)
+  );
+};
+
+export const syncEditorRolePermissions = async (
+  strapi: Core.Strapi,
+  targetActions = resolveEditorRolePermissionActions()
+): Promise<void> => {
+  if (targetActions.length === 0) {
+    strapi.log.info(
+      '[aico] Pominięto auto-grant uprawnień roli Editor. Ustaw AICO_SYNC_EDITOR_ROLE_PERMISSIONS=true, aby włączyć allowlistę.'
+    );
+    return;
+  }
+
   const roleCandidates = ['Editor Content', 'Content Editor', 'Editor'];
 
   const roles = (await strapi.db.query('admin::role').findMany({
@@ -24,8 +56,6 @@ const syncEditorRolePermissions = async (strapi: Core.Strapi): Promise<void> => 
   if (roles.length === 0) {
     return;
   }
-
-  const targetActions = Object.values(RBAC_ACTIONS);
 
   for (const role of roles) {
     const existing = (await strapi.db.query('admin::permission').findMany({

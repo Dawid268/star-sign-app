@@ -38,6 +38,7 @@ const defaultLimitedPaths = [
   '/api/newsletter',
   '/api/checkout/session',
   '/api/account/subscription',
+  '/api/analytics/events',
 ];
 
 const normalizePaths = (paths?: string[]): string[] =>

@@ -1,5 +1,9 @@
 import { RUN_LOG_UID, RUN_STATUS } from '../constants';
 import type { CompleteRunInput, CreateRunInput, RunLogRecord, Strapi } from '../types';
+import {
+  sanitizeRunDetailsForStorage,
+  sanitizeRunRecordForAdmin,
+} from '../utils/diagnostic-redaction';
 import { getEntityService } from '../utils/entity-service';
 import { isRecord } from '../utils/json';
 import { getPluginService } from '../utils/plugin';
@@ -18,7 +22,7 @@ const runs = ({ strapi }: { strapi: Strapi }) => {
         status: input.status,
         started_at: input.startedAt,
         attempts: input.attempts ?? 1,
-        details: input.details ?? {},
+        details: sanitizeRunDetailsForStorage(input.details ?? {}),
         error_message: input.errorMessage,
       };
 
@@ -36,7 +40,9 @@ const runs = ({ strapi }: { strapi: Strapi }) => {
     async complete(input: CompleteRunInput): Promise<void> {
       const current = await this.getById(input.runId);
       const currentDetails = isRecord(current?.details) ? current.details : {};
-      const nextDetails = input.details ? { ...currentDetails, ...input.details } : currentDetails;
+      const nextDetails = sanitizeRunDetailsForStorage(
+        input.details ? { ...currentDetails, ...input.details } : currentDetails
+      );
 
       await entityService.update(RUN_LOG_UID, input.runId, {
         data: {
@@ -58,8 +64,7 @@ const runs = ({ strapi }: { strapi: Strapi }) => {
       await entityService.update(RUN_LOG_UID, runId, {
         data: {
           details: {
-            ...currentDetails,
-            ...details,
+            ...sanitizeRunDetailsForStorage({ ...currentDetails, ...details }),
           },
         },
       });
@@ -85,7 +90,7 @@ const runs = ({ strapi }: { strapi: Strapi }) => {
         limit,
       })) as RunLogRecord[];
 
-      return runs;
+      return runs.map((run) => sanitizeRunRecordForAdmin(run));
     },
 
     async getById(id: number): Promise<RunLogRecord | null> {
@@ -93,7 +98,7 @@ const runs = ({ strapi }: { strapi: Strapi }) => {
         populate: ['workflow'],
       })) as RunLogRecord | null;
 
-      return run;
+      return run ? sanitizeRunRecordForAdmin(run) : null;
     },
 
     async retry(runId: number): Promise<Record<string, unknown>> {

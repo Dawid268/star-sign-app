@@ -28,7 +28,9 @@ const createCtx = (body: Record<string, unknown>, authHeader = '') => ({
   }),
 });
 
-const createStrapiMock = () => {
+const createStrapiMock = (
+  profile: Record<string, unknown> | null = null,
+) => {
   const createdEvents: CreatedEvent[] = [];
   const analyticsQuery = {
     findOne: vi.fn(async ({ where }) => {
@@ -52,12 +54,19 @@ const createStrapiMock = () => {
       token === 'valid-jwt' ? { id: 42 } : {},
     ),
   };
+  const profileQuery = {
+    findOne: vi.fn(async () => profile),
+  };
 
   vi.stubGlobal('strapi', {
     db: {
       query: vi.fn((uid: string) => {
         if (uid === 'api::analytics-event.analytics-event') {
           return analyticsQuery;
+        }
+
+        if (uid === 'api::user-profile.user-profile') {
+          return profileQuery;
         }
 
         throw new Error(`Unexpected query uid: ${uid}`);
@@ -68,7 +77,7 @@ const createStrapiMock = () => {
     })),
   });
 
-  return { analyticsQuery, createdEvents, jwtService };
+  return { analyticsQuery, createdEvents, jwtService, profileQuery };
 };
 
 afterEach(() => {
@@ -102,6 +111,10 @@ describe('analytics event controller', () => {
         session_id: 'session-1',
         device_category: 'mobile',
         browser_family: 'Safari',
+        auth_state: 'guest',
+        visitor_segment: 'guest',
+        premium_mode: 'open',
+        premium_access_policy: 'open_access',
       }),
     );
     expect(data).not.toHaveProperty('user');
@@ -126,6 +139,46 @@ describe('analytics event controller', () => {
       data: expect.objectContaining({
         event_type: 'premium_cta_click',
         user: 42,
+        auth_state: 'logged_in',
+        visitor_segment: 'logged_in',
+        subscription_status: 'inactive',
+      }),
+    });
+  });
+
+  it('segments logged-in premium subscribers from user profile status', async () => {
+    const { analyticsQuery, profileQuery } = createStrapiMock({
+      subscription_status: 'active',
+      subscription_plan: 'annual',
+    });
+    const ctx = createCtx(
+      {
+        event_type: 'premium_content_view',
+        visitor_id: 'visitor-5',
+        session_id: 'session-5',
+        premium_mode: 'open',
+        access_state: 'open',
+        funnel_step: 'content_view',
+        ui_surface: 'horoscope_reader',
+      },
+      'Bearer valid-jwt',
+    );
+
+    await analyticsEventController.track(ctx);
+
+    expect(profileQuery.findOne).toHaveBeenCalledWith({
+      where: { user: 42 },
+    });
+    expect(analyticsQuery.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        user: 42,
+        auth_state: 'logged_in',
+        visitor_segment: 'premium_subscriber',
+        subscription_status: 'active',
+        subscription_plan: 'annual',
+        premium_access_policy: 'open_access',
+        funnel_step: 'content_view',
+        ui_surface: 'horoscope_reader',
       }),
     });
   });

@@ -188,7 +188,11 @@ export class HoroscopeReader {
     }
 
     this.analyticsService.trackPremiumCtaClick(
-      this.toAnalyticsParams(state, 'locked'),
+      {
+        ...this.toAnalyticsParams(state, 'open'),
+        cta_location: 'horoscope_premium_preview',
+        funnel_step: 'cta_click',
+      },
     );
   }
 
@@ -238,6 +242,7 @@ export class HoroscopeReader {
       horoscope_period: state.type,
       premium_mode: 'open',
       access_state: accessState,
+      ui_surface: 'horoscope_reader',
       route: `/horoskopy/${state.type}/${state.sign}`,
     };
   }

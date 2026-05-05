@@ -151,6 +151,33 @@ const accountDaily = {
   disclaimer: 'Treści mają charakter rozrywkowy i refleksyjny.',
 };
 
+const defaultPublicAppSettings = {
+  premiumMode: 'open',
+  premiumAccessPolicy: 'open_access',
+  currency: 'PLN',
+  monthlyPrice: 24.99,
+  annualPrice: 199,
+  stripeCheckoutEnabled: false,
+  paidPremiumEnabled: false,
+  trialDays: 7,
+  allowPromotionCodes: true,
+  maintenanceMode: {
+    enabled: false,
+    title: 'Pracujemy nad Star Sign',
+    message: 'Dopracowujemy stronę i wrócimy za chwilę.',
+    eta: null,
+    contactUrl: null,
+    allowedPaths: [
+      '/regulamin',
+      '/polityka-prywatnosci',
+      '/cookies',
+      '/disclaimer',
+      '/newsletter/potwierdz',
+      '/newsletter/wypisz',
+    ],
+  },
+};
+
 const collection = <T>(data: T[]) => ({
   data,
   meta: {
@@ -170,6 +197,7 @@ const fulfillJson = (route: Route, status: number, json: unknown) =>
 
 type MockApiOptions = {
   analyticsEvents?: unknown[];
+  appSettings?: Record<string, unknown>;
 };
 
 const handleArticles = (route: Route): Promise<void> => {
@@ -222,6 +250,10 @@ export const mockApi = async (
   page: Page,
   options: MockApiOptions = {},
 ): Promise<void> => {
+  await page.route('**/api/app-settings/public', (route) =>
+    fulfillJson(route, 200, options.appSettings ?? defaultPublicAppSettings),
+  );
+
   await page.route(
     '**/api/checkout/session/cs_test_mock/analytics-summary',
     (route) =>

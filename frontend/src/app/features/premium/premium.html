@@ -25,8 +25,9 @@
         class="text-white/65 text-lg md:text-xl max-w-3xl mx-auto font-light leading-relaxed mb-10"
       >
         Premium po lekturze, nie zamiast niej. Czytaj darmowe horoskopy,
-        artykuły i Kartę Dnia. Gdy chcesz wejść głębiej, Magiczny Krąg
-        odblokowuje pełne interpretacje, rytuały i pytania refleksyjne.
+        artykuły i Kartę Dnia. Teraz Magiczny Krąg jest otwarty: możesz wejść
+        głębiej w pełne interpretacje, rytuały i pytania refleksyjne bez
+        płatności.
       </p>
 
       <button
@@ -35,7 +36,7 @@
         [disabled]="isLoading()"
         class="bg-mystic-gold text-black px-9 py-4 rounded-full font-bold hover:bg-white transition-all shadow-[0_10px_30px_rgba(234,179,8,0.2)]"
       >
-        @if (isLoading()) { Inicjowanie... } @else { Dołącz do Kręgu ✦ }
+        @if (isLoading()) { Inicjowanie... } @else { {{ primaryCtaLabel() }} }
       </button>
     </header>
 
@@ -145,7 +146,9 @@
 
     <section class="section-container pb-24">
       <div class="max-w-5xl mx-auto">
-        <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mb-10">
+        <div
+          class="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mb-10"
+        >
           <span
             [class.text-white]="!isAnnual()"
             [class.text-white/40]="isAnnual()"
@@ -191,18 +194,24 @@
             Magiczny Krąg
           </p>
           <div class="text-5xl serif-display mb-3">
-            {{ isAnnual() ? '199 zł' : '24.99 zł' }}
+            {{ selectedPriceLabel() }}
             <span class="text-sm text-white/35 font-sans">
               / {{ isAnnual() ? 'rok' : 'miesiąc' }}
             </span>
           </div>
           @if (isAnnual()) {
           <p class="text-mystic-rose text-sm font-medium mb-8">
-            Tylko 16,58 zł miesięcznie przy opłacie rocznej.
+            Tylko {{ annualMonthlyEquivalentLabel() }} miesięcznie przy opłacie
+            rocznej.
           </p>
           } @else {
           <p class="text-white/45 text-sm font-medium mb-8">
             Płatność miesięczna, bez długiego zobowiązania.
+          </p>
+          } @if (!canStartCheckout()) {
+          <p class="text-white/50 text-sm font-medium mb-8">
+            Premium jest teraz otwarte. Pełny dostęp działa bez płatności; konto
+            pomaga zapisać odczyty i wrócić do historii.
           </p>
           }
           <button
@@ -212,7 +221,8 @@
             data-test="premium-join-button"
             class="w-full sm:w-auto px-10 py-4 bg-mystic-gold text-black rounded-full font-bold hover:bg-white transition-all shadow-[0_10px_30px_rgba(234,179,8,0.2)]"
           >
-            @if (isLoading()) { Inicjowanie... } @else { Dołącz do Kręgu ✦ }
+            @if (isLoading()) { Inicjowanie... } @else { {{ primaryCtaLabel() }}
+            }
           </button>
         </div>
       </div>
@@ -232,8 +242,11 @@
           <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
             <h3 class="font-semibold mb-2">Czy dostęp działa od razu?</h3>
             <p class="text-white/65 text-sm leading-relaxed">
-              Po potwierdzeniu płatności odblokowane sekcje są dostępne z konta
-              użytkownika.
+              @if (canStartCheckout()) { Po potwierdzeniu płatności pełne sekcje
+              są dostępne z konta użytkownika. } @else { Tak. Na etapie
+              otwartego Premium pełne treści są dostępne bez płatności. Konto
+              służy teraz przede wszystkim do zapisu historii i pracy z
+              panelem. }
             </p>
           </div>
           <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">

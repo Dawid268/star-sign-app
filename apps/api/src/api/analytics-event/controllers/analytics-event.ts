@@ -12,6 +12,21 @@ type AnalyticsEventType =
   | 'select_item';
 
 type AnalyticsPayload = Record<string, unknown>;
+type PremiumMode = 'open' | 'paid';
+type SubscriptionStatus =
+  | 'inactive'
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'canceled'
+  | 'unpaid';
+type SubscriptionPlan = 'monthly' | 'annual';
+type VisitorContext = {
+  authState: 'guest' | 'logged_in';
+  visitorSegment: 'guest' | 'logged_in' | 'premium_subscriber';
+  subscriptionStatus: SubscriptionStatus | null;
+  subscriptionPlan: SubscriptionPlan | null;
+};
 
 type AnalyticsContext = {
   request: {
@@ -48,6 +63,11 @@ const ANALYTICS_EVENT_TYPES = new Set<AnalyticsEventType>([
 ]);
 
 const FIRST_PARTY_UID = 'api::analytics-event.analytics-event';
+const PREMIUM_ACCESS_STATUSES = new Set<SubscriptionStatus>([
+  'trialing',
+  'active',
+  'past_due',
+]);
 
 const toPayload = (body: unknown): AnalyticsPayload => {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -100,6 +120,48 @@ const toEventType = (value: unknown): AnalyticsEventType | null => {
   return ANALYTICS_EVENT_TYPES.has(value as AnalyticsEventType)
     ? (value as AnalyticsEventType)
     : null;
+};
+
+const toPremiumMode = (value: unknown): PremiumMode | null => {
+  if (value === 'open' || value === 'paid') {
+    return value;
+  }
+
+  return null;
+};
+
+const toSubscriptionStatus = (value: unknown): SubscriptionStatus => {
+  if (
+    value === 'trialing' ||
+    value === 'active' ||
+    value === 'past_due' ||
+    value === 'canceled' ||
+    value === 'unpaid'
+  ) {
+    return value;
+  }
+
+  return 'inactive';
+};
+
+const toSubscriptionPlan = (value: unknown): SubscriptionPlan | null => {
+  if (value === 'monthly' || value === 'annual') {
+    return value;
+  }
+
+  return null;
+};
+
+const toPremiumAccessPolicy = (mode: PremiumMode | null): string | null => {
+  if (mode === 'open') {
+    return 'open_access';
+  }
+
+  if (mode === 'paid') {
+    return 'paid_enforced';
+  }
+
+  return null;
 };
 
 const toOccurredAt = (value: unknown): Date => {
@@ -162,6 +224,52 @@ const resolveUserId = async (ctx: AnalyticsContext): Promise<number | null> => {
     return toUserId(payload.id);
   } catch {
     return null;
+  }
+};
+
+const resolveVisitorContext = async (
+  userId: number | null,
+): Promise<VisitorContext> => {
+  if (!userId) {
+    return {
+      authState: 'guest',
+      visitorSegment: 'guest',
+      subscriptionStatus: null,
+      subscriptionPlan: null,
+    };
+  }
+
+  try {
+    const profile = (await strapi.db
+      .query('api::user-profile.user-profile')
+      .findOne({
+        where: { user: userId },
+      })) as
+      | {
+          subscription_status?: unknown;
+          subscription_plan?: unknown;
+        }
+      | null;
+    const subscriptionStatus = toSubscriptionStatus(
+      profile?.subscription_status,
+    );
+    const subscriptionPlan = toSubscriptionPlan(profile?.subscription_plan);
+
+    return {
+      authState: 'logged_in',
+      visitorSegment: PREMIUM_ACCESS_STATUSES.has(subscriptionStatus)
+        ? 'premium_subscriber'
+        : 'logged_in',
+      subscriptionStatus,
+      subscriptionPlan,
+    };
+  } catch {
+    return {
+      authState: 'logged_in',
+      visitorSegment: 'logged_in',
+      subscriptionStatus: null,
+      subscriptionPlan: null,
+    };
   }
 };
 
@@ -276,6 +384,11 @@ export default {
     const eventDay = toEventDay(occurredAt);
     const userAgent = toString(ctx.get?.('user-agent'), { maxLength: 300 });
     const userId = await resolveUserId(ctx);
+    const visitorContext = await resolveVisitorContext(userId);
+    const premiumMode = toPremiumMode(payload['premium_mode']);
+    const premiumAccessPolicy =
+      toNullableString(payload['premium_access_policy'], { maxLength: 80 }) ||
+      toPremiumAccessPolicy(premiumMode);
     const uniqueKey =
       eventType === 'premium_content_view'
         ? resolveUniqueKey(payload, visitorId, eventDay)
@@ -301,13 +414,20 @@ export default {
       horoscope_period: toNullableString(payload['horoscope_period'], {
         maxLength: 80,
       }),
-      premium_mode:
-        payload['premium_mode'] === 'paid' || payload['premium_mode'] === 'open'
-          ? payload['premium_mode']
-          : null,
+      premium_mode: premiumMode,
+      premium_access_policy: premiumAccessPolicy,
       access_state: toNullableString(payload['access_state'], {
         maxLength: 80,
       }),
+      auth_state: visitorContext.authState,
+      visitor_segment: visitorContext.visitorSegment,
+      subscription_status: visitorContext.subscriptionStatus,
+      subscription_plan: visitorContext.subscriptionPlan,
+      funnel_step: toNullableString(payload['funnel_step'], { maxLength: 80 }),
+      cta_location: toNullableString(payload['cta_location'], {
+        maxLength: 120,
+      }),
+      ui_surface: toNullableString(payload['ui_surface'], { maxLength: 120 }),
       route: toNullableString(payload['route'], { maxLength: 300 }),
       referrer: toNullableString(payload['referrer'], { maxLength: 500 }),
       utm_source: toNullableString(payload['utm_source'], { maxLength: 120 }),

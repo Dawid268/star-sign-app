@@ -41,18 +41,34 @@
       variant="natal-chart"
       [hasPremiumContent]="true"
       title="Pełna analiza kosmogramu"
-      intro="Darmowy kosmogram pokazuje Słońce, Księżyc i Ascendent. Premium dodaje planety w domach, aspekty, żywioły, relacje i rytm miesięczny."
-      ctaLabel="Odblokuj pełną analizę kosmogramu"
+      intro="Darmowy kosmogram pokazuje Słońce, Księżyc i Ascendent. W otwartym Premium pełna analiza rozwinie planety w domach, aspekty, żywioły, relacje i rytm miesięczny."
+      ctaLabel="Zobacz pełną analizę kosmogramu"
       testId="natal-chart-premium-preview"
     />
     }
   </div>
-  } @else { @if (me()) {
+  } @else { @if (me() === undefined) {
+  <div class="loading-state" aria-live="polite">
+    <app-skeleton height="220px" count="3" />
+    <p>Sprawdzamy dane profilu...</p>
+  </div>
+  } @else if (me()) {
   <div class="empty-state">
-    <p>Nie uzupełniłeś jeszcze danych urodzeniowych.</p>
+    <h2>Uzupełnij dane urodzeniowe</h2>
+    <p>
+      Do kosmogramu potrzebujemy daty urodzenia. Godzina i miejsce są
+      opcjonalne, ale pomagają doprecyzować ascendent.
+    </p>
     <a routerLink="/panel" class="btn-primary">Uzupełnij Profil</a>
   </div>
   } @else {
-  <app-skeleton height="300px" count="3" />
+  <div class="empty-state">
+    <h2>Kosmogram czeka na Twój profil</h2>
+    <p>
+      Zaloguj się lub załóż konto, aby zapisać dane urodzeniowe i wracać do
+      kosmogramu z panelu.
+    </p>
+    <a routerLink="/logowanie" class="btn-primary">Zaloguj się</a>
+  </div>
   } }
 </div>

@@ -93,7 +93,7 @@ export const WorkflowSocialStep = ({
         Aktywne kanały
       </div>
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-        {(['facebook', 'instagram', 'twitter'] as SocialPlatform[]).map((channel) => (
+        {(['facebook', 'instagram', 'twitter', 'tiktok'] as SocialPlatform[]).map((channel) => (
           <label key={channel} style={checkboxRowStyle}>
             <input
               type="checkbox"
@@ -111,6 +111,7 @@ export const WorkflowSocialStep = ({
               }}
             />
             {channel}
+            {channel === 'tiktok' ? ' (draft-only)' : ''}
           </label>
         ))}
       </div>

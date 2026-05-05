@@ -31,6 +31,62 @@ export default () => ({
     },
     {
       method: 'GET',
+      path: '/strategy/plan',
+      handler: 'strategy.listPlan',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.manageStrategy),
+      },
+    },
+    {
+      method: 'POST',
+      path: '/strategy/generate-plan',
+      handler: 'strategy.generatePlan',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.manageStrategy),
+      },
+    },
+    {
+      method: 'POST',
+      path: '/strategy/approve-plan',
+      handler: 'strategy.approvePlan',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.manageStrategy),
+      },
+    },
+    {
+      method: 'GET',
+      path: '/performance',
+      handler: 'performance.find',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.viewPerformance),
+      },
+    },
+    {
+      method: 'POST',
+      path: '/performance/aggregate',
+      handler: 'performance.aggregate',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.managePerformance),
+      },
+    },
+    {
+      method: 'GET',
+      path: '/homepage/recommendations',
+      handler: 'homepage.findRecommendations',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.manageHomepage),
+      },
+    },
+    {
+      method: 'POST',
+      path: '/homepage/recommendations/run',
+      handler: 'homepage.runRecommendations',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.manageHomepage),
+      },
+    },
+    {
+      method: 'GET',
       path: '/workflows',
       handler: 'workflows.find',
       config: {
@@ -154,7 +210,7 @@ export default () => ({
       path: '/audit/preflight',
       handler: 'audit.preflight',
       config: {
-        policies: withPermission(RBAC_ACTIONS.read),
+        policies: withPermission(RBAC_ACTIONS.runAudit),
       },
     },
     {
@@ -163,6 +219,14 @@ export default () => ({
       handler: 'audit.preflightStrict',
       config: {
         policies: withPermission(RBAC_ACTIONS.runAudit),
+      },
+    },
+    {
+      method: 'GET',
+      path: '/audit/events',
+      handler: 'audit.events',
+      config: {
+        policies: withPermission(RBAC_ACTIONS.viewAuditTrail),
       },
     },
     {

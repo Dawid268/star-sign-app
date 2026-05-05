@@ -6,11 +6,21 @@ import { vi } from 'vitest';
 
 import { App } from './app';
 import { AnalyticsService } from './core/services/analytics.service';
+import {
+  AppSettingsService,
+  DEFAULT_PUBLIC_APP_SETTINGS,
+} from './core/services/app-settings.service';
 import { CheckoutService } from './core/services/checkout.service';
-import { CartItem } from '@star-sign-monorepo/shared-types';
+import {
+  CartItem,
+  PublicAppSettingsResponse,
+} from '@star-sign-monorepo/shared-types';
 
 describe('App', () => {
   let checkoutService: { createSession: ReturnType<typeof vi.fn> };
+  let appSettingsService: {
+    getPublicAppSettings: ReturnType<typeof vi.fn>;
+  };
   let analyticsService: {
     init: ReturnType<typeof vi.fn>;
     trackEvent: ReturnType<typeof vi.fn>;
@@ -34,6 +44,9 @@ describe('App', () => {
     checkoutService = {
       createSession: vi.fn(),
     };
+    appSettingsService = {
+      getPublicAppSettings: vi.fn(() => of(DEFAULT_PUBLIC_APP_SETTINGS)),
+    };
     analyticsService = {
       init: vi.fn(),
       trackEvent: vi.fn(),
@@ -48,6 +61,7 @@ describe('App', () => {
         provideHttpClient(),
         { provide: CheckoutService, useValue: checkoutService },
         { provide: AnalyticsService, useValue: analyticsService },
+        { provide: AppSettingsService, useValue: appSettingsService },
       ],
     }).compileComponents();
   });
@@ -59,6 +73,65 @@ describe('App', () => {
 
     expect(app).toBeTruthy();
     expect(analyticsService.init).toHaveBeenCalled();
+  });
+
+  it('should render the normal shell when maintenance mode is disabled', () => {
+    const fixture = TestBed.createComponent(App);
+
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('[data-test="maintenance-mode"]')).toBeNull();
+    expect(element.querySelector('router-outlet')).not.toBeNull();
+  });
+
+  it('should render maintenance mode instead of the normal shell', () => {
+    appSettingsService.getPublicAppSettings.mockReturnValue(
+      of({
+        ...DEFAULT_PUBLIC_APP_SETTINGS,
+        maintenanceMode: {
+          ...DEFAULT_PUBLIC_APP_SETTINGS.maintenanceMode,
+          enabled: true,
+          title: 'Pracujemy nad Star Sign',
+          message: 'Dopracowujemy stronę i wrócimy za chwilę.',
+        },
+      } satisfies PublicAppSettingsResponse),
+    );
+    const fixture = TestBed.createComponent(App);
+
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelector('[data-test="maintenance-mode"]'),
+    ).not.toBeNull();
+    expect(element.querySelector('router-outlet')).toBeNull();
+    expect(element.querySelector('[data-test="navbar-logo"]')).toBeNull();
+  });
+
+  it('should allow configured paths while maintenance mode is enabled', () => {
+    appSettingsService.getPublicAppSettings.mockReturnValue(
+      of({
+        ...DEFAULT_PUBLIC_APP_SETTINGS,
+        maintenanceMode: {
+          ...DEFAULT_PUBLIC_APP_SETTINGS.maintenanceMode,
+          enabled: true,
+          allowedPaths: ['/polityka-prywatnosci'],
+        },
+      } satisfies PublicAppSettingsResponse),
+    );
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    app.currentPath.set('/polityka-prywatnosci');
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('[data-test="maintenance-mode"]')).toBeNull();
+    expect(element.querySelector('router-outlet')).not.toBeNull();
   });
 
   it('should guard cart and checkout when shop is disabled', () => {

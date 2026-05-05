@@ -9,6 +9,10 @@ type TopicCreatePayload = {
   scheduled_for?: string;
   workflow?: number;
   article_category?: number;
+  seo_intent?: string;
+  target_persona?: string;
+  priority_score?: number;
+  plan_item?: number;
   metadata?: Record<string, unknown>;
 };
 
@@ -83,9 +87,16 @@ const topics = ({ strapi }: { strapi: Strapi }) => {
           title: payload.title.trim(),
           brief: payload.brief?.trim(),
           image_asset_key: imageAssetKey,
+          seo_intent: payload.seo_intent?.trim() || null,
+          target_persona: payload.target_persona?.trim() || null,
+          priority_score:
+            typeof payload.priority_score === 'number'
+              ? Math.max(0, Math.min(100, Math.floor(payload.priority_score)))
+              : 50,
           scheduled_for: payload.scheduled_for,
           workflow: payload.workflow,
           article_category: payload.article_category,
+          plan_item: payload.plan_item,
           metadata: payload.metadata ?? {},
           status: TOPIC_STATUS.pending,
         },
@@ -139,12 +150,31 @@ const topics = ({ strapi }: { strapi: Strapi }) => {
         data.scheduled_for = payload.scheduled_for;
       }
 
+      if (typeof payload.seo_intent !== 'undefined') {
+        data.seo_intent = payload.seo_intent?.trim() || null;
+      }
+
+      if (typeof payload.target_persona !== 'undefined') {
+        data.target_persona = payload.target_persona?.trim() || null;
+      }
+
+      if (typeof payload.priority_score !== 'undefined') {
+        data.priority_score =
+          typeof payload.priority_score === 'number'
+            ? Math.max(0, Math.min(100, Math.floor(payload.priority_score)))
+            : null;
+      }
+
       if (typeof payload.workflow !== 'undefined') {
         data.workflow = payload.workflow;
       }
 
       if (typeof payload.article_category !== 'undefined') {
         data.article_category = payload.article_category;
+      }
+
+      if (typeof payload.plan_item !== 'undefined') {
+        data.plan_item = payload.plan_item;
       }
 
       if (typeof payload.metadata !== 'undefined') {
@@ -240,6 +270,7 @@ const topics = ({ strapi }: { strapi: Strapi }) => {
         workflow: getId(item.workflow),
         article_category: getId(item.article_category),
         generated_article: getId(item.generated_article),
+        plan_item: getId(item.plan_item),
       };
     },
   };

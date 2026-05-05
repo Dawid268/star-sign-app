@@ -100,4 +100,37 @@ describe('NatalChartComponent', () => {
       '',
     );
   });
+
+  it('should explain missing birth data for logged-in users', () => {
+    accountService.getMe.mockReturnValue(
+      of({
+        profile: {
+          birthDate: null,
+          birthTime: null,
+          birthPlace: null,
+        },
+        subscription: { isPremium: false },
+      }),
+    );
+
+    const emptyFixture = TestBed.createComponent(NatalChartComponent);
+    emptyFixture.detectChanges();
+
+    const host = emptyFixture.nativeElement as HTMLElement;
+    expect(host.textContent).toContain('Uzupełnij dane urodzeniowe');
+    expect(host.textContent).toContain('Do kosmogramu potrzebujemy daty');
+    expect(host.querySelector('a')?.getAttribute('href')).toBe('/panel');
+  });
+
+  it('should show login action for guests instead of an endless skeleton', () => {
+    accountService.getMe.mockReturnValue(of(null));
+
+    const guestFixture = TestBed.createComponent(NatalChartComponent);
+    guestFixture.detectChanges();
+
+    const host = guestFixture.nativeElement as HTMLElement;
+    expect(host.textContent).toContain('Kosmogram czeka na Twój profil');
+    expect(host.textContent).toContain('Zaloguj się lub załóż konto');
+    expect(host.querySelector('a')?.getAttribute('href')).toBe('/logowanie');
+  });
 });

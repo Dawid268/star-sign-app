@@ -23,7 +23,7 @@ export class PremiumPreviewBlock {
   public readonly title = input('Pełna interpretacja Premium');
   public readonly intro = input<string | undefined>(undefined);
   public readonly previewItems = input<string[]>([]);
-  public readonly ctaLabel = input('Odblokuj dostęp');
+  public readonly ctaLabel = input('Zobacz rozszerzenie');
   public readonly ctaLink = input('/premium');
   public readonly testId = input('premium-preview-block');
   public readonly ctaClick = output<void>();

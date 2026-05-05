@@ -3,6 +3,16 @@ import { getPluginService } from '../utils/plugin';
 import type { Strapi, OpenRouterUsage } from '../types';
 import { getAicoPromptTemplate, renderAicoPromptTemplate } from '../utils/aico-contract';
 
+type OpenRouterService = {
+  requestJson: (input: {
+    model: string;
+    apiToken: string;
+    prompt: string;
+    schemaDescription: string;
+    temperature?: number;
+  }) => Promise<{ payload: unknown; usage: OpenRouterUsage }>;
+};
+
 export interface ImageDesign {
   prompt: string;
   colorMotif: string;
@@ -13,7 +23,7 @@ const DEFAULT_STYLE =
   'Luxury vertical tarot card (2:3), exclusive collectible astrological design, composition fills almost the entire card with elegant internal padding. CENTER: [PROMPT] (magnetic, majestic focal point, highly detailed), colors: dominant [COLOR] theme, BACKGROUND: deep black cosmic void, LIGHTING: cinematic focus, premium fantasy editorial art, 8k ultra-detailed masterpiece';
 
 const imageDesigner = ({ strapi }: { strapi: Strapi }) => {
-  const llmService = () => getPluginService<any>(strapi, 'open-router');
+  const llmService = () => getPluginService<OpenRouterService>(strapi, 'open-router');
 
   return {
     async designForContent(input: {

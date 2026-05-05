@@ -40,7 +40,7 @@ type TokenKind =
   | 'xAccessToken'
   | 'xAccessTokenSecret';
 
-const DEFAULT_SOCIAL_CHANNELS: SocialPlatform[] = [...SOCIAL_CHANNELS];
+const DEFAULT_SOCIAL_CHANNELS: SocialPlatform[] = ['facebook', 'instagram', 'twitter'];
 
 const getId = (value: unknown): number | null => {
   if (typeof value === 'number') {
@@ -333,6 +333,12 @@ const workflows = ({ strapi }: { strapi: Strapi }) => {
         allowManualEdit: record.allow_manual_edit ?? true,
         autoPublish: record.auto_publish ?? true,
         forceRegenerate: record.force_regenerate ?? false,
+        strategyEnabled: record.strategy_enabled ?? false,
+        performanceFeedbackEnabled: record.performance_feedback_enabled ?? true,
+        contentCluster: record.content_cluster ?? null,
+        autoPublishGuardrails: isRecord(record.auto_publish_guardrails)
+          ? record.auto_publish_guardrails
+          : {},
         topicMode: record.topic_mode === 'manual' ? 'manual' : 'mixed',
         horoscopePeriod,
         horoscopeTypeValues: this.normalizeHoroscopeTypes(record.horoscope_type_values),
@@ -514,6 +520,10 @@ const workflows = ({ strapi }: { strapi: Strapi }) => {
       copy('allow_manual_edit');
       copy('auto_publish');
       copy('force_regenerate');
+      copy('strategy_enabled');
+      copy('performance_feedback_enabled');
+      copy('content_cluster');
+      copy('auto_publish_guardrails');
       copy('topic_mode');
       copy('horoscope_period');
       copy('horoscope_type_values');

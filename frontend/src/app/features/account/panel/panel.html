@@ -50,7 +50,9 @@
       <article
         class="glass-panel rounded-3xl border border-mystic-rose/10 p-5 sm:p-6 xl:col-span-2"
       >
-        <div class="flex flex-col items-start justify-between gap-4 mb-5 sm:flex-row">
+        <div
+          class="flex flex-col items-start justify-between gap-4 mb-5 sm:flex-row"
+        >
           <div>
             <h2 class="serif-display text-3xl text-mystic-cocoa">Mój dzień</h2>
             <p class="text-sm text-mystic-cocoa mt-2">
@@ -142,8 +144,21 @@
         <h2 class="serif-display text-2xl text-mystic-cocoa mb-4">
           Subskrypcja
         </h2>
+        @if (!paidPremiumEnabled()) {
+        <div
+          class="mb-5 rounded-2xl border border-mystic-gold/30 bg-mystic-gold/10 px-4 py-3 text-left"
+        >
+          <p class="text-xs uppercase tracking-[0.18em] text-mystic-cocoa/70">
+            Otwarty dostęp Premium
+          </p>
+          <p class="mt-1 text-sm text-mystic-cocoa leading-relaxed">
+            Pełne treści są teraz dostępne bez płatności. Płatna subskrypcja nie
+            jest aktywna, dopóki nie włączymy trybu paid.
+          </p>
+        </div>
+        }
         <p class="text-sm text-mystic-cocoa mb-3">
-          Status:
+          Status płatnej subskrypcji:
           <span class="font-medium text-mystic-cocoa"
             >{{ subscriptionLabel(vm.subscription.status) }}</span
           >
@@ -178,19 +193,29 @@
           <button
             type="button"
             class="btn-primary w-full !py-3 text-base"
-            [disabled]="billingLoading()"
+            [class.opacity-60]="!paidPremiumEnabled()"
+            [class.cursor-not-allowed]="!paidPremiumEnabled()"
+            [disabled]="billingLoading() || !paidPremiumEnabled()"
             (click)="startSubscription('monthly')"
           >
-            Premium 19,99 zł / mies.
+            {{ monthlyPremiumLabel() }}
           </button>
           <button
             type="button"
             class="btn-outline w-full !py-3 text-base"
-            [disabled]="billingLoading()"
+            [class.opacity-60]="!paidPremiumEnabled()"
+            [class.cursor-not-allowed]="!paidPremiumEnabled()"
+            [disabled]="billingLoading() || !paidPremiumEnabled()"
             (click)="startSubscription('annual')"
           >
-            Premium 199,99 zł / rok
+            {{ annualPremiumLabel() }}
           </button>
+          @if (!paidPremiumEnabled()) {
+          <p class="text-xs text-mystic-cocoa/70 leading-relaxed">
+            Te przyciski nie uruchamiają Stripe w trybie open. Gdy płatności
+            zostaną włączone, wróci tu pełny checkout subskrypcji.
+          </p>
+          }
           <button
             type="button"
             class="btn-outline w-full !py-3 text-base"
@@ -232,8 +257,7 @@
             </p>
             } @if (profileForm.controls.birthDate.errors?.['futureDate']) {
             <p class="text-red-500 text-[10px] mt-1">Data z przyszłości.</p>
-            } @if (profileForm.controls.birthDate.errors?.['invalidPastDate'])
-            {
+            } @if (profileForm.controls.birthDate.errors?.['invalidPastDate']) {
             <p class="text-red-500 text-[10px] mt-1">
               Podaj realistyczną datę.
             </p>

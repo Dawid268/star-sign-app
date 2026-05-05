@@ -197,6 +197,9 @@ export class BlogDetail {
       content_slug: article.slug,
       premium_mode: 'open',
       access_state: this.canDisplayPremiumContent(article) ? 'open' : 'locked',
+      ui_surface: 'article_detail',
+      cta_location: 'article_premium_preview',
+      funnel_step: 'cta_click',
       route: `/artykuly/${article.slug}`,
     });
   }

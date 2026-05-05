@@ -6,8 +6,9 @@ import {
   WORKFLOW_STATUS,
   SOCIAL_POST_TICKET_UID,
 } from '../constants';
-import type { Strapi } from '../types';
+import type { RunLogRecord, Strapi } from '../types';
 import { getEntityService } from '../utils/entity-service';
+import { sanitizeRunRecordForAdmin } from '../utils/diagnostic-redaction';
 
 const dashboard = ({ strapi }: { strapi: Strapi }) => {
   const entityService = getEntityService(strapi);
@@ -54,7 +55,7 @@ const dashboard = ({ strapi }: { strapi: Strapi }) => {
         },
         runs: {
           failed: runsFailed,
-          latest: runsLast,
+          latest: (runsLast as RunLogRecord[]).map((run) => sanitizeRunRecordForAdmin(run)),
         },
         topics: {
           pending: topicsPending,

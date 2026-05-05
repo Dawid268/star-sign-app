@@ -17,6 +17,9 @@
     "title": { "type": "string", "required": true },
     "brief": { "type": "text" },
     "image_asset_key": { "type": "string" },
+    "seo_intent": { "type": "string" },
+    "target_persona": { "type": "string" },
+    "priority_score": { "type": "integer", "default": 50 },
     "status": {
       "type": "enumeration",
       "enum": ["pending", "processing", "done", "failed"],
@@ -40,6 +43,11 @@
       "type": "relation",
       "relation": "oneToOne",
       "target": "api::article.article"
+    },
+    "plan_item": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::ai-content-orchestrator.content-plan-item"
     }
   }
 }

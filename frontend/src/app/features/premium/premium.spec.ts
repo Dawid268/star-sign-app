@@ -7,6 +7,11 @@ import { of, throwError } from 'rxjs';
 import { signal } from '@angular/core';
 import { featureFlags } from '../../core/feature-flags';
 import { AnalyticsService } from '../../core/services/analytics.service';
+import {
+  AppSettingsService,
+  DEFAULT_PUBLIC_APP_SETTINGS,
+} from '../../core/services/app-settings.service';
+import { PublicAppSettingsResponse } from '@star-sign-monorepo/shared-types';
 
 describe('Premium', () => {
   let component: Premium;
@@ -14,7 +19,20 @@ describe('Premium', () => {
   let accountServiceMock: any;
   let authServiceMock: any;
   let analyticsServiceMock: any;
+  let appSettingsServiceMock: Pick<AppSettingsService, 'getPublicAppSettings'>;
   let router: Router;
+
+  const paidSettings: PublicAppSettingsResponse = {
+    ...DEFAULT_PUBLIC_APP_SETTINGS,
+    premiumMode: 'paid',
+    premiumAccessPolicy: 'paid_enforced',
+    currency: 'EUR',
+    monthlyPrice: 39.99,
+    annualPrice: 299,
+    stripeCheckoutEnabled: true,
+    paidPremiumEnabled: true,
+    trialDays: 14,
+  };
 
   beforeEach(async () => {
     featureFlags.adsEnabled = false;
@@ -37,6 +55,11 @@ describe('Premium', () => {
       trackPremiumCtaClick: vi.fn(),
       trackPremiumPricingView: vi.fn(),
     };
+    appSettingsServiceMock = {
+      getPublicAppSettings: vi
+        .fn()
+        .mockReturnValue(of(DEFAULT_PUBLIC_APP_SETTINGS)),
+    };
 
     await TestBed.configureTestingModule({
       imports: [Premium],
@@ -45,6 +68,7 @@ describe('Premium', () => {
         { provide: AccountService, useValue: accountServiceMock },
         { provide: AuthService, useValue: authServiceMock },
         { provide: AnalyticsService, useValue: analyticsServiceMock },
+        { provide: AppSettingsService, useValue: appSettingsServiceMock },
       ],
     }).compileComponents();
 
@@ -78,7 +102,36 @@ describe('Premium', () => {
     );
   });
 
-  it('should start checkout if logged in and not premium', () => {
+  it('should not start checkout while Premium remains open', () => {
+    component.joinMagicCircle();
+
+    expect(accountServiceMock.startSubscriptionCheckout).not.toHaveBeenCalled();
+    expect(router.navigate).toHaveBeenCalledWith(['/panel']);
+    expect(analyticsServiceMock.trackBeginCheckout).not.toHaveBeenCalled();
+    expect(analyticsServiceMock.trackPremiumCtaClick).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plan: 'annual',
+        value: 199,
+        price: 199,
+        premium_mode: 'open',
+        access_state: 'open',
+      }),
+    );
+  });
+
+  it('should clarify the open Premium CTA for logged-in users', () => {
+    expect(component.primaryCtaLabel()).toBe('Przejdź do panelu ✦');
+
+    authServiceMock.isLoggedIn.set(false);
+
+    expect(component.primaryCtaLabel()).toBe(
+      'Załóż konto i zapisz odczyty ✦',
+    );
+  });
+
+  it('should start checkout if paid Premium is enabled and user is not premium', () => {
+    component.appSettings.set(paidSettings);
+
     component.joinMagicCircle();
     expect(accountServiceMock.startSubscriptionCheckout).toHaveBeenCalledWith(
       'annual',
@@ -89,34 +142,46 @@ describe('Premium', () => {
           item_id: 'premium_annual',
           item_name: 'Premium roczny',
           item_category: 'subscription',
-          price: 199,
+          price: 299,
           quantity: 1,
         }),
       ],
-      {
+      expect.objectContaining({
         checkout_type: 'premium',
         plan: 'annual',
-        currency: 'PLN',
-        value: 199,
-        price: 199,
-      },
+        currency: 'EUR',
+        value: 299,
+        price: 299,
+        premium_mode: 'paid',
+        access_state: 'paid',
+        ui_surface: 'premium_page',
+        cta_location: 'premium_page_primary',
+        funnel_step: 'begin_checkout',
+      }),
     );
     expect(analyticsServiceMock.trackPremiumCtaClick).toHaveBeenCalledWith(
       expect.objectContaining({
         plan: 'annual',
-        value: 199,
-        price: 199,
+        value: 299,
+        price: 299,
+        premium_mode: 'paid',
+        access_state: 'paid',
+        cta_location: 'premium_page_primary',
+        funnel_step: 'cta_click',
       }),
     );
     expect(analyticsServiceMock.trackCheckoutRedirect).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'premium',
         plan: 'annual',
+        value: 299,
+        funnel_step: 'checkout_redirect',
       }),
     );
   });
 
   it('should handle checkout error gracefully', () => {
+    component.appSettings.set(paidSettings);
     accountServiceMock.startSubscriptionCheckout.mockReturnValue(
       throwError(() => new Error('API Error')),
     );
@@ -145,6 +210,15 @@ describe('Premium', () => {
 
     expect(toggle?.getAttribute('aria-label')).toBe(
       'Przełącz na płatność roczną',
+    );
+  });
+
+  it('should render prices from public App Settings', () => {
+    component.appSettings.set(paidSettings);
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toMatch(
+      /299\s*€/,
     );
   });
 });

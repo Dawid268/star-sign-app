@@ -1,6 +1,8 @@
 import type { Context } from 'koa';
 
+import { TOPIC_QUEUE_UID } from '../constants';
 import type { Strapi } from '../types';
+import { recordAdminAuditEvent } from '../utils/audit-trail';
 import { toSafeErrorMessage } from '../utils/json';
 
 const topicsController = ({ strapi }: { strapi: Strapi }) => ({
@@ -22,6 +24,10 @@ const topicsController = ({ strapi }: { strapi: Strapi }) => ({
         scheduled_for?: string;
         workflow?: number;
         article_category?: number;
+        seo_intent?: string;
+        target_persona?: string;
+        priority_score?: number;
+        plan_item?: number;
         metadata?: Record<string, unknown>;
       };
 
@@ -35,6 +41,10 @@ const topicsController = ({ strapi }: { strapi: Strapi }) => ({
           scheduled_for: body.scheduled_for,
           workflow: body.workflow,
           article_category: body.article_category,
+          seo_intent: body.seo_intent,
+          target_persona: body.target_persona,
+          priority_score: body.priority_score,
+          plan_item: body.plan_item,
           metadata: body.metadata,
         });
 
@@ -42,9 +52,29 @@ const topicsController = ({ strapi }: { strapi: Strapi }) => ({
         .plugin('ai-content-orchestrator')
         .service('topics')
         .serialize(created);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'topic.create',
+        outcome: 'success',
+        resourceUid: TOPIC_QUEUE_UID,
+        resourceId: created.id,
+        resourceLabel: created.title,
+        metadata: {
+          workflow: body.workflow,
+          articleCategory: body.article_category,
+          scheduledFor: body.scheduled_for,
+        },
+      });
       ctx.body = { data: serialized };
     } catch (error) {
-      ctx.badRequest(toSafeErrorMessage(error));
+      const message = toSafeErrorMessage(error);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'topic.create',
+        outcome: 'failure',
+        severity: 'error',
+        resourceUid: TOPIC_QUEUE_UID,
+        metadata: { error: message },
+      });
+      ctx.badRequest(message);
     }
   },
 
@@ -66,9 +96,28 @@ const topicsController = ({ strapi }: { strapi: Strapi }) => ({
         .plugin('ai-content-orchestrator')
         .service('topics')
         .serialize(updated);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'topic.update',
+        outcome: 'success',
+        resourceUid: TOPIC_QUEUE_UID,
+        resourceId: id,
+        resourceLabel: updated.title,
+        metadata: {
+          changedFields: Object.keys((ctx.request.body ?? {}) as Record<string, unknown>),
+        },
+      });
       ctx.body = { data: serialized };
     } catch (error) {
-      ctx.badRequest(toSafeErrorMessage(error));
+      const message = toSafeErrorMessage(error);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'topic.update',
+        outcome: 'failure',
+        severity: 'error',
+        resourceUid: TOPIC_QUEUE_UID,
+        resourceId: ctx.params.id,
+        metadata: { error: message },
+      });
+      ctx.badRequest(message);
     }
   },
 });

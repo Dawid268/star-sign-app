@@ -157,8 +157,9 @@ export class AnalyticsService {
     eventName: FirstPartyEventName,
     params: AnalyticsParams = {},
   ): void {
-    this.trackFirstPartyEvent(eventName, params);
-    this.trackEvent(eventName, params);
+    const enrichedParams = this.enrichPremiumParams(eventName, params);
+    this.trackFirstPartyEvent(eventName, enrichedParams);
+    this.trackEvent(eventName, enrichedParams);
   }
 
   public trackDailyHoroscopeView(params: AnalyticsParams = {}): void {
@@ -212,6 +213,26 @@ export class AnalyticsService {
     if (gtag) {
       gtag('event', eventName, payload);
     }
+  }
+
+  private enrichPremiumParams(
+    eventName: FirstPartyEventName,
+    params: AnalyticsParams,
+  ): AnalyticsParams {
+    const premiumMode = params['premium_mode'];
+    const premiumAccessPolicy =
+      params['premium_access_policy'] ||
+      (premiumMode === 'open'
+        ? 'open_access'
+        : premiumMode === 'paid'
+          ? 'paid_enforced'
+          : undefined);
+
+    return {
+      premium_access_policy: premiumAccessPolicy,
+      funnel_step: params['funnel_step'] || eventName,
+      ...params,
+    };
   }
 
   public trackFeatureUse(
@@ -357,9 +378,16 @@ export class AnalyticsService {
       metadata: this.buildMetadata(params),
     };
 
-    this.http.post('/api/analytics/events', payload).subscribe({
-      error: () => undefined,
-    });
+    this.http
+      .post('/api/analytics/events', payload, {
+        headers: {
+          'X-Skip-Error-Notification': 'true',
+          'X-Skip-Loading': 'true',
+        },
+      })
+      .subscribe({
+        error: () => undefined,
+      });
   }
 
   private getVisitorId(): string {
@@ -412,6 +440,10 @@ export class AnalyticsService {
   private buildMetadata(params: AnalyticsParams): AnalyticsParams {
     return {
       checkout_type: params['checkout_type'],
+      premium_access_policy: params['premium_access_policy'],
+      funnel_step: params['funnel_step'],
+      cta_location: params['cta_location'],
+      ui_surface: params['ui_surface'],
       transaction_id: params['transaction_id'],
       items: params['items'],
     };

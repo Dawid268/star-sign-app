@@ -219,8 +219,35 @@ describe('AnalyticsService', () => {
         visitor_id: expect.any(String),
         session_id: expect.any(String),
         content_id: 'horoscope-baran-dzienny',
+        premium_access_policy: 'open_access',
+        funnel_step: 'daily_horoscope_view',
+      }),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'X-Skip-Error-Notification': 'true',
+          'X-Skip-Loading': 'true',
+        }),
       }),
     );
     expect((window as any).dataLayer).toBeUndefined();
+  });
+
+  it('should enrich paid Premium analytics with paid access policy', () => {
+    service.trackPremiumCtaClick({
+      content_type: 'premium_page',
+      premium_mode: 'paid',
+      access_state: 'paid',
+    });
+
+    expect(httpClientMock.post).toHaveBeenCalledWith(
+      '/api/analytics/events',
+      expect.objectContaining({
+        event_type: 'premium_cta_click',
+        premium_mode: 'paid',
+        premium_access_policy: 'paid_enforced',
+        funnel_step: 'premium_cta_click',
+      }),
+      expect.any(Object),
+    );
   });
 });

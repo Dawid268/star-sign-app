@@ -3,8 +3,7 @@ import fs from 'fs';
 import axios from 'axios';
 import Replicate from 'replicate';
 import { MEDIA_ASSET_UID } from '../constants';
-import type { Strapi, OpenRouterUsage } from '../types';
-import { getPluginService } from '../utils/plugin';
+import type { Strapi } from '../types';
 
 const mediaGenerator = ({ strapi }: { strapi: Strapi }) => {
   return {
@@ -26,14 +25,14 @@ const mediaGenerator = ({ strapi }: { strapi: Strapi }) => {
       // 1. Generowanie w Replicate
       const modelId = input.model || 'openai/gpt-image-2';
 
-      const output = (await replicate.run(modelId as any, {
+      const output = await replicate.run(modelId as Parameters<Replicate['run']>[0], {
         input: {
           prompt: input.prompt,
           aspect_ratio: '2:3',
           output_format: 'webp',
           output_quality: 90,
         },
-      })) as any;
+      });
 
       const imageUrl = String(Array.isArray(output) ? output[0] : output);
 
@@ -90,11 +89,11 @@ const mediaGenerator = ({ strapi }: { strapi: Strapi }) => {
             last_used_at: new Date(),
             use_count: 1,
             keywords: [],
-          } as any,
+          } as never,
         });
 
         return {
-          mediaAssetId: (mediaAsset as any).id,
+          mediaAssetId: (mediaAsset as { id: number }).id,
           uploadFileId: fileId,
         };
       } finally {

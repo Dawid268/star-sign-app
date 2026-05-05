@@ -2,8 +2,12 @@ import type { FetchClient } from '@strapi/strapi/admin';
 
 import type {
   ApiEnvelope,
+  ContentPerformanceSnapshot,
+  ContentPlanItem,
   DashboardSummary,
   DiagnosticsSummary,
+  HomepageRecommendation,
+  HomepageRecommendationsRunResult,
   MediaAsset,
   MediaBulkUpsertItemRequest,
   MediaBulkUpsertResult,
@@ -16,6 +20,10 @@ import type {
   SocialTicket,
   AuditReport,
   SettingsPayload,
+  SocialPlatform,
+  PerformanceAggregateResult,
+  StrategyApprovePlanResult,
+  StrategyGeneratePlanResult,
   Topic,
   Workflow,
 } from './types';
@@ -160,7 +168,7 @@ export const api = {
 
   async testSocialConnection(
     client: FetchClient,
-    payload: { workflowId: number; channels?: Array<'facebook' | 'instagram' | 'twitter'> }
+    payload: { workflowId: number; channels?: SocialPlatform[] }
   ): Promise<SocialConnectionResult> {
     const { data } = await client.post<ApiEnvelope<SocialConnectionResult>, typeof payload>(
       `${BASE}/social/test-connection`,
@@ -173,7 +181,7 @@ export const api = {
     client: FetchClient,
     payload: {
       workflowId: number;
-      channels?: Array<'facebook' | 'instagram' | 'twitter'>;
+      channels?: SocialPlatform[];
       caption?: string;
       mediaUrl?: string;
       targetUrl?: string;
@@ -205,11 +213,19 @@ export const api = {
     return data.data;
   },
 
-  async runAuditPreflight(client: FetchClient, strict = true): Promise<AuditReport> {
-    const { data } = await client.post<ApiEnvelope<AuditReport>, { strict: boolean }>(
+  async runAuditPreflight(
+    client: FetchClient,
+    strict = true,
+    includeConnectivity = false
+  ): Promise<AuditReport> {
+    const { data } = await client.post<
+      ApiEnvelope<AuditReport>,
+      { strict: boolean; includeConnectivity: boolean }
+    >(
       `${BASE}/audit/preflight`,
       {
         strict,
+        includeConnectivity,
       }
     );
     return data.data;
@@ -225,6 +241,99 @@ export const api = {
       `${BASE}/settings`,
       payload
     );
+    return data.data;
+  },
+
+  async getStrategyPlan(
+    client: FetchClient,
+    params?: { status?: string; limit?: number }
+  ): Promise<ContentPlanItem[]> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit));
+
+    const queryString = query.toString();
+    const { data } = await client.get<ApiEnvelope<ContentPlanItem[]>>(
+      `${BASE}/strategy/plan${queryString ? `?${queryString}` : ''}`
+    );
+    return data.data;
+  },
+
+  async generateStrategyPlan(
+    client: FetchClient,
+    payload: {
+      weekStart?: string;
+      limit?: number;
+      workflowId?: number;
+      autoApprove?: boolean;
+    }
+  ): Promise<StrategyGeneratePlanResult> {
+    const { data } = await client.post<ApiEnvelope<StrategyGeneratePlanResult>, typeof payload>(
+      `${BASE}/strategy/generate-plan`,
+      payload
+    );
+    return data.data;
+  },
+
+  async approveStrategyPlan(
+    client: FetchClient,
+    payload: { ids?: number[]; limit?: number }
+  ): Promise<StrategyApprovePlanResult> {
+    const { data } = await client.post<ApiEnvelope<StrategyApprovePlanResult>, typeof payload>(
+      `${BASE}/strategy/approve-plan`,
+      payload
+    );
+    return data.data;
+  },
+
+  async getPerformance(
+    client: FetchClient,
+    params?: { limit?: number }
+  ): Promise<ContentPerformanceSnapshot[]> {
+    const query = new URLSearchParams();
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit));
+
+    const queryString = query.toString();
+    const { data } = await client.get<ApiEnvelope<ContentPerformanceSnapshot[]>>(
+      `${BASE}/performance${queryString ? `?${queryString}` : ''}`
+    );
+    return data.data;
+  },
+
+  async aggregatePerformance(
+    client: FetchClient,
+    payload: { day?: string; limit?: number }
+  ): Promise<PerformanceAggregateResult> {
+    const { data } = await client.post<ApiEnvelope<PerformanceAggregateResult>, typeof payload>(
+      `${BASE}/performance/aggregate`,
+      payload
+    );
+    return data.data;
+  },
+
+  async getHomepageRecommendations(
+    client: FetchClient,
+    params?: { status?: string; limit?: number }
+  ): Promise<HomepageRecommendation[]> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (typeof params?.limit === 'number') query.set('limit', String(params.limit));
+
+    const queryString = query.toString();
+    const { data } = await client.get<ApiEnvelope<HomepageRecommendation[]>>(
+      `${BASE}/homepage/recommendations${queryString ? `?${queryString}` : ''}`
+    );
+    return data.data;
+  },
+
+  async runHomepageRecommendations(
+    client: FetchClient,
+    payload: { limit?: number }
+  ): Promise<HomepageRecommendationsRunResult> {
+    const { data } = await client.post<
+      ApiEnvelope<HomepageRecommendationsRunResult>,
+      typeof payload
+    >(`${BASE}/homepage/recommendations/run`, payload);
     return data.data;
   },
 

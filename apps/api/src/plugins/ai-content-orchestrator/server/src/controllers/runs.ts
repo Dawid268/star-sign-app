@@ -1,6 +1,8 @@
 import type { Context } from 'koa';
 
+import { RUN_LOG_UID } from '../constants';
 import type { Strapi } from '../types';
+import { recordAdminAuditEvent } from '../utils/audit-trail';
 import { toSafeErrorMessage } from '../utils/json';
 
 const runsController = ({ strapi }: { strapi: Strapi }) => ({
@@ -22,9 +24,25 @@ const runsController = ({ strapi }: { strapi: Strapi }) => ({
 
       const result = await strapi.plugin('ai-content-orchestrator').service('runs').retry(id);
 
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'run.retry',
+        outcome: 'success',
+        resourceUid: RUN_LOG_UID,
+        resourceId: id,
+        metadata: result,
+      });
       ctx.body = { data: result };
     } catch (error) {
-      ctx.badRequest(toSafeErrorMessage(error));
+      const message = toSafeErrorMessage(error);
+      await recordAdminAuditEvent(strapi, ctx, {
+        action: 'run.retry',
+        outcome: 'failure',
+        severity: 'error',
+        resourceUid: RUN_LOG_UID,
+        resourceId: ctx.params.id,
+        metadata: { error: message },
+      });
+      ctx.badRequest(message);
     }
   },
 });

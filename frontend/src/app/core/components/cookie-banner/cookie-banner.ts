@@ -34,8 +34,8 @@ export class CookieBanner implements OnInit {
 
   public readonly consent = signal<CookieConsent>({
     necessary: true,
-    analytics: true,
-    marketing: featureFlags.adsEnabled,
+    analytics: false,
+    marketing: false,
   });
 
   ngOnInit() {

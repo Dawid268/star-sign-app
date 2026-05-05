@@ -3,8 +3,13 @@ import { PluginIcon } from './components/PluginIcon';
 import { PERMISSIONS } from './permissions';
 import { PLUGIN_ID } from './pluginId';
 
+type StrapiAdminApp = {
+  addMenuLink(input: unknown): void;
+  registerPlugin(input: unknown): void;
+};
+
 export default {
-  register(app: any) {
+  register(app: StrapiAdminApp) {
     app.addMenuLink({
       to: `plugins/${PLUGIN_ID}`,
       icon: PluginIcon,

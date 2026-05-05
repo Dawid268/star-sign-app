@@ -146,19 +146,22 @@ const expectElementCenterUncovered = async (
   page: Page,
   selector: string,
 ): Promise<void> => {
-  const covered = await page.locator(selector).evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const topElement = document.elementFromPoint(centerX, centerY);
+  const covered = await page.locator(selector).evaluate(
+    (element, selector) => {
+      const rect = element.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const topElement = document.elementFromPoint(centerX, centerY);
 
-    return Boolean(
-      topElement &&
-      topElement !== element &&
-      !element.contains(topElement) &&
-      !topElement.closest(selector),
-    );
-  });
+      return Boolean(
+        topElement &&
+          topElement !== element &&
+          !element.contains(topElement) &&
+          !topElement.closest(selector),
+      );
+    },
+    selector,
+  );
 
   expect(covered).toBe(false);
 };

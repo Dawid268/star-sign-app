@@ -68,9 +68,6 @@
     "libs/shared/*",
     "apps/api/src/plugins/*"
   ],
-  "overrides": {
-    "esbuild": "0.28.0"
-  },
   "dependencies": {
     "@angular/common": "~21.2.0",
     "@angular/compiler": "~21.2.10",

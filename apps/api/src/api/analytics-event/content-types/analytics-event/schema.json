@@ -74,9 +74,41 @@
       "type": "enumeration",
       "enum": ["open", "paid"]
     },
+    "premium_access_policy": {
+      "type": "string",
+      "maxLength": 80
+    },
     "access_state": {
       "type": "string",
       "maxLength": 80
+    },
+    "auth_state": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "visitor_segment": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "subscription_status": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "subscription_plan": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "funnel_step": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "cta_location": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "ui_surface": {
+      "type": "string",
+      "maxLength": 120
     },
     "route": {
       "type": "string",

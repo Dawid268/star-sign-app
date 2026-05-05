@@ -5,8 +5,11 @@ import { api } from '../api';
 import { WorkflowSocialStep } from './homepage/WorkflowSocialStep';
 import type {
   AuditReport,
+  ContentPerformanceSnapshot,
+  ContentPlanItem,
   DashboardSummary,
   DiagnosticsSummary,
+  HomepageRecommendation,
   LlmTrace,
   MediaAsset,
   MediaBulkUpsertItemRequest,
@@ -18,6 +21,9 @@ import type {
   Run,
   RunStep,
   SettingsPayload,
+  PerformanceAggregateResult,
+  StrategyApprovePlanResult,
+  StrategyGeneratePlanResult,
   SocialConnectionResult,
   SocialDryRunResult,
   SocialPlatform,
@@ -34,6 +40,7 @@ type TabKey =
   | 'runs'
   | 'social'
   | 'audit'
+  | 'growth'
   | 'settings';
 type OpsState = 'ready' | 'needs_action' | 'blocked' | 'degraded';
 
@@ -57,6 +64,10 @@ type WorkflowFormState = {
   allow_manual_edit: boolean;
   auto_publish: boolean;
   force_regenerate: boolean;
+  strategy_enabled: boolean;
+  performance_feedback_enabled: boolean;
+  content_cluster: string;
+  auto_publish_guardrails: string;
   topic_mode: 'manual' | 'mixed';
   horoscope_period: 'Dzienny' | 'Tygodniowy' | 'Miesięczny' | 'Roczny';
   horoscope_type_values: string;
@@ -115,6 +126,22 @@ type RunFiltersState = {
   workflowName: string;
   fromDate: string;
   toDate: string;
+};
+
+type StrategyFormState = {
+  weekStart: string;
+  limit: number;
+  workflowId: string;
+  autoApprove: boolean;
+};
+
+type PerformanceFormState = {
+  day: string;
+  limit: number;
+};
+
+type HomepageFormState = {
+  limit: number;
 };
 
 const COLORS = {
@@ -226,6 +253,18 @@ const initialWorkflowForm = (): WorkflowFormState => ({
   allow_manual_edit: true,
   auto_publish: true,
   force_regenerate: false,
+  strategy_enabled: false,
+  performance_feedback_enabled: true,
+  content_cluster: '',
+  auto_publish_guardrails: JSON.stringify(
+    {
+      minSeoScore: 70,
+      requireTargetUrl: true,
+      maxSocialFailures: 0,
+    },
+    null,
+    2
+  ),
   topic_mode: 'mixed',
   horoscope_period: 'Dzienny',
   horoscope_type_values: 'Ogólny',
@@ -284,6 +323,22 @@ const initialRunFilters = (): RunFiltersState => ({
   workflowName: '',
   fromDate: '',
   toDate: '',
+});
+
+const initialStrategyForm = (): StrategyFormState => ({
+  weekStart: '',
+  limit: 7,
+  workflowId: '',
+  autoApprove: false,
+});
+
+const initialPerformanceForm = (): PerformanceFormState => ({
+  day: '',
+  limit: 100,
+});
+
+const initialHomepageForm = (): HomepageFormState => ({
+  limit: 12,
 });
 
 const WORKFLOW_STEP_LABELS = ['Basics', 'Schedule', 'Content', 'Social', 'Controls'] as const;
@@ -518,6 +573,11 @@ const normalizeLlmTrace = (value: unknown, index: number): LlmTrace | null => {
         ? value.workflowType
         : undefined,
     createdAt: typeof value.createdAt === 'string' ? value.createdAt : '',
+    redacted: value.redacted === true,
+    redactionReason:
+      typeof value.redactionReason === 'string' && value.redactionReason.trim()
+        ? value.redactionReason
+        : undefined,
     request: {
       model: typeof value.request.model === 'string' ? value.request.model : '',
       temperature: Number(value.request.temperature ?? 0),
@@ -549,6 +609,23 @@ const formatDetailValue = (value: unknown): string => {
   }
 
   return JSON.stringify(value, null, 2);
+};
+
+const formatJsonForTextarea = (value: unknown, fallback: Record<string, unknown>): string => {
+  if (!isRecordValue(value)) {
+    return JSON.stringify(fallback, null, 2);
+  }
+
+  return JSON.stringify(value, null, 2);
+};
+
+const parseJsonObject = (value: string): Record<string, unknown> | null => {
+  try {
+    const parsed = JSON.parse(value);
+    return isRecordValue(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 };
 
 const formatDateTime = (value?: string | null): string => {
@@ -693,7 +770,7 @@ const OPS_STATE_PRIORITY: Record<OpsState, number> = {
 const mergeOpsState = (current: OpsState, next: OpsState): OpsState =>
   OPS_STATE_PRIORITY[next] > OPS_STATE_PRIORITY[current] ? next : current;
 
-const ErrorInsight = ({ error, details }: { error?: string | null; details?: any }) => {
+const ErrorInsight = ({ error }: { error?: string | null }) => {
   if (!error) return null;
 
   let title = 'Nierozpoznany błąd';
@@ -778,6 +855,9 @@ const AutonomousIntelligence = ({ run }: { run: Run }) => {
   const steps = getRunSteps(run);
   const designStep = steps.find((s) => s.id === 'image_design');
   const genStep = steps.find((s) => s.id === 'image_generation');
+  const designOutput = isRecordValue(designStep?.output) ? designStep.output : null;
+  const genOutput = isRecordValue(genStep?.output) ? genStep.output : null;
+  const mediaAssetId = typeof genOutput?.mediaAssetId === 'number' ? genOutput.mediaAssetId : null;
 
   if (!designStep && !genStep) return null;
 
@@ -816,11 +896,11 @@ const AutonomousIntelligence = ({ run }: { run: Run }) => {
                 borderRadius: 6,
               }}
             >
-              "{(designStep.output as any)?.fullPrompt || designStep.message}"
+              "{String(designOutput?.fullPrompt || designStep.message || '')}"
             </div>
           </div>
         )}
-        {genStep?.status === 'success' && (genStep.output as any)?.mediaAssetId && (
+        {genStep?.status === 'success' && mediaAssetId ? (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <div
               style={{
@@ -832,13 +912,13 @@ const AutonomousIntelligence = ({ run }: { run: Run }) => {
                 fontWeight: 700,
               }}
             >
-              ASSET CREATED #{(genStep.output as any).mediaAssetId}
+              ASSET CREATED #{mediaAssetId}
             </div>
             <span style={{ fontSize: 11, color: '#666' }}>
               Wysłano do Cloudflare R2 i zarejestrowano w katalogu.
             </span>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -876,9 +956,28 @@ const HomePage = () => {
     locale: 'pl',
     image_gen_model: 'openai/gpt-image-2',
     imageGenApiToken: '',
+    aico_auto_publish_enabled: true,
+    aico_strategy_autopilot_enabled: false,
   });
+  const [strategyPlan, setStrategyPlan] = useState<ContentPlanItem[]>([]);
+  const [strategyForm, setStrategyForm] = useState<StrategyFormState>(initialStrategyForm());
+  const [strategyGenerateResult, setStrategyGenerateResult] =
+    useState<StrategyGeneratePlanResult | null>(null);
+  const [strategyApproveResult, setStrategyApproveResult] =
+    useState<StrategyApprovePlanResult | null>(null);
+  const [performanceSnapshots, setPerformanceSnapshots] = useState<ContentPerformanceSnapshot[]>(
+    []
+  );
+  const [performanceForm, setPerformanceForm] =
+    useState<PerformanceFormState>(initialPerformanceForm());
+  const [performanceAggregateResult, setPerformanceAggregateResult] =
+    useState<PerformanceAggregateResult | null>(null);
+  const [homepageRecommendations, setHomepageRecommendations] = useState<HomepageRecommendation[]>(
+    []
+  );
+  const [homepageForm, setHomepageForm] = useState<HomepageFormState>(initialHomepageForm());
+  const [homepageRunResult, setHomepageRunResult] = useState<Record<string, unknown> | null>(null);
   const [diagnostics, setDiagnostics] = useState<DiagnosticsSummary | null>(null);
-  const [coverageSummary, setCoverageSummary] = useState<Record<string, unknown> | null>(null);
   const [auditReport, setAuditReport] = useState<AuditReport | null>(null);
   const [socialConnectionResult, setSocialConnectionResult] =
     useState<SocialConnectionResult | null>(null);
@@ -912,20 +1011,6 @@ const HomePage = () => {
   const [identityPreview, setIdentityPreview] = useState<MediaIdentityPreview | null>(null);
   const [bulkSelectedFileIds, setBulkSelectedFileIds] = useState<number[]>([]);
   const [bulkPreview, setBulkPreview] = useState<MediaBulkUpsertResult | null>(null);
-  const [topicImageSearch, setTopicImageSearch] = useState<string>('');
-
-  const [backfillStart, setBackfillStart] = useState<string>('');
-  const [backfillEnd, setBackfillEnd] = useState<string>('');
-
-  const workflowOptions = useMemo(
-    () =>
-      workflows.map((workflow) => ({
-        value: String(workflow.id),
-        label: `#${workflow.id} ${workflow.name}`,
-      })),
-    [workflows]
-  );
-
   const selectedTopicWorkflow = useMemo(() => {
     if (!topicForm.workflow) {
       return null;
@@ -989,25 +1074,6 @@ const HomePage = () => {
     mediaAssetForm.period_scope,
     mediaAssets,
   ]);
-
-  const topicPickerAssets = useMemo(() => {
-    const search = topicImageSearch.trim().toLowerCase();
-    return mediaAssets
-      .filter((item) => Boolean(item.asset?.id))
-      .filter((item) => item.active !== false)
-      .filter((item) => {
-        if (!search) {
-          return true;
-        }
-
-        const haystack = `${item.asset_key} ${item.label} ${item.asset?.name ?? ''}`.toLowerCase();
-        return haystack.includes(search);
-      })
-      .sort(
-        (a, b) => (b.priority ?? 0) - (a.priority ?? 0) || a.asset_key.localeCompare(b.asset_key)
-      )
-      .slice(0, 40);
-  }, [mediaAssets, topicImageSearch]);
 
   const signOptions = useMemo(() => {
     const values = new Set<string>();
@@ -1246,6 +1312,9 @@ const HomePage = () => {
         settingsResult,
         socialTicketsResult,
         auditResult,
+        strategyPlanResult,
+        performanceResult,
+        homepageRecommendationsResult,
       ] = await Promise.all([
         runOptionalRequest(api.getDashboard(client)),
         runOptionalRequest(api.getDiagnostics(client)),
@@ -1257,6 +1326,9 @@ const HomePage = () => {
         runOptionalRequest(api.getSettings(client)),
         runOptionalRequest(api.getSocialTickets(client, { limit: 200 })),
         runOptionalRequest(api.getAuditPreflight(client)),
+        runOptionalRequest(api.getStrategyPlan(client, { limit: 50 })),
+        runOptionalRequest(api.getPerformance(client, { limit: 50 })),
+        runOptionalRequest(api.getHomepageRecommendations(client, { limit: 20 })),
       ]);
 
       const coreErrors: string[] = [];
@@ -1333,10 +1405,30 @@ const HomePage = () => {
           locale: 'pl',
           image_gen_model: 'openai/gpt-image-2',
           imageGenApiToken: '',
+          aico_auto_publish_enabled: true,
+          aico_strategy_autopilot_enabled: false,
         });
         const message = `Settings API: ${settingsResult.error}`;
         coreErrors.push(message);
         nextCoreState = mergeOpsState(nextCoreState, toOpsStateFromErrorMessage(message));
+      }
+
+      if (strategyPlanResult.ok) {
+        setStrategyPlan(strategyPlanResult.data);
+      } else {
+        setStrategyPlan([]);
+      }
+
+      if (performanceResult.ok) {
+        setPerformanceSnapshots(performanceResult.data);
+      } else {
+        setPerformanceSnapshots([]);
+      }
+
+      if (homepageRecommendationsResult.ok) {
+        setHomepageRecommendations(homepageRecommendationsResult.data);
+      } else {
+        setHomepageRecommendations([]);
       }
 
       if (socialTicketsResult.ok) {
@@ -1468,6 +1560,14 @@ const HomePage = () => {
       allow_manual_edit: Boolean(workflow.allow_manual_edit),
       auto_publish: Boolean(workflow.auto_publish),
       force_regenerate: Boolean(workflow.force_regenerate),
+      strategy_enabled: Boolean(workflow.strategy_enabled),
+      performance_feedback_enabled: workflow.performance_feedback_enabled !== false,
+      content_cluster: workflow.content_cluster || '',
+      auto_publish_guardrails: formatJsonForTextarea(workflow.auto_publish_guardrails, {
+        minSeoScore: 70,
+        requireTargetUrl: true,
+        maxSocialFailures: 0,
+      }),
       topic_mode: workflow.topic_mode || 'mixed',
       horoscope_period: workflow.horoscope_period || 'Dzienny',
       horoscope_type_values: Array.isArray(workflow.horoscope_type_values)
@@ -1504,11 +1604,19 @@ const HomePage = () => {
       xAccessToken,
       xAccessTokenSecret,
       ttAccessToken,
+      auto_publish_guardrails,
       ...data
     } = workflowForm;
 
+    const guardrails = parseJsonObject(auto_publish_guardrails);
+    if (!guardrails) {
+      throw new Error('Auto-publish guardrails muszą być poprawnym obiektem JSON.');
+    }
+
     const payload: Record<string, unknown> = {
       ...data,
+      content_cluster: data.content_cluster.trim() || null,
+      auto_publish_guardrails: guardrails,
       horoscope_type_values: data.horoscope_type_values
         .split(',')
         .map((item) => item.trim())
@@ -1614,84 +1722,6 @@ const HomePage = () => {
     }
   };
 
-  const stopWorkflow = async (workflowId: number): Promise<void> => {
-    setSaving(true);
-    try {
-      const result = await api.stopWorkflow(client, workflowId);
-      setRunningWorkflowIds((prev) => prev.filter((id) => id !== workflowId));
-      setWorkflows((prev) =>
-        prev.map((workflow) =>
-          workflow.id === workflowId
-            ? { ...workflow, status: 'idle', last_error: 'Zatrzymano ręcznie.' }
-            : workflow
-        )
-      );
-      showSuccess(
-        result.stopped === false
-          ? `Workflow #${workflowId} nie był uruchomiony.`
-          : `Workflow #${workflowId} zatrzymany.`
-      );
-      await refreshMonitoringData();
-    } catch (error) {
-      showError(`Stop workflow nie powiódł się: ${String(error)}`);
-      await refreshMonitoringData();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const deleteWorkflow = async (workflow: Workflow): Promise<void> => {
-    if (workflow.status === 'running' || runningWorkflowIds.includes(workflow.id)) {
-      showError('Najpierw zatrzymaj workflow, potem usuń.');
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Usunąć workflow #${workflow.id} "${workflow.name}"? Tej operacji nie można cofnąć.`
-    );
-    if (!confirmed) {
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await api.deleteWorkflow(client, workflow.id);
-      setWorkflows((prev) => prev.filter((item) => item.id !== workflow.id));
-      setRunningWorkflowIds((prev) => prev.filter((id) => id !== workflow.id));
-      if (editingWorkflowId === workflow.id) {
-        resetWorkflowForm();
-      }
-      showSuccess(`Workflow #${workflow.id} usunięty.`);
-      await refreshMonitoringData();
-    } catch (error) {
-      showError(`Nie udało się usunąć workflow: ${String(error)}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const runBackfill = async (workflowId: number, dryRun = false): Promise<void> => {
-    if (!backfillStart || !backfillEnd) {
-      showError('Uzupełnij daty backfill start/end.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await api.backfill(client, workflowId, {
-        startDate: backfillStart,
-        endDate: backfillEnd,
-        dryRun,
-      });
-      showSuccess(dryRun ? 'Dry-run backfill zakończony.' : 'Backfill zakończony.');
-      await loadAll();
-    } catch (error) {
-      showError(`Backfill nie powiódł się: ${String(error)}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const createTopic = async (): Promise<void> => {
     if (!topicForm.title.trim()) {
       showError('Tytuł tematu jest wymagany.');
@@ -1718,7 +1748,6 @@ const HomePage = () => {
       });
 
       setTopicForm(initialTopicForm());
-      setTopicImageSearch('');
       showSuccess('Temat dodany do kolejki.');
       await loadAll();
     } catch (error) {
@@ -1884,6 +1913,98 @@ const HomePage = () => {
     );
   };
 
+  const refreshGrowthData = async (): Promise<void> => {
+    const [planResult, performanceResult, homepageResult] = await Promise.all([
+      runOptionalRequest(api.getStrategyPlan(client, { limit: 50 })),
+      runOptionalRequest(api.getPerformance(client, { limit: 50 })),
+      runOptionalRequest(api.getHomepageRecommendations(client, { limit: 20 })),
+    ]);
+
+    if (planResult.ok) setStrategyPlan(planResult.data);
+    if (performanceResult.ok) setPerformanceSnapshots(performanceResult.data);
+    if (homepageResult.ok) setHomepageRecommendations(homepageResult.data);
+
+    if (!planResult.ok || !performanceResult.ok || !homepageResult.ok) {
+      showError('Część danych Growth Ops nie załadowała się. Sprawdź uprawnienia i backend.');
+    }
+  };
+
+  const generateStrategyPlan = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      const result = await api.generateStrategyPlan(client, {
+        weekStart: strategyForm.weekStart || undefined,
+        limit: strategyForm.limit,
+        workflowId: strategyForm.workflowId ? Number(strategyForm.workflowId) : undefined,
+        autoApprove: strategyForm.autoApprove,
+      });
+      setStrategyGenerateResult(result);
+      setStrategyApproveResult(null);
+      setStrategyPlan((prev) => [...result.items, ...prev]);
+      showSuccess(`Strategy Agent utworzył ${result.created} pozycji planu.`);
+      await refreshGrowthData();
+    } catch (error) {
+      showError(`Strategy Agent nie utworzył planu: ${String(error)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const approveStrategyPlan = async (): Promise<void> => {
+    const ids = strategyPlan
+      .filter((item) => item.status === 'planned' || item.status === 'approved')
+      .slice(0, strategyForm.limit)
+      .map((item) => item.id);
+
+    if (ids.length === 0) {
+      showError('Brak pozycji planu do zatwierdzenia.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const result = await api.approveStrategyPlan(client, { ids, limit: strategyForm.limit });
+      setStrategyApproveResult(result);
+      showSuccess(`Zatwierdzono plan: ${result.queued} tematów trafiło do kolejki.`);
+      await loadAll();
+    } catch (error) {
+      showError(`Nie udało się zatwierdzić planu: ${String(error)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const aggregatePerformance = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      const result = await api.aggregatePerformance(client, {
+        day: performanceForm.day || undefined,
+        limit: performanceForm.limit,
+      });
+      setPerformanceAggregateResult(result);
+      setPerformanceSnapshots(result.snapshots);
+      showSuccess(`Performance feedback przetworzył ${result.processed} rekordów.`);
+    } catch (error) {
+      showError(`Agregacja performance nie powiodła się: ${String(error)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const runHomepageRecommendations = async (): Promise<void> => {
+    setSaving(true);
+    try {
+      const result = await api.runHomepageRecommendations(client, { limit: homepageForm.limit });
+      setHomepageRunResult(result as Record<string, unknown>);
+      await refreshGrowthData();
+      showSuccess('Rekomendacje homepage zostały przeliczone.');
+    } catch (error) {
+      showError(`Nie udało się przeliczyć homepage recommendations: ${String(error)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const saveSettings = async (): Promise<void> => {
     setSaving(true);
 
@@ -1896,10 +2017,6 @@ const HomePage = () => {
     } finally {
       setSaving(false);
     }
-  };
-
-  const resetMediaAssetForm = (): void => {
-    setMediaAssetForm(initialMediaAssetForm());
   };
 
   const mapAssetToForm = (item: MediaAsset): MediaAssetFormState => {
@@ -1964,15 +2081,6 @@ const HomePage = () => {
     } else {
       setMediaAssetForm(mapSuggestionToForm(item));
     }
-  };
-
-  const applySuggestionToForm = (): void => {
-    if (!selectedMediaFile) {
-      showError('Wybierz kafelek zdjęcia.');
-      return;
-    }
-
-    setMediaAssetForm(mapSuggestionToForm(selectedMediaFile));
   };
 
   const toggleBulkSelection = (fileId: number): void => {
@@ -2130,8 +2238,7 @@ const HomePage = () => {
 
     setSaving(true);
     try {
-      const result = await api.validateMediaCoverage(client, { applyWorkflowDisabling });
-      setCoverageSummary(result);
+      await api.validateMediaCoverage(client, { applyWorkflowDisabling });
       showSuccess('Walidacja pokrycia mediów zakończona.');
       await loadAll();
     } catch (error) {
@@ -2268,7 +2375,10 @@ const HomePage = () => {
                     style={inputStyle}
                     value={workflowForm.workflow_type}
                     onChange={(e) =>
-                      setWorkflowForm((prev) => ({ ...prev, workflow_type: e.target.value as any }))
+                      setWorkflowForm((prev) => ({
+                        ...prev,
+                        workflow_type: e.target.value as WorkflowFormState['workflow_type'],
+                      }))
                     }
                   >
                     <option value="horoscope">horoscope</option>
@@ -2281,7 +2391,10 @@ const HomePage = () => {
                     style={inputStyle}
                     value={workflowForm.topic_mode}
                     onChange={(e) =>
-                      setWorkflowForm((prev) => ({ ...prev, topic_mode: e.target.value as any }))
+                      setWorkflowForm((prev) => ({
+                        ...prev,
+                        topic_mode: e.target.value as WorkflowFormState['topic_mode'],
+                      }))
                     }
                   >
                     <option value="mixed">Mieszany (Auto + Ręczny)</option>
@@ -2393,7 +2506,7 @@ const HomePage = () => {
                       onChange={(e) =>
                         setWorkflowForm((prev) => ({
                           ...prev,
-                          horoscope_period: e.target.value as any,
+                          horoscope_period: e.target.value as WorkflowFormState['horoscope_period'],
                         }))
                       }
                     >
@@ -2531,6 +2644,32 @@ const HomePage = () => {
                 <label style={checkboxRowStyle}>
                   <input
                     type="checkbox"
+                    checked={workflowForm.strategy_enabled}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({
+                        ...prev,
+                        strategy_enabled: e.target.checked,
+                      }))
+                    }
+                  />
+                  Strategy Agent może planować tematy dla tego workflow
+                </label>
+                <label style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={workflowForm.performance_feedback_enabled}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({
+                        ...prev,
+                        performance_feedback_enabled: e.target.checked,
+                      }))
+                    }
+                  />
+                  Używaj feedbacku SEO/performance przy planowaniu
+                </label>
+                <label style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
                     checked={workflowForm.force_regenerate}
                     onChange={(e) =>
                       setWorkflowForm((prev) => ({ ...prev, force_regenerate: e.target.checked }))
@@ -2550,6 +2689,30 @@ const HomePage = () => {
                     Generuj dla wszystkich 12 znaków zodiaku
                   </label>
                 )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <Field label="Content cluster">
+                  <input
+                    style={inputStyle}
+                    value={workflowForm.content_cluster}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({ ...prev, content_cluster: e.target.value }))
+                    }
+                    placeholder="np. astrologia-praktyczna"
+                  />
+                </Field>
+                <Field label="Auto-publish guardrails (JSON)">
+                  <textarea
+                    style={{ ...inputStyle, minHeight: 120, fontFamily: 'monospace', fontSize: 12 }}
+                    value={workflowForm.auto_publish_guardrails}
+                    onChange={(e) =>
+                      setWorkflowForm((prev) => ({
+                        ...prev,
+                        auto_publish_guardrails: e.target.value,
+                      }))
+                    }
+                  />
+                </Field>
               </div>
             </div>
           )}
@@ -2789,6 +2952,7 @@ const HomePage = () => {
                 ['runs', 'Monitoring'],
                 ['social', 'Social Ops'],
                 ['audit', 'Audit'],
+                ['growth', 'Growth Ops'],
                 ['settings', 'Settings'],
               ] as Array<[TabKey, string]>
             ).map(([key, label]) => (
@@ -3403,7 +3567,10 @@ const HomePage = () => {
                     style={inputStyle}
                     value={mediaFilters.mapped}
                     onChange={(event) =>
-                      setMediaFilters((prev) => ({ ...prev, mapped: event.target.value as any }))
+                      setMediaFilters((prev) => ({
+                        ...prev,
+                        mapped: event.target.value as MediaFiltersState['mapped'],
+                      }))
                     }
                   >
                     <option value="all">Wszystkie</option>
@@ -3416,7 +3583,10 @@ const HomePage = () => {
                     style={inputStyle}
                     value={mediaFilters.purpose}
                     onChange={(event) =>
-                      setMediaFilters((prev) => ({ ...prev, purpose: event.target.value as any }))
+                      setMediaFilters((prev) => ({
+                        ...prev,
+                        purpose: event.target.value as MediaFiltersState['purpose'],
+                      }))
                     }
                   >
                     <option value="all">Wszystkie</option>
@@ -3724,7 +3894,7 @@ const HomePage = () => {
                               style={inputStyle}
                               value={mediaAssetForm.purpose}
                               onChange={(event) => {
-                                const purpose = event.target.value as any;
+                                const purpose = event.target.value as MediaAssetFormState['purpose'];
                                 const fallbackSign =
                                   purpose === 'horoscope_sign'
                                     ? mediaAssetForm.sign_slug.trim() ||
@@ -3778,7 +3948,7 @@ const HomePage = () => {
                                 onChange={(event) =>
                                   setMediaAssetForm((prev) => ({
                                     ...prev,
-                                    period_scope: event.target.value as any,
+                                    period_scope: event.target.value as MediaAssetFormState['period_scope'],
                                   }))
                                 }
                               >
@@ -3821,9 +3991,12 @@ const HomePage = () => {
                                   borderColor: COLORS.danger,
                                 }}
                                 disabled={saving}
-                                onClick={() =>
-                                  void deleteMediaMapping(selectedMediaFile.mapping!.id)
-                                }
+                                onClick={() => {
+                                  const mappingId = selectedMediaFile.mapping?.id;
+                                  if (typeof mappingId === 'number') {
+                                    void deleteMediaMapping(mappingId);
+                                  }
+                                }}
                               >
                                 Usuń
                               </button>
@@ -3982,12 +4155,12 @@ const HomePage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {bulkPreview.items.map((row: any, i: number) => (
+                          {bulkPreview.items.map((row, i) => (
                             <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                              <Td>#{row.fileId}</Td>
-                              <Td>{row.action}</Td>
-                              <Td>{row.asset_key}</Td>
-                              <Td>{row.status}</Td>
+                              <Td>#{String(row.fileId ?? '')}</Td>
+                              <Td>{String(row.action ?? '')}</Td>
+                              <Td>{String(row.asset_key ?? '')}</Td>
+                              <Td>{String(row.status ?? '')}</Td>
                             </tr>
                           ))}
                         </tbody>
@@ -4374,7 +4547,7 @@ const HomePage = () => {
                                     <span>Total tokens: {run.usage_total_tokens ?? 0}</span>
                                   </div>
 
-                                  <ErrorInsight error={run.error_message} details={run.details} />
+                                  <ErrorInsight error={run.error_message} />
                                   <AutonomousIntelligence run={run} />
 
                                   <div style={{ marginTop: 16 }}>
@@ -4427,7 +4600,24 @@ const HomePage = () => {
                                               {trace.request.maxCompletionTokens} • tokens{' '}
                                               {trace.response.usage.total_tokens}
                                             </div>
-                                            <Field label="Prompt">
+                                            {trace.redacted ? (
+                                              <div
+                                                style={{
+                                                  border: '1px solid #f3d08b',
+                                                  background: '#fff8e6',
+                                                  borderRadius: 8,
+                                                  padding: 10,
+                                                  color: '#6f4d08',
+                                                  fontSize: 12,
+                                                }}
+                                              >
+                                                Trace redacted before storage
+                                                {trace.redactionReason
+                                                  ? `: ${trace.redactionReason}`
+                                                  : '.'}
+                                              </div>
+                                            ) : null}
+                                            <Field label={trace.redacted ? 'Prompt summary' : 'Prompt'}>
                                               <textarea
                                                 readOnly
                                                 style={{
@@ -4439,7 +4629,13 @@ const HomePage = () => {
                                                 value={trace.request.prompt}
                                               />
                                             </Field>
-                                            <Field label="Messages sent to OpenRouter">
+                                            <Field
+                                              label={
+                                                trace.redacted
+                                                  ? 'Message summaries'
+                                                  : 'Messages sent to OpenRouter'
+                                              }
+                                            >
                                               <textarea
                                                 readOnly
                                                 style={{
@@ -4455,7 +4651,13 @@ const HomePage = () => {
                                                 )}
                                               />
                                             </Field>
-                                            <Field label="Raw response content">
+                                            <Field
+                                              label={
+                                                trace.redacted
+                                                  ? 'Response content summary'
+                                                  : 'Raw response content'
+                                              }
+                                            >
                                               <textarea
                                                 readOnly
                                                 style={{
@@ -4467,7 +4669,13 @@ const HomePage = () => {
                                                 value={trace.response.content}
                                               />
                                             </Field>
-                                            <Field label="Parsed response JSON">
+                                            <Field
+                                              label={
+                                                trace.redacted
+                                                  ? 'Parsed response summary'
+                                                  : 'Parsed response JSON'
+                                              }
+                                            >
                                               <textarea
                                                 readOnly
                                                 style={{
@@ -4594,6 +4802,7 @@ const HomePage = () => {
                   <option value="facebook">facebook</option>
                   <option value="instagram">instagram</option>
                   <option value="twitter">twitter</option>
+                  <option value="tiktok">tiktok draft-only</option>
                 </select>
               </Field>
               <Field label="Status">
@@ -5011,6 +5220,473 @@ const HomePage = () => {
           </section>
         )}
 
+        {activeTab === 'growth' && (
+          <div style={{ display: 'grid', gap: 24 }}>
+            <section style={CARD_STYLE}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 20,
+                  gap: 16,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <h2 style={{ ...SECTION_TITLE_STYLE, marginBottom: 4 }}>Growth Ops</h2>
+                  <p style={{ fontSize: 13, color: COLORS.textLight, margin: 0 }}>
+                    Strategy Agent, feedback SEO/performance i rekomendacje homepage bez zmiany
+                    otwartego dostępu Premium.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={saving}
+                  style={secondaryButtonStyle}
+                  onClick={() => {
+                    void refreshGrowthData();
+                  }}
+                >
+                  Odśwież dane
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: 16,
+                }}
+              >
+                <StatTile label="Pozycje planu" value={strategyPlan.length} />
+                <StatTile label="Snapshoty performance" value={performanceSnapshots.length} />
+                <StatTile label="Rekomendacje homepage" value={homepageRecommendations.length} />
+                <StatTile
+                  label="Global auto-publish"
+                  value={settings.aico_auto_publish_enabled === false ? 'OFF' : 'ON'}
+                  color={settings.aico_auto_publish_enabled === false ? COLORS.warning : undefined}
+                />
+              </div>
+            </section>
+
+            <section style={CARD_STYLE}>
+              <h3 style={{ ...SECTION_TITLE_STYLE, fontSize: 16 }}>Strategy Agent</h3>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: 16,
+                  marginBottom: 16,
+                }}
+              >
+                <Field label="Start tygodnia">
+                  <input
+                    type="date"
+                    style={inputStyle}
+                    value={strategyForm.weekStart}
+                    onChange={(event) =>
+                      setStrategyForm((prev) => ({ ...prev, weekStart: event.target.value }))
+                    }
+                  />
+                </Field>
+                <Field label="Limit">
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    style={inputStyle}
+                    value={strategyForm.limit}
+                    onChange={(event) =>
+                      setStrategyForm((prev) => ({ ...prev, limit: Number(event.target.value) }))
+                    }
+                  />
+                </Field>
+                <Field label="Workflow article">
+                  <select
+                    style={inputStyle}
+                    value={strategyForm.workflowId}
+                    onChange={(event) =>
+                      setStrategyForm((prev) => ({ ...prev, workflowId: event.target.value }))
+                    }
+                  >
+                    <option value="">Wszystkie aktywne</option>
+                    {workflows
+                      .filter((workflow) => workflow.workflow_type === 'article')
+                      .map((workflow) => (
+                        <option key={workflow.id} value={workflow.id}>
+                          #{workflow.id} {workflow.name}
+                        </option>
+                      ))}
+                  </select>
+                </Field>
+                <label style={{ ...checkboxRowStyle, alignSelf: 'end', minHeight: 46 }}>
+                  <input
+                    type="checkbox"
+                    checked={strategyForm.autoApprove}
+                    onChange={(event) =>
+                      setStrategyForm((prev) => ({
+                        ...prev,
+                        autoApprove: event.target.checked,
+                      }))
+                    }
+                  />
+                  Auto-approve plan
+                </label>
+                <label
+                  style={{
+                    ...checkboxRowStyle,
+                    padding: 14,
+                    background: settings.aico_strategy_autopilot_enabled ? '#f0fdf4' : '#f8fafc',
+                    border: `1px solid ${
+                      settings.aico_strategy_autopilot_enabled ? '#bbf7d0' : COLORS.border
+                    }`,
+                    borderRadius: 12,
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={settings.aico_strategy_autopilot_enabled === true}
+                    onChange={(event) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        aico_strategy_autopilot_enabled: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>
+                    Strategy autopilot
+                    <span
+                      style={{
+                        display: 'block',
+                        marginTop: 4,
+                        fontSize: 12,
+                        color: COLORS.textLight,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Włączenie pozwala AICO samodzielnie uzupełniać plan treści według guardrails.
+                      Domyślnie pozostaje wyłączone.
+                    </span>
+                  </span>
+                </label>
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+                <button
+                  type="button"
+                  disabled={saving}
+                  style={primaryButtonStyle}
+                  onClick={() => {
+                    void generateStrategyPlan();
+                  }}
+                >
+                  Wygeneruj plan
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  style={secondaryButtonStyle}
+                  onClick={() => {
+                    void approveStrategyPlan();
+                  }}
+                >
+                  Zatwierdź do Topic Queue
+                </button>
+              </div>
+              {strategyGenerateResult || strategyApproveResult ? (
+                <div
+                  style={{
+                    display: 'grid',
+                    gap: 6,
+                    padding: 12,
+                    background: '#f8fafc',
+                    borderRadius: 10,
+                    marginBottom: 16,
+                    fontSize: 12,
+                    color: COLORS.textLight,
+                  }}
+                >
+                  {strategyGenerateResult ? (
+                    <span>
+                      Ostatnie generowanie: {strategyGenerateResult.created} utworzono,{' '}
+                      {strategyGenerateResult.skipped} pominięto, tydzień{' '}
+                      {strategyGenerateResult.weekStart}.
+                    </span>
+                  ) : null}
+                  {strategyApproveResult ? (
+                    <span>
+                      Ostatnie zatwierdzenie: {strategyApproveResult.queued} queued,{' '}
+                      {strategyApproveResult.skipped} pominięto.
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <Th>Tytuł</Th>
+                      <Th>Status</Th>
+                      <Th>SEO cluster</Th>
+                      <Th>Priorytet</Th>
+                      <Th>Publikacja</Th>
+                      <Th>Uzasadnienie</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {strategyPlan.slice(0, 12).map((item) => (
+                      <tr key={item.id}>
+                        <Td>
+                          <strong>{item.title}</strong>
+                          {item.seo_intent ? (
+                            <div style={{ fontSize: 11, color: COLORS.textLight }}>
+                              {item.seo_intent}
+                            </div>
+                          ) : null}
+                        </Td>
+                        <Td>
+                          <StatusPill status={item.status} />
+                        </Td>
+                        <Td>{item.seo_cluster || '-'}</Td>
+                        <Td>{item.priority_score ?? '-'}</Td>
+                        <Td>{formatDateTime(item.target_publish_at)}</Td>
+                        <Td>
+                          <span
+                            style={{
+                              display: 'block',
+                              maxWidth: 260,
+                              fontSize: 12,
+                              color: COLORS.textLight,
+                            }}
+                          >
+                            {item.agent_rationale || '-'}
+                          </span>
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {strategyPlan.length === 0 ? (
+                  <div style={{ padding: 24, color: COLORS.textLight, textAlign: 'center' }}>
+                    Brak pozycji planu.
+                  </div>
+                ) : null}
+              </div>
+            </section>
+
+            <section style={CARD_STYLE}>
+              <h3 style={{ ...SECTION_TITLE_STYLE, fontSize: 16 }}>SEO / Performance Feedback</h3>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: 16,
+                  marginBottom: 16,
+                }}
+              >
+                <Field label="Dzień snapshotu">
+                  <input
+                    type="date"
+                    style={inputStyle}
+                    value={performanceForm.day}
+                    onChange={(event) =>
+                      setPerformanceForm((prev) => ({ ...prev, day: event.target.value }))
+                    }
+                  />
+                </Field>
+                <Field label="Limit artykułów">
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    style={inputStyle}
+                    value={performanceForm.limit}
+                    onChange={(event) =>
+                      setPerformanceForm((prev) => ({ ...prev, limit: Number(event.target.value) }))
+                    }
+                  />
+                </Field>
+                <div style={{ alignSelf: 'end' }}>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    style={primaryButtonStyle}
+                    onClick={() => {
+                      void aggregatePerformance();
+                    }}
+                  >
+                    Przelicz performance
+                  </button>
+                </div>
+              </div>
+              {performanceAggregateResult ? (
+                <div
+                  style={{
+                    padding: 12,
+                    background: '#f8fafc',
+                    borderRadius: 10,
+                    marginBottom: 16,
+                    fontSize: 12,
+                    color: COLORS.textLight,
+                  }}
+                >
+                  Ostatnia agregacja: {performanceAggregateResult.processed} snapshotów dla dnia{' '}
+                  {performanceAggregateResult.day}.
+                </div>
+              ) : null}
+              <div style={{ display: 'grid', gap: 10 }}>
+                {performanceSnapshots.slice(0, 8).map((snapshot) => (
+                  <div
+                    key={snapshot.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr auto',
+                      gap: 12,
+                      padding: 14,
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 12,
+                      background: '#fff',
+                    }}
+                  >
+                    <div>
+                      <strong style={{ color: COLORS.text }}>
+                        {snapshot.content_title || snapshot.content_slug || snapshot.unique_key}
+                      </strong>
+                      <div style={{ fontSize: 12, color: COLORS.textLight, marginTop: 4 }}>
+                        {snapshot.snapshot_day} | views {snapshot.views ?? 0} | CTA{' '}
+                        {snapshot.cta_clicks ?? 0} | premium events {snapshot.premium_events ?? 0}
+                      </div>
+                      {snapshot.recommendations ? (
+                        <pre
+                          style={{
+                            margin: '8px 0 0',
+                            whiteSpace: 'pre-wrap',
+                            fontSize: 11,
+                            color: COLORS.textLight,
+                            background: '#f8fafc',
+                            borderRadius: 8,
+                            padding: 8,
+                          }}
+                        >
+                          {formatDetailValue(snapshot.recommendations)}
+                        </pre>
+                      ) : null}
+                    </div>
+                    <StatusPill status={`score ${snapshot.score ?? 0}`} />
+                  </div>
+                ))}
+                {performanceSnapshots.length === 0 ? (
+                  <div style={{ padding: 24, color: COLORS.textLight, textAlign: 'center' }}>
+                    Brak snapshotów performance.
+                  </div>
+                ) : null}
+              </div>
+            </section>
+
+            <section style={CARD_STYLE}>
+              <h3 style={{ ...SECTION_TITLE_STYLE, fontSize: 16 }}>Homepage Recommendations</h3>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(180px, 240px) auto',
+                  gap: 16,
+                  marginBottom: 16,
+                  alignItems: 'end',
+                }}
+              >
+                <Field label="Limit rekomendacji">
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    style={inputStyle}
+                    value={homepageForm.limit}
+                    onChange={(event) =>
+                      setHomepageForm((prev) => ({ ...prev, limit: Number(event.target.value) }))
+                    }
+                  />
+                </Field>
+                <button
+                  type="button"
+                  disabled={saving}
+                  style={primaryButtonStyle}
+                  onClick={() => {
+                    void runHomepageRecommendations();
+                  }}
+                >
+                  Przelicz homepage
+                </button>
+              </div>
+              {homepageRunResult ? (
+                <pre
+                  style={{
+                    margin: '0 0 16px',
+                    whiteSpace: 'pre-wrap',
+                    fontSize: 12,
+                    color: COLORS.textLight,
+                    background: '#f8fafc',
+                    borderRadius: 10,
+                    padding: 12,
+                  }}
+                >
+                  {formatDetailValue(homepageRunResult)}
+                </pre>
+              ) : null}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                  gap: 12,
+                }}
+              >
+                {homepageRecommendations.slice(0, 12).map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 12,
+                      padding: 14,
+                      background: '#fff',
+                      display: 'grid',
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                      <strong style={{ color: COLORS.text }}>{item.title}</strong>
+                      <StatusPill status={item.status} />
+                    </div>
+                    <div style={{ fontSize: 12, color: COLORS.textLight }}>
+                      Slot: {item.slot} | Priority: {item.priority_score ?? '-'}
+                    </div>
+                    {item.subtitle ? (
+                      <div style={{ fontSize: 12, color: COLORS.textLight }}>{item.subtitle}</div>
+                    ) : null}
+                    {item.rationale ? (
+                      <div style={{ fontSize: 12, color: COLORS.text }}>{item.rationale}</div>
+                    ) : null}
+                    {item.target_url ? (
+                      <a
+                        href={item.target_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontSize: 12, color: COLORS.primary, fontWeight: 700 }}
+                      >
+                        Podgląd celu
+                      </a>
+                    ) : null}
+                  </div>
+                ))}
+                {homepageRecommendations.length === 0 ? (
+                  <div style={{ padding: 24, color: COLORS.textLight, textAlign: 'center' }}>
+                    Brak rekomendacji homepage.
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          </div>
+        )}
+
         {activeTab === 'settings' && (
           <section style={CARD_STYLE}>
             <div
@@ -5061,6 +5737,45 @@ const HomePage = () => {
                     placeholder="pl / en"
                   />
                 </Field>
+                <label
+                  style={{
+                    ...checkboxRowStyle,
+                    padding: 14,
+                    background:
+                      settings.aico_auto_publish_enabled === false ? '#fffbeb' : '#f8fafc',
+                    border: `1px solid ${
+                      settings.aico_auto_publish_enabled === false ? '#fde68a' : COLORS.border
+                    }`,
+                    borderRadius: 12,
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={settings.aico_auto_publish_enabled !== false}
+                    onChange={(event) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        aico_auto_publish_enabled: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>
+                    Globalny auto-publish AICO
+                    <span
+                      style={{
+                        display: 'block',
+                        marginTop: 4,
+                        fontSize: 12,
+                        color: COLORS.textLight,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Wyłączenie zatrzymuje autonomiczne publikowanie treści AICO, ale nie blokuje
+                      dostępu do Premium.
+                    </span>
+                  </span>
+                </label>
               </div>
 
               <div style={{ display: 'grid', gap: 20 }}>
@@ -5302,45 +6017,6 @@ const Td = ({
   >
     {children}
   </td>
-);
-
-const dangerButtonStyle: React.CSSProperties = {
-  background: '#fff',
-  color: COLORS.danger,
-  border: `1px solid ${COLORS.danger}`,
-  borderRadius: 10,
-  padding: '8px 16px',
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: 'pointer',
-  transition: 'all 0.2s',
-};
-
-const ActionButton = ({
-  label,
-  onClick,
-  disabled,
-  tone = 'default',
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  tone?: 'default' | 'danger';
-}) => (
-  <button
-    type="button"
-    disabled={disabled}
-    onClick={onClick}
-    style={{
-      ...(tone === 'danger' ? dangerButtonStyle : secondaryButtonStyle),
-      padding: '6px 12px',
-      fontSize: 13,
-      opacity: disabled ? 0.5 : 1,
-      cursor: disabled ? 'not-allowed' : 'pointer',
-    }}
-  >
-    {label}
-  </button>
 );
 
 const Modal = ({

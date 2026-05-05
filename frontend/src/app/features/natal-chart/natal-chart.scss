@@ -19,7 +19,7 @@
   }
 
   .subtitle {
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.86);
     font-size: 1.2rem;
   }
 }
@@ -113,24 +113,44 @@
   }
 }
 
+.loading-state,
 .empty-state {
-  padding: 5rem 0;
+  max-width: 680px;
+  margin: 0 auto;
+  border: 1px solid rgba(255, 215, 0, 0.22);
+  border-radius: 24px;
+  background: rgba(17, 12, 16, 0.82);
+  padding: 3rem 1.5rem;
+  box-shadow: 0 24px 80px rgba(17, 12, 16, 0.28);
+
+  h2 {
+    color: #fff7d1;
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    margin-bottom: 1rem;
+  }
 
   p {
-    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 1.05rem;
+    line-height: 1.7;
     margin-bottom: 2rem;
   }
 
   .btn-primary {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffd76a;
+    color: #1b1208;
+    border: 1px solid rgba(255, 215, 0, 0.4);
     padding: 0.8rem 2rem;
     border-radius: 12px;
+    font-weight: 700;
     cursor: pointer;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.2);
+      background: #fff4bf;
     }
   }
 }

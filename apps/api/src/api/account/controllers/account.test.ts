@@ -26,12 +26,15 @@ const createCtx = (body: Record<string, unknown>) => ({
     body,
     header: {},
   },
+  status: undefined as number | undefined,
   body: undefined as unknown,
   unauthorized: vi.fn(),
   badRequest: vi.fn(),
 });
 
-const createStrapiMock = () => {
+const createStrapiMock = (
+  appSettings: Record<string, unknown> | null = null,
+) => {
   const userProfileQuery = {
     findOne: vi.fn().mockResolvedValue({
       id: 7,
@@ -57,6 +60,9 @@ const createStrapiMock = () => {
       return zodiacSigns[slug] || null;
     }),
   };
+  const appSettingQuery = {
+    findOne: vi.fn().mockResolvedValue(appSettings),
+  };
 
   const strapiMock = {
     db: {
@@ -67,41 +73,42 @@ const createStrapiMock = () => {
         if (uid === 'api::zodiac-sign.zodiac-sign') {
           return zodiacSignQuery;
         }
+        if (uid === 'api::app-setting.app-setting') {
+          return appSettingQuery;
+        }
         throw new Error(`Unexpected query uid: ${uid}`);
       }),
+    },
+    log: {
+      error: vi.fn(),
     },
   };
 
   vi.stubGlobal('strapi', strapiMock);
 
-  return { userProfileQuery, zodiacSignQuery };
+  return { appSettingQuery, userProfileQuery, zodiacSignQuery };
 };
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 
 describe('account zodiac profile resolution', () => {
   it('resolves western zodiac sign slugs from birth dates', () => {
-    expect(resolveZodiacSignSlugFromBirthDate('1990-01-01')).toBe(
-      'koziorozec',
-    );
+    expect(resolveZodiacSignSlugFromBirthDate('1990-01-01')).toBe('koziorozec');
     expect(resolveZodiacSignSlugFromBirthDate('2020-03-20')).toBe('ryby');
     expect(resolveZodiacSignSlugFromBirthDate('2020-03-21')).toBe('baran');
     expect(resolveZodiacSignSlugFromBirthDate('2020-04-19')).toBe('baran');
     expect(resolveZodiacSignSlugFromBirthDate('2020-04-20')).toBe('byk');
-    expect(resolveZodiacSignSlugFromBirthDate('2020-05-21')).toBe(
-      'bliznieta',
-    );
+    expect(resolveZodiacSignSlugFromBirthDate('2020-05-21')).toBe('bliznieta');
     expect(resolveZodiacSignSlugFromBirthDate('2020-06-21')).toBe('rak');
     expect(resolveZodiacSignSlugFromBirthDate('2020-07-23')).toBe('lew');
     expect(resolveZodiacSignSlugFromBirthDate('2020-08-23')).toBe('panna');
     expect(resolveZodiacSignSlugFromBirthDate('2020-09-23')).toBe('waga');
     expect(resolveZodiacSignSlugFromBirthDate('2020-10-23')).toBe('skorpion');
     expect(resolveZodiacSignSlugFromBirthDate('2020-11-22')).toBe('strzelec');
-    expect(resolveZodiacSignSlugFromBirthDate('2020-12-22')).toBe(
-      'koziorozec',
-    );
+    expect(resolveZodiacSignSlugFromBirthDate('2020-12-22')).toBe('koziorozec');
     expect(resolveZodiacSignSlugFromBirthDate('2020-01-20')).toBe('wodnik');
     expect(resolveZodiacSignSlugFromBirthDate('2020-02-19')).toBe('ryby');
   });
@@ -174,5 +181,84 @@ describe('account zodiac profile resolution', () => {
         }),
       }),
     );
+  });
+});
+
+describe('account subscription checkout settings gate', () => {
+  it('does not start Stripe checkout while Premium remains open', async () => {
+    createStrapiMock({
+      premium_mode: 'open',
+      stripe_checkout_enabled: true,
+      stripe_monthly_price_id: 'price_monthly123',
+      stripe_annual_price_id: 'price_annual123',
+    });
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_checkout');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const ctx = createCtx({ plan: 'monthly' });
+
+    await accountController.subscriptionCheckout(ctx);
+
+    expect(ctx.status).toBe(503);
+    expect(ctx.body).toEqual({
+      error: 'Subskrypcje nie są jeszcze skonfigurowane.',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('starts Stripe checkout only when paid Premium and checkout flag are enabled', async () => {
+    const { userProfileQuery } = createStrapiMock({
+      premium_mode: 'paid',
+      stripe_checkout_enabled: true,
+      stripe_monthly_price_id: 'price_monthly123',
+      stripe_annual_price_id: 'price_annual123',
+      trial_days: 14,
+      allow_promotion_codes: false,
+    });
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_checkout');
+    vi.stubEnv('FRONTEND_URL', 'https://star-sign.test');
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'cs_test_123',
+        url: 'https://stripe.com/checkout/session',
+        customer: 'cus_123',
+      }),
+      init,
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const ctx = createCtx({ plan: 'annual' });
+
+    await accountController.subscriptionCheckout(ctx);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.stripe.com/v1/checkout/sessions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk_test_checkout',
+        }),
+      }),
+    );
+    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = new URLSearchParams(String(requestInit.body));
+    expect(body.get('line_items[0][price]')).toBe('price_annual123');
+    expect(body.get('subscription_data[trial_period_days]')).toBe('14');
+    expect(body.get('allow_promotion_codes')).toBe('false');
+    expect(userProfileQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          stripe_customer_id: 'cus_123',
+          subscription_plan: 'annual',
+        }),
+      }),
+    );
+    expect(ctx.body).toEqual({
+      checkoutUrl: 'https://stripe.com/checkout/session',
+      sessionId: 'cs_test_123',
+    });
   });
 });

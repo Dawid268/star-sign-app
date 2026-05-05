@@ -41,6 +41,33 @@ describe('AICO content contract', () => {
     }
   });
 
+  it('requires Polish prose quality rules and a schema-preserving repair prompt', () => {
+    for (const key of [
+      'dailyHoroscope',
+      'periodicHoroscope',
+      'dailyCard',
+      'article',
+      'articleQualityRepair',
+      'socialTeaser',
+    ]) {
+      const prompt =
+        AICO_CONTRACT_PROMPTS[key as keyof typeof AICO_CONTRACT_PROMPTS];
+
+      expect(prompt).toContain('JAKOŚĆ POLSZCZYZNY');
+      expect(prompt).toMatch(/ortograf|składni|interpunkc/i);
+      expect(prompt).toMatch(/naturaln|ludz/i);
+      expect(prompt).toMatch(/myślnik|półpauz|pauz/i);
+    }
+
+    expect(AICO_CONTRACT_PROMPTS.polishStyleRepair).toContain('valid JSON');
+    expect(AICO_CONTRACT_PROMPTS.polishStyleRepair).toContain(
+      'Zachowaj wszystkie klucze JSON',
+    );
+    expect(AICO_CONTRACT_PROMPTS.polishStyleRepair).toContain(
+      'Nie zmieniaj slugów',
+    );
+  });
+
   it('builds bootstrap workflow definitions with exact catalog prompts and retry settings', () => {
     const definitions = buildAicoWorkflowDefinitions({
       model: 'openai/gpt-4.1-mini',

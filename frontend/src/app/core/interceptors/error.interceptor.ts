@@ -23,6 +23,10 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
+      if (req.headers.has('X-Skip-Error-Notification')) {
+        return throwError(() => error);
+      }
+
       let errorMessage =
         'Wystąpił nieoczekiwany błąd. Spróbuj ponownie później.';
 

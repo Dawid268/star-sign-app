@@ -1,5 +1,14 @@
 export type PremiumMode = 'open' | 'paid';
 
+export type MaintenanceModeSettings = {
+  enabled: boolean;
+  title: string;
+  message: string;
+  eta: string | null;
+  contactUrl: string | null;
+  allowedPaths: string[];
+};
+
 export type AppSettings = {
   premiumMode: PremiumMode;
   currency: 'PLN' | 'EUR' | 'USD';
@@ -10,6 +19,7 @@ export type AppSettings = {
   stripeCheckoutEnabled: boolean;
   trialDays: number;
   allowPromotionCodes: boolean;
+  maintenanceMode: MaintenanceModeSettings;
 };
 
 type AppSettingRecord = {
@@ -22,7 +32,25 @@ type AppSettingRecord = {
   stripe_checkout_enabled?: unknown;
   trial_days?: unknown;
   allow_promotion_codes?: unknown;
+  maintenance_mode_enabled?: unknown;
+  maintenance_title?: unknown;
+  maintenance_message?: unknown;
+  maintenance_eta?: unknown;
+  maintenance_contact_url?: unknown;
+  maintenance_allowed_paths?: unknown;
 };
+
+const DEFAULT_MAINTENANCE_ALLOWED_PATHS = [
+  '/regulamin',
+  '/polityka-prywatnosci',
+  '/cookies',
+  '/disclaimer',
+  '/newsletter/potwierdz',
+  '/newsletter/wypisz',
+];
+
+const DEFAULT_MAINTENANCE_TITLE = 'Pracujemy nad Star Sign';
+const DEFAULT_MAINTENANCE_MESSAGE = 'Dopracowujemy stronę i wrócimy za chwilę.';
 
 const toPremiumMode = (value: unknown): PremiumMode =>
   value === 'paid' ? 'paid' : 'open';
@@ -52,6 +80,56 @@ const toNullableString = (value: unknown): string | null => {
 const toBoolean = (value: unknown, fallback: boolean): boolean =>
   typeof value === 'boolean' ? value : fallback;
 
+const toTrimmedString = (value: unknown, fallback: string): string => {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : fallback;
+};
+
+const toNullableIsoDate = (value: unknown): string | null => {
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const isSafeRelativePath = (value: string): boolean =>
+  value.startsWith('/') && !value.startsWith('//') && value.length <= 160;
+
+const toAllowedPaths = (value: unknown): string[] => {
+  const rawPaths = Array.isArray(value) ? value : [];
+  const paths = rawPaths
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(isSafeRelativePath);
+
+  return paths.length > 0
+    ? [...new Set(paths)]
+    : DEFAULT_MAINTENANCE_ALLOWED_PATHS;
+};
+
+const toContactUrl = (value: unknown): string | null => {
+  const url = toNullableString(value);
+  if (!url) {
+    return null;
+  }
+
+  if (
+    url.startsWith('https://') ||
+    url.startsWith('mailto:') ||
+    isSafeRelativePath(url)
+  ) {
+    return url;
+  }
+
+  return null;
+};
+
 const envPremiumMode = (): PremiumMode =>
   toPremiumMode(process.env.PREMIUM_MODE || process.env.APP_PREMIUM_MODE);
 
@@ -65,6 +143,14 @@ export const defaultAppSettings = (): AppSettings => ({
   stripeCheckoutEnabled: false,
   trialDays: 7,
   allowPromotionCodes: true,
+  maintenanceMode: {
+    enabled: false,
+    title: DEFAULT_MAINTENANCE_TITLE,
+    message: DEFAULT_MAINTENANCE_MESSAGE,
+    eta: null,
+    contactUrl: null,
+    allowedPaths: DEFAULT_MAINTENANCE_ALLOWED_PATHS,
+  },
 });
 
 const normalizeAppSettings = (
@@ -91,6 +177,20 @@ const normalizeAppSettings = (
       record.allow_promotion_codes,
       defaults.allowPromotionCodes,
     ),
+    maintenanceMode: {
+      enabled: toBoolean(record.maintenance_mode_enabled, false),
+      title: toTrimmedString(
+        record.maintenance_title,
+        DEFAULT_MAINTENANCE_TITLE,
+      ),
+      message: toTrimmedString(
+        record.maintenance_message,
+        DEFAULT_MAINTENANCE_MESSAGE,
+      ),
+      eta: toNullableIsoDate(record.maintenance_eta),
+      contactUrl: toContactUrl(record.maintenance_contact_url),
+      allowedPaths: toAllowedPaths(record.maintenance_allowed_paths),
+    },
   };
 };
 
@@ -108,3 +208,11 @@ export const getAppSettings = async (): Promise<AppSettings> => {
 
 export const getPremiumMode = async (): Promise<PremiumMode> =>
   (await getAppSettings()).premiumMode;
+
+export const isPaidPremiumEnabled = (settings: AppSettings): boolean =>
+  settings.premiumMode === 'paid' && settings.stripeCheckoutEnabled;
+
+export const premiumAccessPolicy = (
+  settings: Pick<AppSettings, 'premiumMode'>,
+): 'open_access' | 'paid_enforced' =>
+  settings.premiumMode === 'paid' ? 'paid_enforced' : 'open_access';

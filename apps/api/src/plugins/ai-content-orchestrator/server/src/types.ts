@@ -50,6 +50,10 @@ export type WorkflowRecord = {
   allow_manual_edit?: boolean;
   auto_publish?: boolean;
   force_regenerate?: boolean;
+  strategy_enabled?: boolean;
+  performance_feedback_enabled?: boolean;
+  content_cluster?: string | null;
+  auto_publish_guardrails?: Record<string, unknown> | null;
   topic_mode?: 'manual' | 'mixed';
   horoscope_period?: HoroscopePeriod;
   horoscope_type_values?: string[] | null;
@@ -85,12 +89,153 @@ export type TopicQueueItemRecord = {
   processed_at?: string | null;
   error_message?: string | null;
   metadata?: Record<string, unknown> | null;
+  seo_intent?: string | null;
+  target_persona?: string | null;
+  priority_score?: number | null;
   workflow?: number | { id: number } | null;
   article_category?: number | { id: number } | null;
   generated_article?: number | { id: number } | null;
+  plan_item?: number | { id: number } | null;
   createdAt?: string;
   updatedAt?: string;
 };
+
+export type ContentPlanStatus =
+  | 'planned'
+  | 'approved'
+  | 'queued'
+  | 'published'
+  | 'rejected'
+  | 'failed';
+
+export type ContentPlanItemRecord = {
+  id: number;
+  title: string;
+  brief?: string | null;
+  seo_intent?: string | null;
+  seo_cluster?: string | null;
+  priority_score?: number | null;
+  target_persona?: string | null;
+  target_publish_at?: string | null;
+  status: ContentPlanStatus;
+  channels?: SocialPlatform[] | null;
+  agent_rationale?: string | null;
+  source?: 'strategy_agent' | 'manual' | 'performance_feedback' | null;
+  dedupe_key?: string | null;
+  metadata?: Record<string, unknown> | null;
+  workflow?: number | { id: number } | null;
+  article_category?: number | { id: number } | null;
+  generated_topic?: number | { id: number } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ContentPerformanceSnapshotRecord = {
+  id: number;
+  unique_key: string;
+  snapshot_day: string;
+  content_uid: string;
+  content_entry_id: number;
+  content_slug?: string | null;
+  content_title?: string | null;
+  views?: number;
+  premium_events?: number;
+  cta_clicks?: number;
+  checkout_events?: number;
+  social_published?: number;
+  social_failed?: number;
+  freshness_days?: number;
+  score?: number;
+  recommendations?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+  workflow?: number | { id: number } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type EditorialMemoryRecord = {
+  id: number;
+  key: string;
+  label: string;
+  memory_type:
+    | 'brand_voice'
+    | 'seo_rule'
+    | 'persona'
+    | 'prohibited_phrase'
+    | 'linking_rule'
+    | 'custom';
+  content: string;
+  active?: boolean;
+  priority?: number;
+  metadata?: Record<string, unknown> | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type HomepageRecommendationRecord = {
+  id: number;
+  slot: 'today_in_stars' | 'weekly_focus' | 'recommended_for_you' | 'new_premium' | 'evergreen';
+  title: string;
+  subtitle?: string | null;
+  target_url?: string | null;
+  content_uid?: string | null;
+  content_entry_id?: number | null;
+  content_slug?: string | null;
+  priority_score?: number | null;
+  starts_at?: string | null;
+  expires_at?: string | null;
+  status: 'scheduled' | 'active' | 'expired' | 'archived';
+  rationale?: string | null;
+  metadata?: Record<string, unknown> | null;
+  workflow?: number | { id: number } | null;
+  source_snapshot?: number | { id: number } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type AuditEventRecord = {
+  id: number;
+  event_key: string;
+  action: string;
+  outcome: 'success' | 'failure' | 'skipped';
+  severity?: 'info' | 'warn' | 'error';
+  occurred_at: string;
+  actor_type?: 'admin' | 'system' | 'unknown';
+  actor_id?: string | null;
+  resource_uid?: string | null;
+  resource_id?: string | null;
+  resource_label?: string | null;
+  request_id?: string | null;
+  ip_hash?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type RuntimeLockRecord = {
+  id: number;
+  lock_key: string;
+  owner_id: string;
+  status: 'active' | 'released';
+  acquired_at: string;
+  expires_at: string;
+  released_at?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type PublicHomepageRecommendation = Pick<
+  HomepageRecommendationRecord,
+  | 'slot'
+  | 'title'
+  | 'subtitle'
+  | 'target_url'
+  | 'content_slug'
+  | 'priority_score'
+  | 'starts_at'
+  | 'expires_at'
+>;
 
 export type MediaPurpose =
   | 'horoscope_sign'
@@ -240,6 +385,8 @@ export type LlmTraceMessage = {
 };
 
 export type OpenRouterTrace = {
+  redacted?: boolean;
+  redactionReason?: string;
   request: {
     model: string;
     temperature: number;
@@ -323,6 +470,10 @@ export type NormalizedWorkflowConfig = {
   allowManualEdit: boolean;
   autoPublish: boolean;
   forceRegenerate: boolean;
+  strategyEnabled: boolean;
+  performanceFeedbackEnabled: boolean;
+  contentCluster?: string | null;
+  autoPublishGuardrails: Record<string, unknown>;
   topicMode: 'manual' | 'mixed';
   horoscopePeriod: HoroscopePeriod;
   horoscopeTypeValues: string[];
@@ -386,6 +537,10 @@ export type WorkflowUpdatePayload = Partial<
     | 'allow_manual_edit'
     | 'auto_publish'
     | 'force_regenerate'
+    | 'strategy_enabled'
+    | 'performance_feedback_enabled'
+    | 'content_cluster'
+    | 'auto_publish_guardrails'
     | 'topic_mode'
     | 'horoscope_period'
     | 'horoscope_type_values'

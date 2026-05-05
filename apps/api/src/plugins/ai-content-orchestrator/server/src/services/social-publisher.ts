@@ -10,7 +10,17 @@ import {
 import type { SocialPlatform, SocialPostTicketRecord, Strapi, WorkflowRecord } from '../types';
 import { toSafeErrorMessage } from '../utils/json';
 import { getAicoPromptTemplate, renderAicoPromptTemplate } from '../utils/aico-contract';
+import {
+  redactProviderPayload,
+  sanitizeSocialTicketForAdmin,
+} from '../utils/diagnostic-redaction';
 import { getPluginService } from '../utils/plugin';
+import {
+  evaluatePolishContentQuality,
+  formatPolishContentQualityIssues,
+  POLISH_STYLE_REPAIR_MAX_ATTEMPTS,
+} from '../utils/polish-content-quality';
+import { getEntityService } from '../utils/entity-service';
 
 const GRAPH_API_BASE = 'https://graph.facebook.com/v19.0';
 const X_UPLOAD_MEDIA_URL = 'https://upload.twitter.com/1.1/media/upload.json';
@@ -19,6 +29,36 @@ const X_VERIFY_URL = 'https://api.twitter.com/1.1/account/verify_credentials.jso
 const DEFAULT_SOCIAL_IMAGE_URL =
   process.env.AICO_SOCIAL_DEFAULT_IMAGE_URL || 'https://star-sign.app/assets/og-default.jpg';
 const MAX_TICKET_BATCH = 50;
+const DEFAULT_AUTONOMOUS_MAX_POSTS_PER_RUN = 12;
+const DEFAULT_PLATFORM_DAILY_CAPS: Record<SocialPlatform, number> = {
+  facebook: 8,
+  instagram: 4,
+  twitter: 24,
+  tiktok: 0,
+};
+const DEFAULT_PLATFORM_COOLDOWN_MINUTES: Record<SocialPlatform, number> = {
+  facebook: 90,
+  instagram: 180,
+  twitter: 20,
+  tiktok: 0,
+};
+const DEFAULT_CONTENT_SAFETY_BLOCKED_PHRASES = [
+  'gwarantowany zysk',
+  'pewna wygrana',
+  'diagnoza medyczna',
+  'porada medyczna',
+  'zrezygnuj z leczenia',
+  'natychmiast kup',
+];
+const DEFAULT_CAPTION_LIMITS: Record<SocialPlatform, number> = {
+  facebook: 2200,
+  instagram: 2200,
+  twitter: 280,
+  tiktok: 0,
+};
+const DEFAULT_RUNTIME_SOCIAL_CHANNELS = SOCIAL_CHANNELS.filter(
+  (channel) => channel !== 'tiktok'
+) as SocialPlatform[];
 
 type OpenRouterService = {
   requestJson: (input: {
@@ -59,6 +99,34 @@ type ChannelStatus = {
   details?: Record<string, unknown>;
 };
 
+type AutonomousPublishPolicy = {
+  maxPostsPerRun: number;
+  maxPostsPerPlatformPerDay: Record<SocialPlatform, number>;
+  cooldownMinutes: Record<SocialPlatform, number>;
+};
+
+type ContentSafetyPolicy = {
+  enabled: boolean;
+  blockedPhrases: string[];
+  requireTargetUrl: boolean;
+  maxCaptionLengthByPlatform: Record<SocialPlatform, number>;
+};
+
+type AutonomousPublishRunState = {
+  publishAttempts: number;
+  publishedByPlatform: Map<SocialPlatform, number>;
+  lastPublishedAtByPlatform: Map<SocialPlatform, Date>;
+};
+
+type AutonomousPublishDecision =
+  | { allowed: true; policy: AutonomousPublishPolicy }
+  | {
+      allowed: false;
+      reason: string;
+      nextAttemptAt: Date;
+      policy: AutonomousPublishPolicy;
+    };
+
 class PublishGuardrailError extends Error {
   readonly classification: PublishClassification;
 
@@ -70,6 +138,24 @@ class PublishGuardrailError extends Error {
 }
 
 const PLATFORM_SET = new Set<SocialPlatform>(SOCIAL_CHANNELS);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const readPositiveInteger = (
+  value: unknown,
+  fallback: number,
+  options: { min?: number; max?: number } = {}
+): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  const min = options.min ?? 0;
+  const max = options.max ?? Number.MAX_SAFE_INTEGER;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+};
 
 const normalizePlatform = (value: unknown): SocialPlatform | null => {
   const candidate = String(value ?? '')
@@ -86,18 +172,6 @@ const getWorkflowId = (workflow: SocialPostTicketRecord['workflow']): number | n
 
   if (workflow && typeof workflow === 'object' && typeof workflow.id === 'number') {
     return workflow.id;
-  }
-
-  return null;
-};
-
-const getRunId = (run: SocialPostTicketRecord['source_run']): number | null => {
-  if (typeof run === 'number') {
-    return run;
-  }
-
-  if (run && typeof run === 'object' && typeof run.id === 'number') {
-    return run.id;
   }
 
   return null;
@@ -213,14 +287,173 @@ const composeCaptionForPlatform = (
 
 const normalizeChannels = (value: unknown): SocialPlatform[] => {
   if (!Array.isArray(value)) {
-    return [...SOCIAL_CHANNELS];
+    return [...DEFAULT_RUNTIME_SOCIAL_CHANNELS];
   }
 
   const channels = value
     .map((item) => normalizePlatform(item))
     .filter((item): item is SocialPlatform => item !== null);
 
-  return channels.length > 0 ? Array.from(new Set(channels)) : [...SOCIAL_CHANNELS];
+  return channels.length > 0 ? Array.from(new Set(channels)) : [...DEFAULT_RUNTIME_SOCIAL_CHANNELS];
+};
+
+const readPlatformNumberMap = (
+  value: unknown,
+  defaults: Record<SocialPlatform, number>,
+  options: { min?: number; max?: number } = {}
+): Record<SocialPlatform, number> => {
+  if (!isRecord(value)) {
+    return { ...defaults };
+  }
+
+  return SOCIAL_CHANNELS.reduce(
+    (acc, platform) => ({
+      ...acc,
+      [platform]: readPositiveInteger(value[platform], defaults[platform], options),
+    }),
+    {} as Record<SocialPlatform, number>
+  );
+};
+
+const readBoolean = (value: unknown, fallback: boolean): boolean =>
+  typeof value === 'boolean' ? value : fallback;
+
+const readStringList = (value: unknown): string[] => {
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => String(item ?? '').trim())
+    .filter(Boolean);
+};
+
+const resolveAutonomousPublishPolicy = (workflow: WorkflowRecord): AutonomousPublishPolicy => {
+  const rawGuardrails = isRecord(workflow.auto_publish_guardrails)
+    ? workflow.auto_publish_guardrails
+    : {};
+  const socialGuardrails = isRecord(rawGuardrails.social)
+    ? (rawGuardrails.social as Record<string, unknown>)
+    : rawGuardrails;
+  const envMaxPostsPerRun = process.env.AICO_SOCIAL_MAX_POSTS_PER_RUN;
+  const maxPostsPerRunSource =
+    socialGuardrails.maxPostsPerRun ??
+    socialGuardrails.max_posts_per_run ??
+    envMaxPostsPerRun;
+
+  return {
+    maxPostsPerRun: readPositiveInteger(
+      maxPostsPerRunSource,
+      DEFAULT_AUTONOMOUS_MAX_POSTS_PER_RUN,
+      {
+        min: 1,
+        max: MAX_TICKET_BATCH,
+      }
+    ),
+    maxPostsPerPlatformPerDay: readPlatformNumberMap(
+      socialGuardrails.maxPostsPerPlatformPerDay ??
+        socialGuardrails.max_posts_per_platform_per_day,
+      DEFAULT_PLATFORM_DAILY_CAPS,
+      { min: 0, max: 96 }
+    ),
+    cooldownMinutes: readPlatformNumberMap(
+      socialGuardrails.cooldownMinutes ??
+        socialGuardrails.cooldown_minutes ??
+        socialGuardrails.minMinutesBetweenPosts ??
+        socialGuardrails.min_minutes_between_posts,
+      DEFAULT_PLATFORM_COOLDOWN_MINUTES,
+      { min: 0, max: 24 * 60 }
+    ),
+  };
+};
+
+const normalizeForContentSafety = (value: string): string =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const resolveContentSafetyPolicy = (workflow: WorkflowRecord): ContentSafetyPolicy => {
+  const rawGuardrails = isRecord(workflow.auto_publish_guardrails)
+    ? workflow.auto_publish_guardrails
+    : {};
+  const socialGuardrails = isRecord(rawGuardrails.social)
+    ? (rawGuardrails.social as Record<string, unknown>)
+    : rawGuardrails;
+  const safetyGuardrails = isRecord(socialGuardrails.contentSafety)
+    ? (socialGuardrails.contentSafety as Record<string, unknown>)
+    : isRecord(socialGuardrails.content_safety)
+      ? (socialGuardrails.content_safety as Record<string, unknown>)
+      : {};
+  const envBlocked = readStringList(process.env.AICO_SOCIAL_BLOCKED_PHRASES);
+  const configuredBlocked = [
+    ...readStringList(safetyGuardrails.blockedPhrases),
+    ...readStringList(safetyGuardrails.blocked_phrases),
+  ];
+
+  return {
+    enabled:
+      process.env.AICO_SOCIAL_CONTENT_SAFETY_DISABLED !== 'true' &&
+      readBoolean(safetyGuardrails.enabled, true),
+    blockedPhrases: Array.from(
+      new Set([...DEFAULT_CONTENT_SAFETY_BLOCKED_PHRASES, ...configuredBlocked, ...envBlocked])
+    ),
+    requireTargetUrl: readBoolean(
+      safetyGuardrails.requireTargetUrl ?? safetyGuardrails.require_target_url,
+      false
+    ),
+    maxCaptionLengthByPlatform: readPlatformNumberMap(
+      safetyGuardrails.maxCaptionLengthByPlatform ??
+        safetyGuardrails.max_caption_length_by_platform,
+      DEFAULT_CAPTION_LIMITS,
+      { min: 0, max: 5000 }
+    ),
+  };
+};
+
+const phraseHash = (phrase: string): string =>
+  createHash('sha256').update(normalizeForContentSafety(phrase)).digest('hex').slice(0, 16);
+
+const getNextUtcDayAttempt = (now: Date): Date =>
+  new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 15, 0, 0)
+  );
+
+const getLaterDate = (first: Date | null, second: Date | null): Date | null => {
+  if (!first) {
+    return second;
+  }
+
+  if (!second) {
+    return first;
+  }
+
+  return first.getTime() > second.getTime() ? first : second;
+};
+
+const buildCaptionVariants = (
+  platform: SocialPlatform,
+  caption: string,
+  link?: string | null
+): string[] => {
+  const variants = [
+    composeCaptionForPlatform(platform, caption, link),
+    composeCaptionForPlatform(platform, `${caption}\n\nSprawdź, co to znaczy dla Ciebie.`, link),
+    composeCaptionForPlatform(platform, `${caption}\n\nZapisz ten temat na później.`, link),
+  ]
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(variants)).slice(0, 3);
 };
 
 const buildIdempotencyKey = (input: {
@@ -405,7 +638,7 @@ const normalizeTeaserPayload = (
 };
 
 const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
-  const entityService = strapi.entityService as any;
+  const entityService = getEntityService(strapi);
 
   const workflowService = (): WorkflowService =>
     getPluginService<WorkflowService>(strapi, 'workflows');
@@ -413,6 +646,64 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
     getPluginService<OpenRouterService>(strapi, 'open-router');
 
   return {
+    async ensureSocialCaptionPolishQuality(input: {
+      caption: string;
+      platform: SocialPlatform;
+      workflow: WorkflowRecord;
+      apiToken: string | null;
+      model: string;
+    }): Promise<{ caption: string; repaired: boolean }> {
+      const schemaDescription = '{"caption":"string"}';
+      let currentPayload = { caption: input.caption };
+      let report = evaluatePolishContentQuality({
+        kind: 'social_teaser',
+        payload: currentPayload,
+      });
+
+      if (report.valid) {
+        return { caption: input.caption, repaired: false };
+      }
+
+      let lastIssueSummary = formatPolishContentQualityIssues(report.issues);
+
+      if (!input.apiToken) {
+        throw new Error(`quality_failed_polish_style social_teaser (${lastIssueSummary})`);
+      }
+
+      for (let attempt = 1; attempt <= POLISH_STYLE_REPAIR_MAX_ATTEMPTS; attempt += 1) {
+        const prompt = renderAicoPromptTemplate(getAicoPromptTemplate('polishStyleRepair'), {
+          payloadKind: 'social_teaser',
+          schemaDescription,
+          payloadJson: JSON.stringify(currentPayload),
+          qualityIssues: lastIssueSummary,
+        });
+        const response = await llmService().requestJson({
+          model: input.model,
+          apiToken: input.apiToken,
+          prompt,
+          schemaDescription,
+          temperature: 0.25,
+          maxCompletionTokens: 400,
+        });
+        const payload = isRecord(response.payload) ? response.payload : {};
+        const caption = String(payload.caption ?? '').trim();
+
+        currentPayload = { caption };
+        report = evaluatePolishContentQuality({
+          kind: 'social_teaser',
+          payload: currentPayload,
+        });
+
+        if (caption && report.valid) {
+          return { caption, repaired: true };
+        }
+
+        lastIssueSummary = formatPolishContentQualityIssues(report.issues);
+      }
+
+      throw new Error(`quality_failed_polish_style social_teaser (${lastIssueSummary})`);
+    },
+
     async generateTeaser(input: {
       workflowId: number;
       runId: number;
@@ -437,9 +728,10 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
       }
 
       let teaserPayload: unknown = null;
+      let apiToken: string | null = null;
 
       try {
-        const apiToken = await workflowService().decryptTokenForRuntime(workflow);
+        apiToken = await workflowService().decryptTokenForRuntime(workflow);
         const prompt = renderAicoPromptTemplate(getAicoPromptTemplate('socialTeaser'), {
           channels: channels.join(', '),
           contentTitle: input.contentTitle,
@@ -490,22 +782,51 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
           continue;
         }
 
-        const caption = composeCaptionForPlatform(teaser.platform, teaser.caption, input.targetUrl);
+        let baseCaption = teaser.caption;
+        let polishQualityRepaired = false;
+
+        try {
+          const polishQualityResult = await this.ensureSocialCaptionPolishQuality({
+            caption: teaser.caption,
+            platform: teaser.platform,
+            workflow,
+            apiToken,
+            model: normalized.llmModel,
+          });
+          baseCaption = polishQualityResult.caption;
+          polishQualityRepaired = polishQualityResult.repaired;
+        } catch (error) {
+          skipped += 1;
+          strapi.log.warn(
+            `[aico] Skipped social teaser for workflow #${workflow.id} on ${teaser.platform}: ${toSafeErrorMessage(error)}`
+          );
+          continue;
+        }
+
+        const captionVariants = buildCaptionVariants(teaser.platform, baseCaption, input.targetUrl);
+        const selected = await this.selectCaptionVariant(teaser.platform, captionVariants);
+        const isTiktokDraft = teaser.platform === 'tiktok';
 
         await entityService.create(SOCIAL_POST_TICKET_UID, {
           data: {
             platform: teaser.platform,
-            status: 'scheduled',
-            caption,
+            status: isTiktokDraft ? 'pending' : 'scheduled',
+            caption: selected.caption,
             media_url: input.mediaUrl || null,
             target_url: input.targetUrl || null,
             scheduled_at: input.publishAt,
             attempt_count: 0,
             idempotency_key: idempotencyKey,
-            provider_payload: {
+            blocked_reason: isTiktokDraft ? 'draft_only' : null,
+            provider_payload: redactProviderPayload({
               channel: teaser.platform,
               source: 'editorial-teaser',
-            },
+              draftOnly: isTiktokDraft,
+              variantCount: captionVariants.length,
+              selectedVariantIndex: selected.index,
+              selectionReason: selected.reason,
+              polishQualityRepaired,
+            }),
             workflow: input.workflowId,
             source_run: input.runId,
             related_content_uid: input.contentUid,
@@ -519,11 +840,204 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
       return { created, skipped, channels };
     },
 
+    async selectCaptionVariant(
+      platform: SocialPlatform,
+      variants: string[]
+    ): Promise<{ caption: string; index: number; reason: string }> {
+      const safeVariants = variants.length > 0 ? variants : [''];
+      const published = (await entityService.findMany(SOCIAL_POST_TICKET_UID, {
+        filters: {
+          platform,
+          status: 'published',
+        },
+        fields: ['caption'],
+        sort: { published_on: 'desc' },
+        limit: 30,
+      })) as Array<{ caption?: string | null }>;
+
+      const targetLength =
+        published.length > 0
+          ? published.reduce((sum, item) => sum + String(item.caption ?? '').length, 0) /
+            published.length
+          : safeVariants[0].length;
+
+      let bestIndex = 0;
+      let bestScore = Number.POSITIVE_INFINITY;
+
+      safeVariants.forEach((variant, index) => {
+        const score = Math.abs(variant.length - targetLength) + index * 2;
+        if (score < bestScore) {
+          bestScore = score;
+          bestIndex = index;
+        }
+      });
+
+      return {
+        caption: safeVariants[bestIndex],
+        index: bestIndex,
+        reason:
+          published.length > 0
+            ? 'selected_by_published_caption_length_history'
+            : 'selected_default_variant',
+      };
+    },
+
+    getAutonomousPublishPolicy(workflow: WorkflowRecord): AutonomousPublishPolicy {
+      return resolveAutonomousPublishPolicy(workflow);
+    },
+
+    getContentSafetyPolicy(workflow: WorkflowRecord): ContentSafetyPolicy {
+      return resolveContentSafetyPolicy(workflow);
+    },
+
+    async getPlatformPublishStats(
+      platform: SocialPlatform,
+      now: Date,
+      dailyLimit: number
+    ): Promise<{ publishedToday: number; lastPublishedAt: Date | null }> {
+      const dayStart = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)
+      );
+      const publishedTodayRows = (await entityService.findMany(SOCIAL_POST_TICKET_UID, {
+        filters: {
+          platform,
+          status: 'published',
+          published_on: {
+            $gte: dayStart.toISOString(),
+            $lte: now.toISOString(),
+          },
+        },
+        fields: ['id'],
+        limit: Math.max(1, dailyLimit + 1),
+      })) as Array<{ id: number }>;
+      const lastPublishedRows = (await entityService.findMany(SOCIAL_POST_TICKET_UID, {
+        filters: {
+          platform,
+          status: 'published',
+        },
+        fields: ['published_on'],
+        sort: [{ published_on: 'desc' }, { id: 'desc' }],
+        limit: 1,
+      })) as Array<{ published_on?: string | null }>;
+      const lastPublishedRaw = lastPublishedRows[0]?.published_on;
+      const lastPublishedAt = lastPublishedRaw ? new Date(lastPublishedRaw) : null;
+
+      return {
+        publishedToday: publishedTodayRows.length,
+        lastPublishedAt:
+          lastPublishedAt && Number.isFinite(lastPublishedAt.getTime()) ? lastPublishedAt : null,
+      };
+    },
+
+    async evaluateAutonomousPublishDecision(input: {
+      ticket: SocialPostTicketRecord;
+      workflow: WorkflowRecord;
+      platform: SocialPlatform;
+      now: Date;
+      runState: AutonomousPublishRunState;
+    }): Promise<AutonomousPublishDecision> {
+      const policy = this.getAutonomousPublishPolicy(input.workflow);
+
+      if (input.workflow.enabled === false) {
+        return {
+          allowed: false,
+          reason: 'workflow_disabled',
+          nextAttemptAt: getNextUtcDayAttempt(input.now),
+          policy,
+        };
+      }
+
+      if (input.workflow.auto_publish === false) {
+        return {
+          allowed: false,
+          reason: 'workflow_auto_publish_disabled',
+          nextAttemptAt: getNextUtcDayAttempt(input.now),
+          policy,
+        };
+      }
+
+      if (input.runState.publishAttempts >= policy.maxPostsPerRun) {
+        return {
+          allowed: false,
+          reason: 'autonomous_run_cap',
+          nextAttemptAt: new Date(input.now.getTime() + 15 * 60 * 1000),
+          policy,
+        };
+      }
+
+      const dailyLimit = policy.maxPostsPerPlatformPerDay[input.platform];
+      if (dailyLimit <= 0) {
+        return {
+          allowed: false,
+          reason: 'autonomous_daily_cap',
+          nextAttemptAt: getNextUtcDayAttempt(input.now),
+          policy,
+        };
+      }
+
+      const stats = await this.getPlatformPublishStats(input.platform, input.now, dailyLimit);
+      const publishedInRun = input.runState.publishedByPlatform.get(input.platform) ?? 0;
+      if (stats.publishedToday + publishedInRun >= dailyLimit) {
+        return {
+          allowed: false,
+          reason: 'autonomous_daily_cap',
+          nextAttemptAt: getNextUtcDayAttempt(input.now),
+          policy,
+        };
+      }
+
+      const lastPublishedAt = getLaterDate(
+        stats.lastPublishedAt,
+        input.runState.lastPublishedAtByPlatform.get(input.platform) ?? null
+      );
+      const cooldownMinutes = policy.cooldownMinutes[input.platform];
+      if (lastPublishedAt && cooldownMinutes > 0) {
+        const nextAllowedAt = new Date(lastPublishedAt.getTime() + cooldownMinutes * 60 * 1000);
+        if (nextAllowedAt.getTime() > input.now.getTime()) {
+          return {
+            allowed: false,
+            reason: 'autonomous_cooldown',
+            nextAttemptAt: nextAllowedAt,
+            policy,
+          };
+        }
+      }
+
+      return { allowed: true, policy };
+    },
+
+    async rescheduleByAutonomousAgent(input: {
+      ticket: SocialPostTicketRecord;
+      decision: Exclude<AutonomousPublishDecision, { allowed: true }>;
+      now: Date;
+    }): Promise<void> {
+      await entityService.update(SOCIAL_POST_TICKET_UID, input.ticket.id, {
+        data: {
+          status: 'scheduled',
+          next_attempt_at: input.decision.nextAttemptAt,
+          blocked_reason: input.decision.reason,
+          provider_payload: redactProviderPayload({
+            ...(input.ticket.provider_payload ?? {}),
+            autonomousAgent: {
+              decision: 'rescheduled',
+              reason: input.decision.reason,
+              decidedAt: input.now.toISOString(),
+              nextAttemptAt: input.decision.nextAttemptAt.toISOString(),
+              policy: input.decision.policy,
+            },
+          }),
+        },
+      });
+    },
+
     async publishPending(
       now: Date
     ): Promise<{ processed: number; published: number; failed: number; rescheduled: number }> {
       const tickets = (await entityService.findMany(SOCIAL_POST_TICKET_UID, {
         filters: {
+          platform: {
+            $ne: 'tiktok',
+          },
           status: {
             $in: ['scheduled', 'pending'],
           },
@@ -543,11 +1057,47 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
       let published = 0;
       let failed = 0;
       let rescheduled = 0;
+      const runState: AutonomousPublishRunState = {
+        publishAttempts: 0,
+        publishedByPlatform: new Map(),
+        lastPublishedAtByPlatform: new Map(),
+      };
 
       for (const ticket of tickets) {
-        const outcome = await this.publishTicket(ticket, now);
+        const workflow = await this.resolveTicketWorkflow(ticket);
+        const platform = normalizePlatform(ticket.platform);
+
+        if (workflow && platform) {
+          const decision = await this.evaluateAutonomousPublishDecision({
+            ticket,
+            workflow,
+            platform,
+            now,
+            runState,
+          });
+
+          if (decision.allowed === false) {
+            await this.rescheduleByAutonomousAgent({
+              ticket,
+              decision,
+              now,
+            });
+            rescheduled += 1;
+            continue;
+          }
+        }
+
+        runState.publishAttempts += 1;
+        const outcome = await this.publishTicket(ticket, now, workflow ?? undefined);
         if (outcome === 'published') {
           published += 1;
+          if (platform) {
+            runState.publishedByPlatform.set(
+              platform,
+              (runState.publishedByPlatform.get(platform) ?? 0) + 1
+            );
+            runState.lastPublishedAtByPlatform.set(platform, now);
+          }
         } else if (outcome === 'rescheduled') {
           rescheduled += 1;
         } else {
@@ -588,13 +1138,15 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
       const limit = Math.max(1, Math.min(200, Number(input?.limit ?? 50)));
       const start = (page - 1) * limit;
 
-      return (await entityService.findMany(SOCIAL_POST_TICKET_UID, {
+      const tickets = (await entityService.findMany(SOCIAL_POST_TICKET_UID, {
         filters,
         sort: [{ scheduled_at: 'desc' }, { id: 'desc' }],
         populate: ['workflow', 'source_run'],
         start,
         limit,
       })) as SocialPostTicketRecord[];
+
+      return tickets.map((ticket) => sanitizeSocialTicketForAdmin(ticket));
     },
 
     async retryTicket(id: number): Promise<SocialPostTicketRecord> {
@@ -620,7 +1172,7 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
         populate: ['workflow', 'source_run'],
       })) as SocialPostTicketRecord;
 
-      return updated;
+      return sanitizeSocialTicketForAdmin(updated);
     },
 
     async cancelTicket(id: number): Promise<SocialPostTicketRecord> {
@@ -645,7 +1197,7 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
         populate: ['workflow', 'source_run'],
       })) as SocialPostTicketRecord;
 
-      return updated;
+      return sanitizeSocialTicketForAdmin(updated);
     },
 
     async testConnection(input: { workflowId: number; channels?: unknown }): Promise<{
@@ -717,6 +1269,12 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
               targetUrl,
               enabledChannels: normalizeChannels(workflow.enabled_channels),
             });
+            this.assertContentSafety({
+              platform: channel,
+              caption: renderedCaption,
+              targetUrl,
+              workflow,
+            });
           } catch (error) {
             const message = toSafeErrorMessage(error);
             channelResults.push({
@@ -752,9 +1310,10 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
 
     async publishTicket(
       ticket: SocialPostTicketRecord,
-      now: Date
+      now: Date,
+      resolvedWorkflow?: WorkflowRecord
     ): Promise<'published' | 'failed' | 'rescheduled'> {
-      const workflow = await this.resolveTicketWorkflow(ticket);
+      const workflow = resolvedWorkflow ?? (await this.resolveTicketWorkflow(ticket));
       const attemptCount = Math.max(0, Number(ticket.attempt_count ?? 0)) + 1;
 
       try {
@@ -788,6 +1347,12 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
           targetUrl: ticket.target_url || undefined,
           enabledChannels,
         });
+        this.assertContentSafety({
+          platform,
+          caption,
+          targetUrl: ticket.target_url || undefined,
+          workflow,
+        });
 
         const publishResult = await this.publishToProvider({
           platform,
@@ -807,7 +1372,7 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
             blocked_reason: null,
             media_url: mediaUrl,
             provider_post_id: publishResult.providerPostId || null,
-            provider_payload: publishResult.providerPayload || null,
+            provider_payload: redactProviderPayload(publishResult.providerPayload),
           },
         });
 
@@ -832,7 +1397,7 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
               next_attempt_at: nextAttemptAt,
               last_error: toSafeErrorMessage(error),
               blocked_reason: null,
-              provider_payload: classification.providerPayload || null,
+              provider_payload: redactProviderPayload(classification.providerPayload),
             },
           });
 
@@ -846,7 +1411,7 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
             next_attempt_at: null,
             last_error: toSafeErrorMessage(error),
             blocked_reason: classification.blockedReason || 'publish_failed',
-            provider_payload: classification.providerPayload || null,
+            provider_payload: redactProviderPayload(classification.providerPayload),
           },
         });
 
@@ -868,10 +1433,10 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
             retryable: true,
             blockedReason: 'rate_limited',
             retryAfterSeconds: parseRetryAfterSeconds(headers, now),
-            providerPayload: {
+            providerPayload: redactProviderPayload({
               status,
               data: error.response?.data,
-            },
+            }) ?? undefined,
           };
         }
 
@@ -879,20 +1444,20 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
           return {
             retryable: true,
             blockedReason: 'provider_unavailable',
-            providerPayload: {
+            providerPayload: redactProviderPayload({
               status,
               data: error.response?.data,
-            },
+            }) ?? undefined,
           };
         }
 
         return {
           retryable: false,
           blockedReason: 'provider_rejected',
-          providerPayload: {
+          providerPayload: redactProviderPayload({
             status,
             data: error.response?.data,
-          },
+          }) ?? undefined,
         };
       }
 
@@ -946,6 +1511,13 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
         });
       }
 
+      if (input.platform === 'tiktok') {
+        throw new PublishGuardrailError('TikTok działa w V1 jako draft-only.', {
+          retryable: false,
+          blockedReason: 'tiktok_draft_only',
+        });
+      }
+
       if (!input.caption.trim()) {
         throw new PublishGuardrailError('Caption nie może być pusty.', {
           retryable: false,
@@ -978,6 +1550,67 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
         throw new PublishGuardrailError('Caption dla X przekracza limit 280 znaków.', {
           retryable: false,
           blockedReason: 'caption_too_long',
+        });
+      }
+    },
+
+    assertContentSafety(input: {
+      platform: SocialPlatform;
+      caption: string;
+      targetUrl?: string;
+      workflow: WorkflowRecord;
+    }): void {
+      const policy = this.getContentSafetyPolicy(input.workflow);
+
+      if (!policy.enabled) {
+        return;
+      }
+
+      if (policy.requireTargetUrl && !input.targetUrl?.trim()) {
+        throw new PublishGuardrailError('Content safety wymaga URL docelowego.', {
+          retryable: false,
+          blockedReason: 'content_safety_missing_target_url',
+          providerPayload: {
+            contentSafety: {
+              decision: 'blocked',
+              reason: 'missing_target_url',
+            },
+          },
+        });
+      }
+
+      const maxCaptionLength = policy.maxCaptionLengthByPlatform[input.platform];
+      if (maxCaptionLength > 0 && input.caption.length > maxCaptionLength) {
+        throw new PublishGuardrailError('Content safety zablokował zbyt długi caption.', {
+          retryable: false,
+          blockedReason: 'content_safety_caption_too_long',
+          providerPayload: {
+            contentSafety: {
+              decision: 'blocked',
+              reason: 'caption_too_long',
+              limit: maxCaptionLength,
+            },
+          },
+        });
+      }
+
+      const normalizedCaption = normalizeForContentSafety(input.caption);
+      const matchedPhrase = policy.blockedPhrases.find((phrase) => {
+        const normalizedPhrase = normalizeForContentSafety(phrase);
+        return normalizedPhrase && normalizedCaption.includes(normalizedPhrase);
+      });
+
+      if (matchedPhrase) {
+        throw new PublishGuardrailError('Content safety zablokował caption.', {
+          retryable: false,
+          blockedReason: 'content_safety_blocked_phrase',
+          providerPayload: {
+            contentSafety: {
+              decision: 'blocked',
+              reason: 'blocked_phrase',
+              phraseHash: phraseHash(matchedPhrase),
+            },
+          },
         });
       }
     },
@@ -1047,6 +1680,13 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
 
       if (input.platform === 'twitter') {
         return this.publishToX(input);
+      }
+
+      if (input.platform === 'tiktok') {
+        throw new PublishGuardrailError('TikTok działa w V1 jako draft-only.', {
+          retryable: false,
+          blockedReason: 'tiktok_draft_only',
+        });
       }
 
       throw new PublishGuardrailError(`Nieobsługiwana platforma: ${input.platform}`, {
@@ -1423,6 +2063,17 @@ const socialPublisher = ({ strapi }: { strapi: Strapi }) => {
             details: {
               userId: response.data?.id,
               username: response.data?.username,
+            },
+          };
+        }
+
+        if (platform === 'tiktok') {
+          return {
+            platform,
+            status: 'degraded',
+            message: 'TikTok jest dostępny jako draft-only; publikacja automatyczna jest wyłączona.',
+            details: {
+              draftOnly: true,
             },
           };
         }

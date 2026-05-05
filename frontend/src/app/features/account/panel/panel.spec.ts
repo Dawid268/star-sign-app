@@ -11,6 +11,11 @@ import { PLATFORM_ID } from '@angular/core';
 import { vi } from 'vitest';
 import { SeoService } from '../../../core/services/seo.service';
 import { AnalyticsService } from '../../../core/services/analytics.service';
+import {
+  AppSettingsService,
+  DEFAULT_PUBLIC_APP_SETTINGS,
+} from '../../../core/services/app-settings.service';
+import { PublicAppSettingsResponse } from '@star-sign-monorepo/shared-types';
 
 describe('AccountPanel', () => {
   let component: AccountPanel;
@@ -19,8 +24,17 @@ describe('AccountPanel', () => {
   let authService: any;
   let seoService: any;
   let analyticsService: any;
+  let appSettingsService: Pick<AppSettingsService, 'getPublicAppSettings'>;
   let routeSnapshot: { queryParamMap: ReturnType<typeof convertToParamMap> };
   let router: any;
+
+  const paidSettings: PublicAppSettingsResponse = {
+    ...DEFAULT_PUBLIC_APP_SETTINGS,
+    premiumMode: 'paid',
+    premiumAccessPolicy: 'paid_enforced',
+    stripeCheckoutEnabled: true,
+    paidPremiumEnabled: true,
+  };
 
   const mockDashboard = {
     subscription: {
@@ -87,6 +101,9 @@ describe('AccountPanel', () => {
       trackProductEvent: vi.fn(),
       trackPremiumSubscriptionConversion: vi.fn(),
     };
+    appSettingsService = {
+      getPublicAppSettings: vi.fn().mockReturnValue(of(paidSettings)),
+    };
     routeSnapshot = {
       queryParamMap: convertToParamMap({}),
     };
@@ -101,6 +118,7 @@ describe('AccountPanel', () => {
         { provide: AuthService, useValue: authService },
         { provide: SeoService, useValue: seoService },
         { provide: AnalyticsService, useValue: analyticsService },
+        { provide: AppSettingsService, useValue: appSettingsService },
         { provide: ActivatedRoute, useValue: { snapshot: routeSnapshot } },
         { provide: PLATFORM_ID, useValue: 'browser' },
       ],
@@ -139,6 +157,17 @@ describe('AccountPanel', () => {
     expect(component.profileForm.value.birthDate).toBe('1990-01-01');
   });
 
+  it('should explain open Premium access separately from paid subscription', () => {
+    component.appSettings.set(DEFAULT_PUBLIC_APP_SETTINGS);
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(text).toContain('Otwarty dostęp Premium');
+    expect(text).toContain('Status płatnej subskrypcji');
+    expect(text).toContain('Te przyciski nie uruchamiają Stripe w trybie open');
+  });
+
   it('should track Premium purchase after successful Stripe return', () => {
     analyticsService.trackProductEvent.mockClear();
     analyticsService.trackPremiumSubscriptionConversion.mockClear();
@@ -158,6 +187,8 @@ describe('AccountPanel', () => {
         value: 199,
         price: 199,
         checkout_type: 'premium',
+        premium_mode: 'paid',
+        access_state: 'paid',
         plan: 'annual',
         items: [
           expect.objectContaining({
@@ -179,6 +210,8 @@ describe('AccountPanel', () => {
         price: 199,
         plan: 'annual',
         status: 'active',
+        premium_mode: 'paid',
+        access_state: 'paid',
       }),
     );
   });
@@ -378,6 +411,17 @@ describe('AccountPanel', () => {
       'Nie udało się uruchomić płatności subskrypcji.',
     );
     expect(component.billingLoading()).toBe(false);
+  });
+
+  it('should not start subscription checkout while paid Premium is disabled', () => {
+    component.appSettings.set(DEFAULT_PUBLIC_APP_SETTINGS);
+
+    component.startSubscription('annual');
+
+    expect(accountService.startSubscriptionCheckout).not.toHaveBeenCalled();
+    expect(component.successMessage()).toBe(
+      'Premium jest obecnie otwarte. Płatności subskrypcyjne nie są uruchomione.',
+    );
   });
 
   it('should show portal error and reset billing loading', () => {

@@ -4,31 +4,39 @@
   data-test="cookie-banner"
 >
   <div
-    class="glass-panel max-h-[min(70vh,34rem)] w-full overflow-y-auto rounded-3xl border border-mystic-rose/20 bg-white/95 p-4 shadow-2xl backdrop-blur-xl sm:max-w-xl sm:p-5 md:max-w-2xl md:p-6"
+    class="glass-panel max-h-[34vh] w-full overflow-y-auto rounded-2xl border border-mystic-rose/20 bg-white/95 p-3 shadow-2xl backdrop-blur-xl sm:max-h-[20rem] sm:max-w-xl sm:rounded-3xl sm:p-5 md:max-h-[18rem] md:max-w-2xl md:p-6"
   >
     @if (!showSettings()) {
-    <div class="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
       <div class="min-w-0 flex-grow text-left">
-        <h3 class="serif-display text-lg sm:text-xl text-mystic-cocoa mb-2">
+        <h3 class="serif-display text-base sm:text-xl text-mystic-cocoa mb-1 sm:mb-2">
           Twoja prywatność w gwiazdach ✦
         </h3>
-        <p class="text-mystic-cocoa text-sm font-light leading-relaxed">
-          Używamy ciasteczek, aby personalizować horoskopy i analizować ruch na
-          stronie. Zgadzając się, pomagasz nam tworzyć jeszcze lepszy Star Sign.
+        <p class="text-mystic-cocoa text-xs font-light leading-snug sm:text-sm sm:leading-relaxed">
+          Używamy ciasteczek niezbędnych do działania konta i bezpieczeństwa.
+          Analityka i marketing są opcjonalne; możesz je zaakceptować, odrzucić
+          albo ustawić ręcznie.
         </p>
       </div>
-      <div class="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-3 sm:shrink-0">
+      <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-3 sm:shrink-0">
+        <button
+          (click)="declineAll()"
+          data-test="cookie-decline-button"
+          class="btn-outline w-full !py-2 !px-3 text-xs sm:w-auto sm:!py-3 sm:!px-6 sm:text-sm"
+        >
+          Odrzuć opcjonalne
+        </button>
         <button
           (click)="toggleSettings()"
           data-test="cookie-settings-button"
-          class="rounded-full border border-mystic-rose/15 px-4 py-2.5 text-xs font-medium uppercase tracking-widest text-mystic-cocoa transition-colors hover:text-mystic-rose sm:border-0 sm:py-3"
+          class="rounded-full border border-mystic-rose/15 px-3 py-2 text-xs font-medium uppercase tracking-widest text-mystic-cocoa transition-colors hover:text-mystic-rose sm:border-0 sm:px-4 sm:py-3"
         >
           Ustawienia
         </button>
         <button
           (click)="acceptAll()"
           data-test="cookie-accept-all-button"
-          class="btn-primary w-full !py-2.5 !px-5 text-sm sm:w-auto sm:!py-3 sm:!px-7"
+          class="btn-primary col-span-2 w-full !py-2 !px-3 text-xs sm:col-span-1 sm:w-auto sm:!py-3 sm:!px-7 sm:text-sm"
         >
           Zgadzam się na wszystko
         </button>
@@ -110,7 +118,7 @@
       <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end sm:gap-3">
         <button
           (click)="declineAll()"
-          data-test="cookie-decline-button"
+          data-test="cookie-settings-decline-button"
           class="btn-outline w-full !py-2.5 !px-5 text-sm sm:w-auto sm:!px-6"
         >
           Odrzuć opcjonalne
